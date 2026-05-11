@@ -4,6 +4,29 @@ let currentView = "dashboard";
 let filters = {};
 let pagination = {};
 let editorState = { module: null, id: null };
+let isSidebarHidden = false;
+const VIEW_LABELS = {
+  dashboard: "Dashboard",
+  motores: "Motores",
+  mantenimientos: "Mantenimientos",
+  fallas: "Fallas",
+  tecnicos: "Tecnicos",
+  inventario: "Inventario"
+};
+
+try {
+  isSidebarHidden = window.localStorage.getItem("pcm.sidebarHidden") === "1";
+} catch (error) {
+  isSidebarHidden = false;
+}
+
+function persistSidebarState() {
+  try {
+    window.localStorage.setItem("pcm.sidebarHidden", isSidebarHidden ? "1" : "0");
+  } catch (error) {
+    return;
+  }
+}
 
 function showToast(message, type = "info") {
   const toast = document.createElement("div");
@@ -19,6 +42,77 @@ function showToast(message, type = "info") {
 
 function showValidation(message) {
   showToast(message, "warning");
+}
+
+function showLoginSuccessAlert() {
+  return new Promise((resolve) => {
+    const alert = document.createElement("div");
+    alert.className = "login-success-alert";
+    alert.innerHTML = `
+      <div class="login-success-icon">✓</div>
+      <div>
+        <strong>Inicio de sesion exitoso</strong>
+        <div class="muted">Cargando dashboard...</div>
+      </div>
+    `;
+    document.body.appendChild(alert);
+
+    requestAnimationFrame(() => {
+      alert.classList.add("visible");
+    });
+
+    setTimeout(() => {
+      alert.classList.remove("visible");
+      setTimeout(() => {
+        alert.remove();
+        resolve();
+      }, 250);
+    }, 1150);
+  });
+}
+
+function showConfirmDialog(message, confirmText = "Eliminar", cancelText = "Cancelar") {
+  return new Promise((resolve) => {
+    const overlay = document.createElement("div");
+    overlay.className = "confirm-overlay";
+    overlay.innerHTML = `
+      <div class="confirm-modal">
+        <h3>Confirmar accion</h3>
+        <p class="muted">${message}</p>
+        <div class="confirm-actions">
+          <button class="btn-secondary" data-confirm-cancel>${cancelText}</button>
+          <button class="btn-danger" data-confirm-ok>${confirmText}</button>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(overlay);
+
+    const cleanup = (result) => {
+      overlay.classList.remove("visible");
+      setTimeout(() => {
+        overlay.remove();
+        resolve(result);
+      }, 180);
+    };
+
+    overlay.querySelector("[data-confirm-cancel]").addEventListener("click", () => cleanup(false));
+    overlay.querySelector("[data-confirm-ok]").addEventListener("click", () => cleanup(true));
+    overlay.addEventListener("click", (event) => {
+      if (event.target === overlay) cleanup(false);
+    });
+
+    requestAnimationFrame(() => overlay.classList.add("visible"));
+  });
+}
+
+function renderSidebar() {
+  return `
+    <nav class="menu">
+      ${Object.entries(VIEW_LABELS)
+        .map(([view, label]) => `<button class="${currentView === view ? "active" : ""}" data-view="${view}">${label}</button>`)
+        .join("")}
+    </nav>
+  `;
 }
 
 function attachCrudActions(selector, onEdit, onDelete) {
@@ -191,6 +285,7 @@ function renderLogin() {
     }
 
     currentUser = response.user;
+    await showLoginSuccessAlert();
     renderDashboard();
   });
 }
@@ -211,25 +306,22 @@ async function renderDashboard() {
   ].filter(Boolean);
 
   appElement.innerHTML = `
-    <section class="card">
-      <div class="topbar">
-        <div>
+    <div class="dashboard-layout ${isSidebarHidden ? "menu-hidden" : ""}">
+      <aside class="card sidebar">
+        <button id="menuToggleBtn" class="btn-secondary btn-menu-toggle" title="${isSidebarHidden ? "Mostrar menu" : "Ocultar menu"}">
+          ${isSidebarHidden ? "☰" : "Ocultar menu"}
+        </button>
+        <div class="sidebar-header">
           <h2 class="brand-title">Proelectrica Control Manager</h2>
           <p class="brand-subtitle">Sistema empresarial para operacion y mantenimiento electrico</p>
           <p class="muted">Usuario: ${currentUser.username} (${currentUser.role})</p>
         </div>
-        <nav class="menu">
-          ${["dashboard", "motores", "mantenimientos", "fallas", "tecnicos", "inventario"]
-            .map(
-              (view) =>
-                `<button class="${currentView === view ? "active" : ""}" data-view="${view}">${view
-                  .charAt(0)
-                  .toUpperCase()}${view.slice(1)}</button>`
-            )
-            .join("")}
-        </nav>
-      </div>
-    </section>
+        ${renderSidebar()}
+        <div class="sidebar-footer">
+          <button id="logoutBtn" class="btn-secondary btn-logout">Cerrar sesion</button>
+        </div>
+      </aside>
+      <main class="dashboard-content">
 
     ${
       currentView === "dashboard"
@@ -648,6 +740,8 @@ async function renderDashboard() {
     `
         : ""
     }
+      </main>
+    </div>
   `;
 
   appElement.querySelectorAll("[data-view]").forEach((button) => {
@@ -658,6 +752,28 @@ async function renderDashboard() {
       renderDashboard();
     });
   });
+
+  const menuToggleBtn = document.getElementById("menuToggleBtn");
+  if (menuToggleBtn) {
+    menuToggleBtn.addEventListener("click", () => {
+      isSidebarHidden = !isSidebarHidden;
+      persistSidebarState();
+      renderDashboard();
+    });
+  }
+
+  const logoutBtn = document.getElementById("logoutBtn");
+  if (logoutBtn) {
+    logoutBtn.addEventListener("click", () => {
+      currentUser = null;
+      currentView = "dashboard";
+      filters = {};
+      pagination = {};
+      editorState = { module: null, id: null };
+      showToast("Sesion cerrada correctamente.", "success");
+      renderLogin();
+    });
+  }
 
   const filterQuery = document.getElementById("filterQuery");
   if (filterQuery) {
@@ -843,7 +959,8 @@ async function renderDashboard() {
       renderDashboard();
     },
     async (id) => {
-      if (!window.confirm("Eliminar motor?")) return;
+      const confirmed = await showConfirmDialog("Se eliminara este motor de forma permanente.");
+      if (!confirmed) return;
       await window.proelectricaApi.deleteMotor(id);
       showToast("Motor eliminado.", "success");
       renderDashboard();
@@ -857,7 +974,8 @@ async function renderDashboard() {
       renderDashboard();
     },
     async (id) => {
-      if (!window.confirm("Eliminar tecnico?")) return;
+      const confirmed = await showConfirmDialog("Se eliminara este tecnico de forma permanente.");
+      if (!confirmed) return;
       await window.proelectricaApi.deleteTechnician(id);
       showToast("Tecnico eliminado.", "success");
       renderDashboard();
@@ -871,7 +989,8 @@ async function renderDashboard() {
       renderDashboard();
     },
     async (id) => {
-      if (!window.confirm("Eliminar mantenimiento?")) return;
+      const confirmed = await showConfirmDialog("Se eliminara este mantenimiento de forma permanente.");
+      if (!confirmed) return;
       await window.proelectricaApi.deleteMaintenance(id);
       showToast("Mantenimiento eliminado.", "success");
       renderDashboard();
@@ -885,7 +1004,8 @@ async function renderDashboard() {
       renderDashboard();
     },
     async (id) => {
-      if (!window.confirm("Eliminar falla?")) return;
+      const confirmed = await showConfirmDialog("Se eliminara esta falla de forma permanente.");
+      if (!confirmed) return;
       await window.proelectricaApi.deleteFailure(id);
       showToast("Falla eliminada.", "success");
       renderDashboard();
@@ -899,7 +1019,8 @@ async function renderDashboard() {
       renderDashboard();
     },
     async (id) => {
-      if (!window.confirm("Eliminar repuesto?")) return;
+      const confirmed = await showConfirmDialog("Se eliminara este repuesto de forma permanente.");
+      if (!confirmed) return;
       await window.proelectricaApi.deleteInventoryItem(id);
       showToast("Repuesto eliminado.", "success");
       renderDashboard();

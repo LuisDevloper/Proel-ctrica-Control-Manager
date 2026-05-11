@@ -1,78 +1,190 @@
 # Proelectrica Control Manager
 
-Aplicacion de escritorio para gestion de motores electricos y mantenimientos industriales.
+Aplicacion de escritorio para gestion de motores electricos, mantenimientos e inventario industrial. Construida con Electron + React + Tailwind CSS + SQLite local.
 
-## Stack actual
+---
 
-- Electron
-- Node.js
-- SQLite local en archivo `proelectrica.db`
-- `better-sqlite3` (preferido) con fallback automatico a `sql.js` si el entorno no permite binarios nativos
-- HTML/CSS/JavaScript
+## Stack tecnico
 
-## Primer inicio
+| Capa | Tecnologia |
+|---|---|
+| Shell | Electron 34 |
+| Frontend | React 19 + Vite 8 |
+| Estilos | Tailwind CSS v4 + CSS variables |
+| UI Components | Lucide React, Recharts |
+| Base de datos | SQLite via `better-sqlite3` |
+| PDF / Exportacion | jsPDF + jspdf-autotable |
+| Estado de ventana | electron-store |
+| Actualizaciones | electron-updater (GitHub Releases) |
+| Servicios | Logger local, Backup automatico |
 
-1. Instalar dependencias:
-   - `npm install`
-2. Ejecutar en modo desarrollo:
-   - `npm run dev`
+---
 
-Credenciales iniciales:
+## Inicio rapido
 
+```bash
+# 1. Instalar dependencias
+npm install
+
+# 2. Desarrollo (Vite + Electron en paralelo)
+npm run dev
+
+# 3. Generar instalador (.exe)
+npm run build
+```
+
+**Credenciales iniciales:**
 - Usuario: `admin`
 - Contrasena: `admin123`
 
-## Estructura
+---
 
-- `src/main`: proceso principal de Electron e IPC
-- `src/database`: inicializacion y persistencia de base de datos
-- `src/renderer`: interfaz de usuario
-- `src/services`: servicios transversales (logs, backups)
-- `src/modules`: base para modularizar logica de negocio
-- `src/utils`: utilidades comunes
+## Estructura del proyecto
 
-## Modulos ya implementados
+```
+src/
+├── main/           → Proceso principal de Electron
+│   ├── main.js     → BrowserWindow, auto-updater, ciclo de vida
+│   ├── ipc.js      → Todos los handlers IPC (CRUD, stats, notificaciones)
+│   └── preload.js  → Puente seguro renderer ↔ main
+├── database/
+│   └── db.js       → Inicializacion SQLite, esquema y seed
+├── services/
+│   ├── logger.js   → Logs locales en userData/logs
+│   └── backup.js   → Backup diario automatico en userData/backups
+└── renderer-react/ → Frontend React (compilado a renderer-dist/)
+    ├── App.jsx
+    ├── main.jsx
+    ├── index.css
+    ├── context/
+    │   └── ThemeContext.jsx   → Modo claro / oscuro
+    ├── components/
+    │   ├── layout/
+    │   │   ├── Sidebar.jsx    → Menu lateral colapsable + toggle tema
+    │   │   ├── FilterBar.jsx  → Busqueda, ordenamiento y exportacion
+    │   │   └── Pager.jsx      → Paginacion
+    │   └── ui/
+    │       ├── NotificationBell.jsx  → Campanita con alertas en tiempo real
+    │       ├── UpdateBanner.jsx      → Banner de actualizacion automatica
+    │       ├── SplashScreen.jsx      → Pantalla de carga animada
+    │       ├── AppLogo.jsx           → Logo de la app
+    │       ├── Toast.jsx             → Notificaciones tipo toast
+    │       ├── Modal.jsx             → Modal de confirmacion
+    │       ├── Skeleton.jsx          → Skeletons de carga
+    │       ├── CurrencyInput.jsx     → Input con formato de moneda
+    │       └── ...
+    ├── views/
+    │   ├── Login.jsx
+    │   ├── Dashboard.jsx
+    │   ├── Motores.jsx
+    │   ├── Mantenimientos.jsx
+    │   ├── Fallas.jsx
+    │   ├── Tecnicos.jsx
+    │   ├── Inventario.jsx
+    │   ├── Calendario.jsx
+    │   ├── MotorDetail.jsx
+    │   └── Configuracion.jsx
+    ├── hooks/
+    │   ├── useAsync.js    → Wrapper para llamadas async con manejo de errores
+    │   └── useFilters.js  → Filtros, ordenamiento y paginacion
+    └── lib/
+        ├── utils.js       → Funcion cn() para clases Tailwind
+        └── pdfReport.js   → Generacion de reportes PDF
+```
 
-- Inicio de sesion basico con roles
-- Dashboard con indicadores operativos
-- Registro y listado de motores
-- Registro y listado de tecnicos
-- Registro e historial de mantenimientos
-- Registro y seguimiento de fallas
-- Registro y listado de inventario de repuestos
-- Edicion y eliminacion (CRUD) en todos los modulos base
-- Validaciones de campos obligatorios en formularios
-- Alertas automaticas en dashboard (fallas, stock minimo y mantenimientos proximos)
-- Busqueda y filtros por modulo
-- Paginacion en listados
-- Edicion en pantalla (sin `prompt`)
-- Ordenamiento por campos (asc/desc)
-- Exportacion CSV por modulo
-- Notificaciones tipo toast para acciones y validaciones
-- Rediseño visual empresarial (tema industrial electrico)
-- Sistema de logs locales en `userData/logs`
-- Backup automatico diario en `userData/backups` (retencion de ultimas copias)
+---
 
-## Estado actual de modulos
+## Modulos implementados
 
-- `Dashboard`: KPIs + alertas automaticas
-- `Motores`: CRUD, filtros, ordenamiento, paginacion, exportacion CSV
-- `Mantenimientos`: CRUD, filtros, ordenamiento, paginacion, exportacion CSV
-- `Fallas`: CRUD, filtros, ordenamiento, paginacion, exportacion CSV
-- `Tecnicos`: CRUD, filtros, ordenamiento, paginacion, exportacion CSV
-- `Inventario`: CRUD, filtros, ordenamiento, paginacion, exportacion CSV
+### Core
+- Inicio de sesion con roles (admin / operador)
+- Pantalla splash animada al inicio
+- Sidebar colapsable con indicador de estado de BD
+- Modo claro / oscuro con persistencia en localStorage
+
+### Dashboard
+- KPIs en tiempo real: motores, mantenimientos, fallas pendientes, stock minimo
+- Graficas con Recharts: estado de motores (pie), mantenimientos por mes (barras), fallas en el tiempo (area)
+- Skeletons de carga
+
+### Campanita de Notificaciones
+- Icono en la esquina superior derecha
+- Alertas agrupadas por tipo:
+  - Mantenimientos proximos (proximos 7 dias)
+  - Fallas pendientes sin resolver
+  - Items de inventario con stock en minimo
+- Se actualiza automaticamente cada 30 segundos
+
+### Motores
+- CRUD completo con filtros, ordenamiento y paginacion
+- Vista de detalle por motor con historial de mantenimientos y fallas
+- Exportacion CSV y PDF por motor
+
+### Mantenimientos
+- CRUD completo
+- Input de costo con formato de moneda automatico
+- Exportacion CSV y PDF
+
+### Fallas
+- CRUD completo con prioridad y estado
+- Exportacion CSV y PDF
+
+### Tecnicos
+- CRUD completo con filtros
+
+### Inventario
+- CRUD completo con control de stock minimo
+- Alerta visual cuando el stock llega al minimo
+
+### Calendario
+- Vista mensual de mantenimientos programados
+- Modal de detalle al hacer clic en un evento
+
+### Configuracion
+- Informacion de la app (version, Electron, Node.js, plataforma)
+- Verificacion de conexion a la base de datos
+- Cambio de contrasena del usuario activo
+
+---
+
+## Actualizaciones automaticas
+
+La app usa `electron-updater` con GitHub Releases como servidor.
+
+### Para publicar una nueva version:
+
+```bash
+# 1. Subir version en package.json (ej: 0.1.0 → 0.2.0)
+
+# 2. Generar y publicar
+GH_TOKEN=tu_token npm run build -- --publish always
+```
+
+El usuario final recibe la actualizacion automaticamente:
+1. La app verifica al iniciar (5 seg despues del arranque)
+2. Si hay nueva version, descarga en segundo plano
+3. Aparece un banner con barra de progreso
+4. Al terminar puede instalar con un clic o esperar al cierre
+
+---
 
 ## Notas tecnicas
 
-- La base de datos es local/offline (`SQLite`) y se guarda en `proelectrica.db`.
-- En algunos entornos Windows pueden aparecer warnings de cache GPU de Electron (`Access denied`), normalmente no bloqueantes para el funcionamiento.
-- La interfaz actual utiliza una paleta corporativa oscura con acentos electricos (azul/amarillo), mejorando presentacion ejecutiva y legibilidad operativa.
-- Si `better-sqlite3` no puede cargar por falta de toolchain nativo (Visual Studio Build Tools), la app usa fallback automatico `sql.js` para mantener operacion.
+- La base de datos SQLite se guarda en `userData/proelectrica.db` (no en el directorio de instalacion).
+- Los backups automaticos se guardan en `userData/backups` con retencion de las ultimas copias.
+- Los logs se guardan en `userData/logs`.
+- El estado de la ventana (tamano, posicion, maximizado) se persiste entre sesiones.
+- El icono `.ico` se genera automaticamente con `scripts/make-icon.mjs` usando `jimp`.
+- En modo desarrollo Vite corre en `localhost:5173`; en produccion se carga desde `renderer-dist/`.
 
-## Proximas etapas sugeridas
+---
 
-- Reportes PDF/Excel
-- Bitacora de auditoria
-- Relacion detallada de repuestos por mantenimiento
-- Modulo de configuracion avanzada y parametros
-- Backups automaticos
+## Scripts disponibles
+
+| Script | Descripcion |
+|---|---|
+| `npm run dev` | Inicia Vite + Electron en paralelo (modo desarrollo) |
+| `npm run build` | Genera icono, compila React y crea instalador `.exe` |
+| `npm run build:renderer` | Solo compila el frontend React |
+| `npm run build:icon` | Solo regenera el icono `.ico` |
+| `npm start` | Inicia Electron sin Vite (requiere `renderer-dist/` compilado) |

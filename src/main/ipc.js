@@ -3,7 +3,129 @@ const bcrypt = require("bcryptjs");
 const { getDatabase } = require("../database/db");
 const { logInfo } = require("../services/logger");
 
+const { app } = require("electron");
+
 function registerIpcHandlers() {
+  // Notificaciones de alertas
+  ipcMain.handle("notifications:list", () => {
+    const db = getDatabase();
+    const upcoming = db.prepare(`
+      SELECT 'maintenance' as type, 'Mantenimiento proximo' as title,
+        mo.code || ' — ' || m.maintenance_type as body,
+        m.maintenance_date as date, m.id
+      FROM maintenances m
+      JOIN motors mo ON mo.id = m.motor_id
+      WHERE m.maintenance_date BETWEEN date('now') AND date('now', '+7 day')
+      ORDER BY m.maintenance_date
+    `).all();
+    const failures = db.prepare(`
+      SELECT 'failure' as type, 'Falla pendiente' as title,
+        mo.code || ' — ' || f.failure_type as body,
+        f.reported_at as date, f.id
+      FROM failures f
+      JOIN motors mo ON mo.id = f.motor_id
+      WHERE f.status != 'Resuelta'
+      ORDER BY CASE f.priority WHEN 'Alta' THEN 1 WHEN 'Media' THEN 2 ELSE 3 END
+    `).all();
+    const lowStock = db.prepare(`
+      SELECT 'stock' as type, 'Stock minimo' as title,
+        part_name || ' (' || quantity || ' uds)' as body,
+        created_at as date, id
+      FROM inventory_items WHERE quantity <= min_stock
+    `).all();
+    return [...upcoming, ...failures, ...lowStock];
+  });
+
+  // Datos para graficas del dashboard
+  ipcMain.handle("dashboard:charts", () => {
+    const db = getDatabase();
+
+    const motorsByStatus = db.prepare(`
+      SELECT status, COUNT(*) as count FROM motors GROUP BY status
+    `).all();
+
+    const maintenancesByMonth = db.prepare(`
+      SELECT strftime('%Y-%m', maintenance_date) as month, COUNT(*) as count
+      FROM maintenances
+      WHERE maintenance_date >= date('now', '-12 months')
+      GROUP BY month ORDER BY month
+    `).all();
+
+    const failuresByMonth = db.prepare(`
+      SELECT strftime('%Y-%m', reported_at) as month, COUNT(*) as count
+      FROM failures
+      WHERE reported_at >= date('now', '-12 months')
+      GROUP BY month ORDER BY month
+    `).all();
+
+    return { motorsByStatus, maintenancesByMonth, failuresByMonth };
+  });
+
+  // Detalle completo de un motor
+  ipcMain.handle("motors:detail", (_event, id) => {
+    const db = getDatabase();
+    const motor = db.prepare("SELECT * FROM motors WHERE id = ?").get(Number(id));
+    const maintenances = db.prepare(`
+      SELECT m.*, t.full_name as technician_name
+      FROM maintenances m
+      LEFT JOIN technicians t ON t.id = m.technician_id
+      WHERE m.motor_id = ? ORDER BY m.maintenance_date DESC
+    `).all(Number(id));
+    const failures = db.prepare(`
+      SELECT f.*, t.full_name as technician_name
+      FROM failures f
+      LEFT JOIN technicians t ON t.id = f.technician_id
+      WHERE f.motor_id = ? ORDER BY f.reported_at DESC
+    `).all(Number(id));
+    return { motor, maintenances, failures };
+  });
+
+  // Mantenimientos del mes para el calendario
+  ipcMain.handle("maintenances:calendar", (_event, { year, month }) => {
+    const db = getDatabase();
+    const from = `${year}-${String(month).padStart(2, "0")}-01`;
+    const to   = `${year}-${String(month).padStart(2, "0")}-31`;
+    return db.prepare(`
+      SELECT m.*, mo.code as motor_code, t.full_name as technician_name
+      FROM maintenances m
+      JOIN motors mo ON mo.id = m.motor_id
+      LEFT JOIN technicians t ON t.id = m.technician_id
+      WHERE m.maintenance_date BETWEEN ? AND ?
+      ORDER BY m.maintenance_date
+    `).all(from, to);
+  });
+
+  // Ping de base de datos
+  ipcMain.handle("db:ping", () => {
+    try {
+      const db = getDatabase();
+      db.prepare("SELECT 1").get();
+      return { ok: true };
+    } catch (e) {
+      return { ok: false, error: e.message };
+    }
+  });
+
+  // Info de la app
+  ipcMain.handle("app:info", () => ({
+    version: app.getVersion(),
+    name: app.getName(),
+    platform: process.platform,
+    electronVersion: process.versions.electron,
+    nodeVersion: process.versions.node
+  }));
+
+  // Cambiar contrasena
+  ipcMain.handle("auth:changePassword", async (_event, { userId, currentPassword, newPassword }) => {
+    const db = getDatabase();
+    const user = db.prepare("SELECT password_hash FROM users WHERE id = ?").get(userId);
+    if (!user) return { ok: false, message: "Usuario no encontrado." };
+    const valid = await bcrypt.compare(currentPassword, user.password_hash);
+    if (!valid) return { ok: false, message: "La contrasena actual es incorrecta." };
+    const newHash = await bcrypt.hash(newPassword, 10);
+    db.prepare("UPDATE users SET password_hash = ? WHERE id = ?").run(newHash, userId);
+    return { ok: true };
+  });
   ipcMain.handle("auth:login", async (_event, credentials) => {
     const db = getDatabase();
     const user = db.prepare("SELECT id, username, password_hash, role FROM users WHERE username = ?").get(credentials.username);

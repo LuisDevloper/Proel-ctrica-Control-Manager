@@ -1,4 +1,9 @@
 node_modules/
 dist/
 release/
-"*.log"
+renderer-dist/
+*.log
+*.db
+*.db-shm
+*.db-wal
+userData/

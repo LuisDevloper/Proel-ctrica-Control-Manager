@@ -22,5 +22,19 @@ contextBridge.exposeInMainWorld("proelectricaApi", {
   getInventoryItems: () => ipcRenderer.invoke("inventory:list"),
   createInventoryItem: (item) => ipcRenderer.invoke("inventory:create", item),
   updateInventoryItem: (item) => ipcRenderer.invoke("inventory:update", item),
-  deleteInventoryItem: (id) => ipcRenderer.invoke("inventory:delete", id)
+  deleteInventoryItem: (id) => ipcRenderer.invoke("inventory:delete", id),
+  getNotifications: () => ipcRenderer.invoke("notifications:list"),
+  getDashboardCharts: () => ipcRenderer.invoke("dashboard:charts"),
+  getMotorDetail: (id) => ipcRenderer.invoke("motors:detail", id),
+  getMaintenancesCalendar: (params) => ipcRenderer.invoke("maintenances:calendar", params),
+  dbPing: () => ipcRenderer.invoke("db:ping"),
+  getAppInfo: () => ipcRenderer.invoke("app:info"),
+  changePassword: (data) => ipcRenderer.invoke("auth:changePassword", data),
+  // Auto-updater
+  onUpdaterEvent: (cb) => {
+    const handler = (_, data) => cb(data);
+    ipcRenderer.on("updater:event", handler);
+    return () => ipcRenderer.removeListener("updater:event", handler);
+  },
+  installUpdate: () => ipcRenderer.send("updater:install-now")
 });
