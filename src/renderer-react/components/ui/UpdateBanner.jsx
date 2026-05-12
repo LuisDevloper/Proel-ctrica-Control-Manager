@@ -9,8 +9,9 @@ export function UpdateBanner() {
   useEffect(() => {
     if (!window.proelectricaApi?.onUpdaterEvent) return;
     const unsub = window.proelectricaApi.onUpdaterEvent((data) => {
-      // Ignoramos "checking" y "up-to-date" silenciosamente
+      // Ignorar eventos silenciosos o errores 404 (sin releases publicados)
       if (data.event === "checking" || data.event === "up-to-date") return;
+      if (data.event === "error" && data.message?.includes("404")) return;
       setState(data);
     });
     return unsub;
