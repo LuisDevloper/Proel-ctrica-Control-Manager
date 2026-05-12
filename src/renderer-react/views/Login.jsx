@@ -72,6 +72,7 @@ export function Login({ onLogin }) {
                   placeholder="Nombre de usuario"
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
+                  autoComplete="off"
                   autoFocus
                 />
               </div>
@@ -88,6 +89,7 @@ export function Login({ onLogin }) {
                   placeholder="Contrasena"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
+                  autoComplete="new-password"
                 />
               </div>
             </div>
