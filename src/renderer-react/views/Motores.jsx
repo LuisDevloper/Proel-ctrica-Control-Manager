@@ -7,7 +7,21 @@ import { FilterBar } from "../components/layout/FilterBar";
 import { Pager } from "../components/layout/Pager";
 import { ConfirmModal } from "../components/ui/Modal";
 import { Table, Thead, Th, Tbody, Tr, Td } from "../components/ui/Table";
-import { useFilters, csvExport } from "../hooks/useFilters";
+import { useFilters } from "../hooks/useFilters";
+import { xlsxExport } from "../lib/excelExport";
+
+const EXCEL_COLS = [
+  { key: "code",        header: "Código",          width: 14 },
+  { key: "name",        header: "Nombre",           width: 28 },
+  { key: "type",        header: "Tipo",             width: 18 },
+  { key: "power_kw",   header: "Potencia (kW)",    width: 16 },
+  { key: "voltage",    header: "Voltaje (V)",       width: 14 },
+  { key: "status",     header: "Estado",            width: 18 },
+  { key: "location",   header: "Ubicacion",         width: 24 },
+  { key: "brand",      header: "Marca",             width: 16 },
+  { key: "model",      header: "Modelo",            width: 16 },
+  { key: "installed_at", header: "Instalacion",     width: 16 },
+];
 import { useToast } from "../components/ui/Toast";
 import { useAsync } from "../hooks/useAsync";
 import { SkeletonTable } from "../components/ui/Skeleton";
@@ -97,7 +111,7 @@ export function Motores() {
             sortOptions={[{value:"code",label:"Codigo"},{value:"brand",label:"Marca"},{value:"status",label:"Estado"}]}
             sortField={filters.sortField} onSortFieldChange={filters.setSortField}
             sortDir={filters.sortDir} onSortDirChange={filters.setSortDir}
-            onExport={() => csvExport("motores.csv", filters.filtered)} exportCount={filters.filtered.length}
+            onExport={() => xlsxExport("Motores", "Registro de Motores", EXCEL_COLS, filters.filtered)} exportCount={filters.filtered.length}
             onClear={filters.reset}
           />
           {loadingData

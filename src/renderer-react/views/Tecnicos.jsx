@@ -6,7 +6,17 @@ import { FilterBar } from "../components/layout/FilterBar";
 import { Pager } from "../components/layout/Pager";
 import { ConfirmModal } from "../components/ui/Modal";
 import { Table, Thead, Th, Tbody, Tr, Td } from "../components/ui/Table";
-import { useFilters, csvExport } from "../hooks/useFilters";
+import { useFilters } from "../hooks/useFilters";
+import { xlsxExport } from "../lib/excelExport";
+
+const EXCEL_COLS = [
+  { key: "id",           header: "ID",              width: 8  },
+  { key: "name",         header: "Nombre",          width: 28 },
+  { key: "specialty",    header: "Especialidad",    width: 24 },
+  { key: "phone",        header: "Telefono",        width: 18 },
+  { key: "email",        header: "Correo",          width: 28 },
+  { key: "status",       header: "Estado",          width: 14 },
+];
 import { useToast } from "../components/ui/Toast";
 import { useAsync } from "../hooks/useAsync";
 import { Plus, Pencil, Trash2, X, Check } from "lucide-react";
@@ -74,7 +84,7 @@ export function Tecnicos() {
             sortOptions={[{value:"full_name",label:"Nombre"},{value:"specialty",label:"Especialidad"}]}
             sortField={filters.sortField} onSortFieldChange={filters.setSortField}
             sortDir={filters.sortDir} onSortDirChange={filters.setSortDir}
-            onExport={()=>csvExport("tecnicos.csv",filters.filtered)} exportCount={filters.filtered.length}
+            onExport={() => xlsxExport("Tecnicos", "Registro de Tecnicos", EXCEL_COLS, filters.filtered)} exportCount={filters.filtered.length}
             onClear={filters.reset}
           />
           {filters.paged.length === 0

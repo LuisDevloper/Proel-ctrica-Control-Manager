@@ -66,7 +66,7 @@ export function FilterBar({
       )}
 
       <Button variant="secondary" size="sm" onClick={handleExport}>
-        <Download size={13} className="mr-1" /> CSV
+        <Download size={13} className="mr-1" /> Excel
       </Button>
       <Button variant="ghost" size="sm" onClick={onClear}>
         <X size={13} className="mr-1" /> Limpiar

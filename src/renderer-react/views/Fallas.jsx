@@ -7,7 +7,20 @@ import { FilterBar } from "../components/layout/FilterBar";
 import { Pager } from "../components/layout/Pager";
 import { ConfirmModal } from "../components/ui/Modal";
 import { Table, Thead, Th, Tbody, Tr, Td } from "../components/ui/Table";
-import { useFilters, csvExport } from "../hooks/useFilters";
+import { useFilters } from "../hooks/useFilters";
+import { xlsxExport } from "../lib/excelExport";
+
+const EXCEL_COLS = [
+  { key: "id",            header: "ID",              width: 8  },
+  { key: "motor_code",    header: "Motor",           width: 14 },
+  { key: "failure_type",  header: "Tipo de Falla",   width: 26 },
+  { key: "reported_at",   header: "Fecha Reporte",   width: 16 },
+  { key: "priority",      header: "Prioridad",       width: 12 },
+  { key: "status",        header: "Estado",          width: 16 },
+  { key: "technician_name", header: "Tecnico",       width: 22 },
+  { key: "resolved_at",   header: "Fecha Resolucion",width: 18 },
+  { key: "description",   header: "Descripcion",     width: 36 },
+];
 import { useToast } from "../components/ui/Toast";
 import { useAsync } from "../hooks/useAsync";
 import { exportFailuresPDF } from "../lib/pdfReport";
@@ -90,7 +103,7 @@ export function Fallas() {
             sortOptions={[{value:"reported_at",label:"Fecha"},{value:"priority",label:"Prioridad"},{value:"status",label:"Estado"}]}
             sortField={filters.sortField} onSortFieldChange={filters.setSortField}
             sortDir={filters.sortDir} onSortDirChange={filters.setSortDir}
-            onExport={()=>csvExport("fallas.csv",filters.filtered)} exportCount={filters.filtered.length}
+            onExport={() => xlsxExport("Fallas", "Registro de Fallas", EXCEL_COLS, filters.filtered)} exportCount={filters.filtered.length}
             onClear={filters.reset}
           />
           {filters.paged.length === 0

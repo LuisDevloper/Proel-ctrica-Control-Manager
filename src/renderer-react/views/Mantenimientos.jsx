@@ -7,7 +7,20 @@ import { FilterBar } from "../components/layout/FilterBar";
 import { Pager } from "../components/layout/Pager";
 import { ConfirmModal } from "../components/ui/Modal";
 import { Table, Thead, Th, Tbody, Tr, Td } from "../components/ui/Table";
-import { useFilters, csvExport } from "../hooks/useFilters";
+import { useFilters } from "../hooks/useFilters";
+import { xlsxExport } from "../lib/excelExport";
+
+const EXCEL_COLS = [
+  { key: "id",               header: "ID",                width: 8  },
+  { key: "motor_code",       header: "Motor",             width: 14 },
+  { key: "maintenance_type", header: "Tipo",              width: 22 },
+  { key: "maintenance_date", header: "Fecha",             width: 14 },
+  { key: "technician_name",  header: "Tecnico",           width: 22 },
+  { key: "cost",             header: "Costo (Bs)",        width: 14 },
+  { key: "duration_hours",   header: "Duracion (h)",      width: 14 },
+  { key: "status",           header: "Estado",            width: 16 },
+  { key: "notes",            header: "Observaciones",     width: 36 },
+];
 import { useToast } from "../components/ui/Toast";
 import { useAsync } from "../hooks/useAsync";
 import { exportMaintenancesPDF } from "../lib/pdfReport";
@@ -104,7 +117,7 @@ export function Mantenimientos() {
             sortOptions={[{value:"maintenance_date",label:"Fecha"},{value:"maintenance_type",label:"Tipo"},{value:"motor_code",label:"Motor"}]}
             sortField={filters.sortField} onSortFieldChange={filters.setSortField}
             sortDir={filters.sortDir} onSortDirChange={filters.setSortDir}
-            onExport={()=>csvExport("mantenimientos.csv",filters.filtered)} exportCount={filters.filtered.length}
+            onExport={() => xlsxExport("Mantenimientos", "Registro de Mantenimientos", EXCEL_COLS, filters.filtered)} exportCount={filters.filtered.length}
             onClear={filters.reset}
           />
           {filters.paged.length === 0

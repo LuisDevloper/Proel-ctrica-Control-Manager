@@ -7,7 +7,18 @@ import { FilterBar } from "../components/layout/FilterBar";
 import { Pager } from "../components/layout/Pager";
 import { ConfirmModal } from "../components/ui/Modal";
 import { Table, Thead, Th, Tbody, Tr, Td } from "../components/ui/Table";
-import { useFilters, csvExport } from "../hooks/useFilters";
+import { useFilters } from "../hooks/useFilters";
+import { xlsxExport } from "../lib/excelExport";
+
+const EXCEL_COLS = [
+  { key: "id",          header: "ID",              width: 8  },
+  { key: "part_name",   header: "Repuesto",        width: 30 },
+  { key: "sku",         header: "SKU / Codigo",    width: 18 },
+  { key: "quantity",    header: "Cantidad",         width: 12 },
+  { key: "min_stock",   header: "Stock Minimo",    width: 14 },
+  { key: "location",    header: "Ubicacion",       width: 22 },
+  { key: "created_at",  header: "Fecha Registro",  width: 18 },
+];
 import { useToast } from "../components/ui/Toast";
 import { useAsync } from "../hooks/useAsync";
 import { Pencil, Trash2, Plus, X, Check } from "lucide-react";
@@ -77,7 +88,7 @@ export function Inventario() {
             sortOptions={[{value:"part_name",label:"Repuesto"},{value:"quantity",label:"Cantidad"},{value:"min_stock",label:"Stock min"}]}
             sortField={filters.sortField} onSortFieldChange={filters.setSortField}
             sortDir={filters.sortDir} onSortDirChange={filters.setSortDir}
-            onExport={() => csvExport("inventario.csv", filters.filtered)} exportCount={filters.filtered.length}
+            onExport={() => xlsxExport("Inventario", "Inventario de Repuestos", EXCEL_COLS, filters.filtered)} exportCount={filters.filtered.length}
             onClear={filters.reset}
           />
           {filters.paged.length === 0
