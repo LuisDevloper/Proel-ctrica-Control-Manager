@@ -4,7 +4,6 @@ const { registerIpcHandlers } = require("./ipc");
 const { initializeDatabase } = require("../database/db");
 const { startBackupScheduler, stopBackupScheduler } = require("../services/backup");
 const { logInfo, logError } = require("../services/logger");
-const { autoUpdater } = require("electron-updater");
 
 const VITE_DEV_PORT = 5173;
 const isDev = !app.isPackaged;
@@ -82,33 +81,36 @@ function setupAutoUpdater() {
   // En desarrollo no verificamos actualizaciones
   if (isDev) return;
 
-  autoUpdater.autoDownload    = true;   // descarga en segundo plano
-  autoUpdater.autoInstallOnAppQuit = true; // instala al cerrar la app
+  let autoUpdater;
+  try {
+    ({ autoUpdater } = require("electron-updater"));
+  } catch (err) {
+    logError("updater.load_failed", err);
+    return;
+  }
 
-  // Notifica al renderer sobre el estado del update
+  autoUpdater.autoDownload         = true;
+  autoUpdater.autoInstallOnAppQuit = true;
+
   function sendStatus(event, data = {}) {
     const win = BrowserWindow.getAllWindows()[0];
     if (win) win.webContents.send("updater:event", { event, ...data });
   }
 
-  autoUpdater.on("checking-for-update",  ()      => sendStatus("checking"));
-  autoUpdater.on("update-not-available", ()      => sendStatus("up-to-date"));
-  autoUpdater.on("update-available",     (info)  => sendStatus("available",    { version: info.version }));
-  autoUpdater.on("download-progress",    (prog)  => sendStatus("downloading",  { percent: Math.round(prog.percent) }));
-  autoUpdater.on("update-downloaded",    (info)  => sendStatus("downloaded",   { version: info.version }));
-  autoUpdater.on("error",                (err)   => {
+  autoUpdater.on("checking-for-update",  ()     => sendStatus("checking"));
+  autoUpdater.on("update-not-available", ()     => sendStatus("up-to-date"));
+  autoUpdater.on("update-available",     (info) => sendStatus("available",   { version: info.version }));
+  autoUpdater.on("download-progress",    (prog) => sendStatus("downloading", { percent: Math.round(prog.percent) }));
+  autoUpdater.on("update-downloaded",    (info) => sendStatus("downloaded",  { version: info.version }));
+  autoUpdater.on("error",                (err)  => {
     logError("updater.error", err);
     sendStatus("error", { message: err.message });
   });
 
-  // IPC: el renderer puede pedir instalar ahora
   ipcMain.on("updater:install-now", () => autoUpdater.quitAndInstall(false, true));
 
-  // Verificar 5 segundos después del arranque (no bloquear el inicio)
-  setTimeout(() => autoUpdater.checkForUpdates(), 5000);
-
-  // Verificar cada 2 horas mientras la app está abierta
-  setInterval(() => autoUpdater.checkForUpdates(), 2 * 60 * 60 * 1000);
+  setTimeout(() => { try { autoUpdater.checkForUpdates(); } catch(e) { logError("updater.check", e); } }, 5000);
+  setInterval(() => { try { autoUpdater.checkForUpdates(); } catch(e) { logError("updater.check", e); } }, 2 * 60 * 60 * 1000);
 }
 
 app.whenReady().then(async () => {
