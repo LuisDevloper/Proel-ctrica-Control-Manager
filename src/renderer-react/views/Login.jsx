@@ -4,9 +4,13 @@ import { useToast } from "../components/ui/Toast";
 import { Loader2, Lock, User } from "lucide-react";
 import { AppLogo } from "../components/ui/AppLogo";
 
+const SAVED_USER_KEY = "pcm-saved-username";
+
 export function Login({ onLogin }) {
-  const [username, setUsername] = useState("admin");
-  const [password, setPassword] = useState("admin123");
+  const savedUser = localStorage.getItem(SAVED_USER_KEY) || "";
+  const [username, setUsername] = useState(savedUser);
+  const [password, setPassword] = useState("");
+  const [remember, setRemember] = useState(!!savedUser);
   const [error, setError]       = useState("");
   const [loading, setLoading]   = useState(false);
   const { showToast }           = useToast();
@@ -18,6 +22,9 @@ export function Login({ onLogin }) {
     try {
       const res = await window.proelectricaApi.login({ username, password });
       if (!res.ok) { setError(res.message || "Credenciales incorrectas."); return; }
+      // Guardar o borrar usuario recordado
+      if (remember) localStorage.setItem(SAVED_USER_KEY, username);
+      else localStorage.removeItem(SAVED_USER_KEY);
       showToast("Bienvenido, " + res.user.username, "success");
       onLogin(res.user);
     } catch {
@@ -93,6 +100,25 @@ export function Login({ onLogin }) {
                 />
               </div>
             </div>
+
+            {/* Recordar usuario */}
+            <label className="flex items-center gap-2.5 cursor-pointer select-none w-fit">
+              <div
+                onClick={() => setRemember(r => !r)}
+                className={`w-4 h-4 rounded flex items-center justify-center border transition-all ${
+                  remember
+                    ? "bg-[#2f8dff] border-[#2f8dff]"
+                    : "bg-transparent border-[#2a3d57] hover:border-[#4a6a8a]"
+                }`}
+              >
+                {remember && (
+                  <svg width="9" height="7" viewBox="0 0 9 7" fill="none">
+                    <path d="M1 3.5L3.5 6L8 1" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                  </svg>
+                )}
+              </div>
+              <span className="text-xs text-[#9ab0c7]">Recordar usuario</span>
+            </label>
 
             {/* Error */}
             {error && (

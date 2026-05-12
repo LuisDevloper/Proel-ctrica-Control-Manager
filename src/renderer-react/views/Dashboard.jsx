@@ -7,7 +7,7 @@ import { SkeletonStatCards, SkeletonCard } from "../components/ui/Skeleton";
 import {
   PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer,
   BarChart, Bar, XAxis, YAxis, CartesianGrid,
-  LineChart, Line, Area, AreaChart
+  AreaChart, Area
 } from "recharts";
 
 const MOTOR_COLORS = {

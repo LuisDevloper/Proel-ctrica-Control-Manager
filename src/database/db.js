@@ -97,13 +97,22 @@ async function seedAdminUser() {
   const total = result.total;
 
   if (total === 0) {
-    const defaultPasswordHash = await bcrypt.hash("admin123", 10);
+    // Nueva instalación — crear usuario con las credenciales actuales
+    const defaultPasswordHash = await bcrypt.hash("Pro.2026", 10);
     db.prepare("INSERT INTO users (username, password_hash, role) VALUES (?, ?, ?)").run(
-      "admin",
+      "Proelectrica",
       defaultPasswordHash,
       "ADMIN"
     );
     logInfo("database.seed_admin_created");
+  } else {
+    // Migración: si aún existe el usuario "admin" con credenciales antiguas, actualizarlo
+    const oldAdmin = db.prepare("SELECT id FROM users WHERE username = 'admin'").get();
+    if (oldAdmin) {
+      const newHash = await bcrypt.hash("Pro.2026", 10);
+      db.prepare("UPDATE users SET username = 'Proelectrica', password_hash = ? WHERE username = 'admin'").run(newHash);
+      logInfo("database.admin_migrated");
+    }
   }
 }
 
