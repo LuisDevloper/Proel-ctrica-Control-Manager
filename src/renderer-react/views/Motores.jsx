@@ -11,16 +11,17 @@ import { useFilters } from "../hooks/useFilters";
 import { xlsxExport } from "../lib/excelExport";
 
 const EXCEL_COLS = [
-  { key: "code",        header: "Código",          width: 14 },
-  { key: "name",        header: "Nombre",           width: 28 },
-  { key: "type",        header: "Tipo",             width: 18 },
-  { key: "power_kw",   header: "Potencia (kW)",    width: 16 },
-  { key: "voltage",    header: "Voltaje (V)",       width: 14 },
-  { key: "status",     header: "Estado",            width: 18 },
-  { key: "location",   header: "Ubicacion",         width: 24 },
-  { key: "brand",      header: "Marca",             width: 16 },
-  { key: "model",      header: "Modelo",            width: 16 },
+  { key: "code",         header: "Codigo",          width: 14 },
+  { key: "brand",        header: "Marca",           width: 18 },
+  { key: "model",        header: "Modelo",          width: 18 },
+  { key: "serial_number",header: "Serie",           width: 18 },
+  { key: "power",        header: "Potencia (kW)",   width: 16 },
+  { key: "voltage",      header: "Voltaje (V)",     width: 14 },
+  { key: "rpm",          header: "RPM",             width: 12 },
+  { key: "status",       header: "Estado",          width: 18 },
+  { key: "location",     header: "Ubicacion",       width: 24 },
   { key: "installed_at", header: "Instalacion",     width: 16 },
+  { key: "notes",        header: "Observaciones",   width: 34 },
 ];
 import { useToast } from "../components/ui/Toast";
 import { useAsync } from "../hooks/useAsync";
@@ -35,6 +36,8 @@ const filterFn = (item, query, status) => {
   return (!query || hay.includes(query.toLowerCase())) && (!status || item.status === status);
 };
 
+const EMPTY_FORM = { code: "", brand: "", model: "", serial_number: "", power: "", voltage: "", rpm: "", location: "", status: "Operativo", installed_at: "", notes: "" };
+
 export function Motores() {
   const [motors, setMotors]       = useState([]);
   const [loadingData, setLoadingData] = useState(true);
@@ -42,7 +45,7 @@ export function Motores() {
   const [editId, setEditId]       = useState(null);
   const [editData, setEditData]   = useState({});
   const [deleteId, setDeleteId]   = useState(null);
-  const [form, setForm]           = useState({ code: "", brand: "", model: "", location: "", status: "Operativo", notes: "" });
+  const [form, setForm]           = useState(EMPTY_FORM);
   const { showToast }             = useToast();
   const { run }                   = useAsync();
 
@@ -63,7 +66,7 @@ export function Motores() {
   async function handleSave() {
     if (!form.code || !form.brand) { showToast("Codigo y marca son obligatorios.", "warning"); return; }
     const { ok } = await run(() => window.proelectricaApi.createMotor(form), "Motor registrado.");
-    if (ok) { setForm({ code: "", brand: "", model: "", location: "", status: "Operativo", notes: "" }); load(); }
+    if (ok) { setForm(EMPTY_FORM); load(); }
   }
 
   async function handleUpdate() {
@@ -85,17 +88,22 @@ export function Motores() {
       <Card>
         <CardHeader><CardTitle className="flex items-center gap-2"><Plus size={15}/> Registrar motor</CardTitle></CardHeader>
         <CardContent>
-          <div className="grid grid-cols-2 gap-3">
-            <Field label="Codigo*"><Input placeholder="Codigo interno" value={form.code} onChange={(e) => setForm({...form, code: e.target.value})} /></Field>
-            <Field label="Marca*"><Input placeholder="Marca" value={form.brand} onChange={(e) => setForm({...form, brand: e.target.value})} /></Field>
-            <Field label="Modelo"><Input placeholder="Modelo" value={form.model} onChange={(e) => setForm({...form, model: e.target.value})} /></Field>
-            <Field label="Ubicacion"><Input placeholder="Ubicacion" value={form.location} onChange={(e) => setForm({...form, location: e.target.value})} /></Field>
+          <div className="grid grid-cols-3 gap-3">
+            <Field label="Codigo*"><Input placeholder="Ej: MOT-001" value={form.code} onChange={(e) => setForm({...form, code: e.target.value})} /></Field>
+            <Field label="Marca*"><Input placeholder="Ej: Siemens" value={form.brand} onChange={(e) => setForm({...form, brand: e.target.value})} /></Field>
+            <Field label="Modelo"><Input placeholder="Ej: 1LA7" value={form.model} onChange={(e) => setForm({...form, model: e.target.value})} /></Field>
+            <Field label="N° Serie"><Input placeholder="Numero de serie" value={form.serial_number} onChange={(e) => setForm({...form, serial_number: e.target.value})} /></Field>
+            <Field label="Potencia (kW)"><Input placeholder="Ej: 15" type="number" value={form.power} onChange={(e) => setForm({...form, power: e.target.value})} /></Field>
+            <Field label="Voltaje (V)"><Input placeholder="Ej: 440" type="number" value={form.voltage} onChange={(e) => setForm({...form, voltage: e.target.value})} /></Field>
+            <Field label="RPM"><Input placeholder="Ej: 1800" type="number" value={form.rpm} onChange={(e) => setForm({...form, rpm: e.target.value})} /></Field>
+            <Field label="Ubicacion"><Input placeholder="Ej: Planta Norte" value={form.location} onChange={(e) => setForm({...form, location: e.target.value})} /></Field>
+            <Field label="Fecha instalacion"><Input type="date" value={form.installed_at} onChange={(e) => setForm({...form, installed_at: e.target.value})} /></Field>
             <Field label="Estado">
               <Select value={form.status} onChange={(e) => setForm({...form, status: e.target.value})}>
                 {STATUS_OPTIONS.map(s => <option key={s}>{s}</option>)}
               </Select>
             </Field>
-            <Field label="Observaciones"><Textarea placeholder="Notas..." value={form.notes} onChange={(e) => setForm({...form, notes: e.target.value})} /></Field>
+            <Field label="Observaciones" className="col-span-2"><Textarea placeholder="Notas adicionales..." value={form.notes} onChange={(e) => setForm({...form, notes: e.target.value})} /></Field>
           </div>
           <Button className="mt-2" onClick={handleSave}>Guardar motor</Button>
         </CardContent>
@@ -137,7 +145,7 @@ export function Motores() {
                             <Button variant="ghost" size="icon" title="Ver detalle" onClick={() => setDetailId(motor.id)}>
                               <Eye size={13}/>
                             </Button>
-                            <Button variant="ghost" size="icon" onClick={() => { setEditId(motor.id); setEditData({code:motor.code,brand:motor.brand,model:motor.model||"",location:motor.location||"",status:motor.status,notes:motor.notes||""}); }}>
+                            <Button variant="ghost" size="icon" onClick={() => { setEditId(motor.id); setEditData({code:motor.code,brand:motor.brand,model:motor.model||"",serial_number:motor.serial_number||"",power:motor.power||"",voltage:motor.voltage||"",rpm:motor.rpm||"",location:motor.location||"",status:motor.status,installed_at:motor.installed_at||"",notes:motor.notes||""}); }}>
                               <Pencil size={13}/>
                             </Button>
                             <Button variant="ghost" size="icon" className="hover:text-[#e07070]" onClick={() => setDeleteId(motor.id)}>
@@ -153,7 +161,12 @@ export function Motores() {
                               <Field label="Codigo"><Input value={editData.code} onChange={(e)=>setEditData({...editData,code:e.target.value})}/></Field>
                               <Field label="Marca"><Input value={editData.brand} onChange={(e)=>setEditData({...editData,brand:e.target.value})}/></Field>
                               <Field label="Modelo"><Input value={editData.model} onChange={(e)=>setEditData({...editData,model:e.target.value})}/></Field>
+                              <Field label="N° Serie"><Input value={editData.serial_number} onChange={(e)=>setEditData({...editData,serial_number:e.target.value})}/></Field>
+                              <Field label="Potencia (kW)"><Input type="number" value={editData.power} onChange={(e)=>setEditData({...editData,power:e.target.value})}/></Field>
+                              <Field label="Voltaje (V)"><Input type="number" value={editData.voltage} onChange={(e)=>setEditData({...editData,voltage:e.target.value})}/></Field>
+                              <Field label="RPM"><Input type="number" value={editData.rpm} onChange={(e)=>setEditData({...editData,rpm:e.target.value})}/></Field>
                               <Field label="Ubicacion"><Input value={editData.location} onChange={(e)=>setEditData({...editData,location:e.target.value})}/></Field>
+                              <Field label="Instalacion"><Input type="date" value={editData.installed_at} onChange={(e)=>setEditData({...editData,installed_at:e.target.value})}/></Field>
                               <Field label="Estado"><Select value={editData.status} onChange={(e)=>setEditData({...editData,status:e.target.value})}>{STATUS_OPTIONS.map(s=><option key={s}>{s}</option>)}</Select></Field>
                               <Field label="Notas"><Textarea value={editData.notes} onChange={(e)=>setEditData({...editData,notes:e.target.value})}/></Field>
                             </div>

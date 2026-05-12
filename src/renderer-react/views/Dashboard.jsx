@@ -16,11 +16,19 @@ const MOTOR_COLORS = {
   "Fuera de servicio":  "#c94a4a"
 };
 
-const MONTH_NAMES = ["Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dic"];
+const MONTH_NAMES_SHORT = ["Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dic"];
+const MONTH_NAMES_FULL  = ["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
 function fmtMonth(ym) {
   if (!ym) return "";
   const [y, m] = ym.split("-");
-  return `${MONTH_NAMES[parseInt(m) - 1]} ${y.slice(2)}`;
+  const idx = parseInt(m, 10) - 1;
+  return `${MONTH_NAMES_SHORT[idx]} ${y}`;
+}
+function fmtMonthFull(ym) {
+  if (!ym) return "";
+  const [y, m] = ym.split("-");
+  const idx = parseInt(m, 10) - 1;
+  return `${MONTH_NAMES_FULL[idx]} ${y}`;
 }
 
 function StatCard({ icon: Icon, label, value, color }) {
@@ -41,6 +49,28 @@ const tooltipStyle = {
   contentStyle: { background: "#111d2c", border: "1px solid #2a3d57", borderRadius: 10, color: "#eaf2fb", fontSize: 12 },
   cursor: { fill: "#ffffff08" }
 };
+
+function TooltipMantenimientos({ active, payload }) {
+  if (!active || !payload?.length) return null;
+  const d = payload[0].payload;
+  return (
+    <div style={{ background:"#111d2c", border:"1px solid #2a3d57", borderRadius:8, padding:"8px 14px", fontSize:12 }}>
+      <p style={{ color:"#9ab0c7", marginBottom:4 }}>{d.mesFull}</p>
+      <p style={{ color:"#2f8dff", fontWeight:600 }}>Mantenimientos: {d.total}</p>
+    </div>
+  );
+}
+
+function TooltipFallas({ active, payload }) {
+  if (!active || !payload?.length) return null;
+  const d = payload[0].payload;
+  return (
+    <div style={{ background:"#111d2c", border:"1px solid #2a3d57", borderRadius:8, padding:"8px 14px", fontSize:12 }}>
+      <p style={{ color:"#9ab0c7", marginBottom:4 }}>{d.mesFull}</p>
+      <p style={{ color:"#e0a91f", fontWeight:600 }}>Fallas: {d.fallas}</p>
+    </div>
+  );
+}
 
 export function Dashboard() {
   const [stats, setStats]   = useState(null);
@@ -71,8 +101,8 @@ export function Dashboard() {
   }
 
   const pieData  = (charts?.motorsByStatus || []).map(r => ({ name: r.status, value: r.count }));
-  const barData  = (charts?.maintenancesByMonth || []).map(r => ({ mes: fmtMonth(r.month), total: r.count }));
-  const lineData = (charts?.failuresByMonth || []).map(r => ({ mes: fmtMonth(r.month), fallas: r.count }));
+  const barData  = (charts?.maintenancesByMonth || []).map(r => ({ mes: fmtMonth(r.month), mesFull: fmtMonthFull(r.month), total: r.count }));
+  const lineData = (charts?.failuresByMonth || []).map(r => ({ mes: fmtMonth(r.month), mesFull: fmtMonthFull(r.month), fallas: r.count }));
 
   const alerts = [
     stats?.upcomingMaintenances > 0 && `${stats.upcomingMaintenances} mantenimientos en los proximos 7 dias.`,
@@ -126,12 +156,12 @@ export function Dashboard() {
             {barData.length === 0
               ? <p className="text-sm text-[#9ab0c7]">Sin datos en los ultimos 12 meses.</p>
               : <ResponsiveContainer width="100%" height={220}>
-                  <BarChart data={barData} barSize={18}>
+                  <BarChart data={barData} barSize={22}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#1e2f44" vertical={false} />
-                    <XAxis dataKey="mes" tick={{ fill: "#9ab0c7", fontSize: 10 }} axisLine={false} tickLine={false} />
-                    <YAxis allowDecimals={false} tick={{ fill: "#9ab0c7", fontSize: 10 }} axisLine={false} tickLine={false} />
-                    <Tooltip {...tooltipStyle} />
-                    <Bar dataKey="total" name="Mantenimientos" fill="#2f8dff" radius={[4,4,0,0]} />
+                    <XAxis dataKey="mes" tick={{ fill: "#9ab0c7", fontSize: 11 }} axisLine={false} tickLine={false} />
+                    <YAxis allowDecimals={false} tick={{ fill: "#9ab0c7", fontSize: 11 }} axisLine={false} tickLine={false} width={28} />
+                    <Tooltip content={<TooltipMantenimientos />} cursor={{ fill: "#ffffff08" }} />
+                    <Bar dataKey="total" name="Mantenimientos" fill="#2f8dff" radius={[5,5,0,0]} />
                   </BarChart>
                 </ResponsiveContainer>
             }
@@ -153,10 +183,10 @@ export function Dashboard() {
                       </linearGradient>
                     </defs>
                     <CartesianGrid strokeDasharray="3 3" stroke="#1e2f44" vertical={false} />
-                    <XAxis dataKey="mes" tick={{ fill: "#9ab0c7", fontSize: 10 }} axisLine={false} tickLine={false} />
-                    <YAxis allowDecimals={false} tick={{ fill: "#9ab0c7", fontSize: 10 }} axisLine={false} tickLine={false} />
-                    <Tooltip {...tooltipStyle} />
-                    <Area type="monotone" dataKey="fallas" name="Fallas" stroke="#e0a91f" fill="url(#fallaGrad)" strokeWidth={2} dot={{ fill: "#e0a91f", r: 3, strokeWidth: 0 }} />
+                    <XAxis dataKey="mes" tick={{ fill: "#9ab0c7", fontSize: 11 }} axisLine={false} tickLine={false} />
+                    <YAxis allowDecimals={false} tick={{ fill: "#9ab0c7", fontSize: 11 }} axisLine={false} tickLine={false} width={28} />
+                    <Tooltip content={<TooltipFallas />} cursor={{ stroke: "#ffffff20", strokeWidth: 1 }} />
+                    <Area type="monotone" dataKey="fallas" name="Fallas" stroke="#e0a91f" fill="url(#fallaGrad)" strokeWidth={2} dot={{ fill: "#e0a91f", r: 4, strokeWidth: 0 }} activeDot={{ r: 6, fill: "#e0a91f" }} />
                   </AreaChart>
                 </ResponsiveContainer>
             }

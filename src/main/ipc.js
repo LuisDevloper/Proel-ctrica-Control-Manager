@@ -179,13 +179,13 @@ function registerIpcHandlers() {
       motor.code,
       motor.brand,
       motor.model || "",
-      motor.serialNumber || "",
-      motor.voltage || "",
-      motor.power || "",
-      motor.rpm || "",
+      motor.serial_number || "",
+      motor.voltage || null,
+      motor.power || null,
+      motor.rpm || null,
       motor.location || "",
       motor.status || "Operativo",
-      motor.installedAt || "",
+      motor.installed_at || null,
       motor.notes || "",
       new Date().toISOString()
     );
@@ -197,9 +197,23 @@ function registerIpcHandlers() {
     const db = getDatabase();
     db.prepare(`
       UPDATE motors
-      SET code = ?, brand = ?, model = ?, location = ?, status = ?, notes = ?
+      SET code = ?, brand = ?, model = ?, serial_number = ?, power = ?, voltage = ?, rpm = ?,
+          location = ?, status = ?, installed_at = ?, notes = ?
       WHERE id = ?
-    `).run(motor.code, motor.brand, motor.model || "", motor.location || "", motor.status || "Operativo", motor.notes || "", Number(motor.id));
+    `).run(
+      motor.code,
+      motor.brand,
+      motor.model || "",
+      motor.serial_number || "",
+      motor.power || null,
+      motor.voltage || null,
+      motor.rpm || null,
+      motor.location || "",
+      motor.status || "Operativo",
+      motor.installed_at || null,
+      motor.notes || "",
+      Number(motor.id)
+    );
     return { ok: true };
   });
 

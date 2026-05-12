@@ -32,6 +32,11 @@ const filterFn = (item, query, status) => {
   return (!query || hay.includes(query.toLowerCase())) && (!status || item.maintenance_type === status);
 };
 
+const fmtCost = (v) => {
+  if (!v && v !== 0) return "$0";
+  return "$" + Number(v).toLocaleString("es-CO");
+};
+
 export function Mantenimientos() {
   const [items, setItems]         = useState([]);
   const [motors, setMotors]       = useState([]);
@@ -132,7 +137,7 @@ export function Mantenimientos() {
                         <Td className="font-medium">{item.motor_code}</Td>
                         <Td className="text-[#9ab0c7]">{item.technician_name||"No asignado"}</Td>
                         <Td className="text-[#9ab0c7]">{item.maintenance_date}</Td>
-                        <Td>${item.cost||0}</Td>
+                        <Td>{fmtCost(item.cost)}</Td>
                         <Td>
                           <div className="flex gap-2">
                             <Button variant="ghost" size="icon" onClick={()=>{setEditId(item.id);setEditData({maintenanceType:item.maintenance_type,maintenanceDate:item.maintenance_date||"",description:item.description||"",cost:item.cost||0,motorId:motors.find(m=>m.code===item.motor_code)?.id||"",technicianId:technicians.find(t=>t.full_name===item.technician_name)?.id||""})}}><Pencil size={13}/></Button>
