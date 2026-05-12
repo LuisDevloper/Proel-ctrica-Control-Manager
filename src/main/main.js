@@ -9,7 +9,7 @@ const VITE_DEV_PORT = 5173;
 const isDev = !app.isPackaged;
 
 // Estado persistente de la ventana (sin dependencias externas)
-const Store = require("electron-store").default ?? require("electron-store");
+const Store = require("electron-store");
 const windowStore = new Store({ name: "window-state" });
 
 function getWindowState() {
