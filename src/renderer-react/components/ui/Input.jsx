@@ -56,11 +56,23 @@ export function Label({ className, children, ...props }) {
   );
 }
 
-export function Field({ label, children }) {
+export function Field({ label, children, className }) {
+  const autoId = React.useId();
+  let control = children;
+  let labelFor = autoId;
+
+  if (React.isValidElement(children)) {
+    const existingId = children.props.id;
+    labelFor = existingId || autoId;
+    if (!existingId) {
+      control = React.cloneElement(children, { id: autoId });
+    }
+  }
+
   return (
-    <div className="mb-3">
-      {label && <Label>{label}</Label>}
-      {children}
+    <div className={cn("mb-3", className)}>
+      {label && <Label htmlFor={labelFor}>{label}</Label>}
+      {control}
     </div>
   );
 }

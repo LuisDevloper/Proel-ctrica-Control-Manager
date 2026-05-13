@@ -1,5 +1,6 @@
 const { app, BrowserWindow, screen, ipcMain } = require("electron");
 const path = require("path");
+const fs = require("fs");
 const { registerIpcHandlers } = require("./ipc");
 const { initializeDatabase } = require("../database/db");
 const { startBackupScheduler, stopBackupScheduler } = require("../services/backup");
@@ -7,6 +8,9 @@ const { logInfo, logError } = require("../services/logger");
 
 const VITE_DEV_PORT = 5173;
 const isDev = !app.isPackaged;
+
+/** Referencia al autoUpdater empaquetado (para comprobación manual desde el renderer). */
+let packagedAutoUpdater = null;
 
 // Estado persistente de la ventana (sin dependencias externas)
 const Store = require("electron-store");
@@ -98,6 +102,19 @@ function setupAutoUpdater() {
 
   autoUpdater.autoDownload         = true;
   autoUpdater.autoInstallOnAppQuit = true;
+  autoUpdater.allowPrerelease      = false;
+  packagedAutoUpdater              = autoUpdater;
+
+  const updateMetaPath = path.join(process.resourcesPath, "app-update.yml");
+  try {
+    logInfo("updater.start", {
+      version: app.getVersion(),
+      appUpdateYml: fs.existsSync(updateMetaPath),
+      resourcesPath: process.resourcesPath,
+    });
+  } catch (e) {
+    logError("updater.meta_log", e);
+  }
 
   function sendStatus(event, data = {}) {
     const win = BrowserWindow.getAllWindows()[0];
@@ -127,6 +144,23 @@ app.whenReady().then(async () => {
     startBackupScheduler();
     createMainWindow();
     setupAutoUpdater();
+
+    ipcMain.handle("updater:check", async () => {
+      if (isDev) return { ok: false, reason: "dev" };
+      if (!packagedAutoUpdater) return { ok: false, reason: "no_updater" };
+      try {
+        const result = await packagedAutoUpdater.checkForUpdates();
+        const updateAvailable =
+          result != null &&
+          Object.prototype.hasOwnProperty.call(result, "downloadPromise") &&
+          result.downloadPromise != null;
+        return { ok: true, updateAvailable };
+      } catch (e) {
+        logError("updater.check_manual", e);
+        return { ok: false, message: e?.message || String(e) };
+      }
+    });
+
     logInfo("app.ready");
 
     app.on("activate", () => {

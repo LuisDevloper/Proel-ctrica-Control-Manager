@@ -5,7 +5,7 @@ import { Button } from "../components/ui/Button";
 import { Badge } from "../components/ui/Badge";
 import { useToast } from "../components/ui/Toast";
 import { useAsync } from "../hooks/useAsync";
-import { KeyRound, Info, Database, Monitor, Download, Upload, AlertTriangle } from "lucide-react";
+import { KeyRound, Info, Database, Monitor, Download, Upload, AlertTriangle, RefreshCw } from "lucide-react";
 
 export function Configuracion({ user }) {
   const [appInfo, setAppInfo]         = useState(null);
@@ -51,6 +51,26 @@ export function Configuracion({ user }) {
       "Contrasena actualizada correctamente."
     );
     if (ok) { setCurrentPwd(""); setNewPwd(""); setConfirmPwd(""); }
+  }
+
+  async function handleCheckUpdates() {
+    const msgUltimaVersion = "No hay actualizaciones nuevas, Tienes la ultima version.";
+    const r = await window.proelectricaApi.checkForUpdates();
+    if (r?.reason === "dev") {
+      showToast(msgUltimaVersion, "info");
+      return;
+    }
+    if (r?.reason === "no_updater") {
+      showToast("El comprobador de actualizaciones no esta disponible.", "warning");
+      return;
+    }
+    if (r?.ok) {
+      if (!r.updateAvailable) {
+        showToast(msgUltimaVersion, "info");
+      }
+      return;
+    }
+    showToast(r?.message || "No se pudo iniciar la comprobacion.", "warning");
   }
 
   return (
@@ -111,6 +131,23 @@ export function Configuracion({ user }) {
               Verificar
             </Button>
           </div>
+        </CardContent>
+      </Card>
+
+      {/* Actualizaciones */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <RefreshCw size={15} className="text-[#2f8dff]" /> Actualizaciones
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <p className="text-sm text-[#9ab0c7] mb-3">
+            Busca manualmente una version nueva publicada.
+          </p>
+          <Button variant="secondary" type="button" onClick={handleCheckUpdates}>
+            <RefreshCw size={14} className="mr-2" /> Buscar actualizaciones
+          </Button>
         </CardContent>
       </Card>
 

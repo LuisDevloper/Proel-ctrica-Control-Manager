@@ -10,11 +10,13 @@ export function Login({ onLogin }) {
   const savedUser = localStorage.getItem(SAVED_USER_KEY) || "";
   const [username, setUsername] = useState(savedUser);
   const [password, setPassword] = useState("");
-  const [remember, setRemember] = useState(!!savedUser);
-  const [error, setError]       = useState("");
-  const [loading, setLoading]   = useState(false);
-  const [success, setSuccess]   = useState(false);
-  const { showToast }           = useToast();
+  const [remember, setRemember]   = useState(!!savedUser);
+  const [error, setError]         = useState("");
+  const [loading, setLoading]     = useState(false);
+  const [success, setSuccess]     = useState(false);
+  const { showToast }             = useToast();
+  const userId = React.useId();
+  const passId = React.useId();
 
   async function handleLogin(e) {
     e.preventDefault();
@@ -86,10 +88,11 @@ export function Login({ onLogin }) {
 
             {/* Campo usuario */}
             <div>
-              <label className="block text-xs font-medium text-[#9ab0c7] mb-1.5">Usuario</label>
+              <label htmlFor={userId} className="block text-xs font-medium text-[#9ab0c7] mb-1.5">Usuario</label>
               <div className="relative">
-                <User size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#4a6a8a]" />
+                <User size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#4a6a8a]" aria-hidden />
                 <Input
+                  id={userId}
                   className="pl-9"
                   placeholder="Nombre de usuario"
                   value={username}
@@ -102,10 +105,11 @@ export function Login({ onLogin }) {
 
             {/* Campo contraseña */}
             <div>
-              <label className="block text-xs font-medium text-[#9ab0c7] mb-1.5">Contrasena</label>
+              <label htmlFor={passId} className="block text-xs font-medium text-[#9ab0c7] mb-1.5">Contrasena</label>
               <div className="relative">
-                <Lock size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#4a6a8a]" />
+                <Lock size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#4a6a8a]" aria-hidden />
                 <Input
+                  id={passId}
                   type="password"
                   className="pl-9"
                   placeholder="Contrasena"

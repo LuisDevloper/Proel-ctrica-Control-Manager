@@ -5,6 +5,7 @@ import { SplashScreen } from "./components/ui/SplashScreen";
 import { Sidebar } from "./components/layout/Sidebar";
 import { NotificationBell } from "./components/ui/NotificationBell";
 import { UpdateBanner } from "./components/ui/UpdateBanner";
+import { DbConnectionBanner } from "./components/layout/DbConnectionBanner";
 import { Login } from "./views/Login";
 
 // Carga diferida — cada vista se descarga solo cuando se navega a ella
@@ -54,6 +55,9 @@ export default function App() {
     return (
       <ToastProvider>
         <div className="animate-pageFadeIn">
+          <div className="px-4 pt-3 max-w-5xl mx-auto w-full">
+            <DbConnectionBanner />
+          </div>
           <Login onLogin={setUser} />
         </div>
       </ToastProvider>
@@ -91,6 +95,7 @@ export default function App() {
 
           {/* Vista activa */}
           <main className="flex-1 min-w-0">
+            <DbConnectionBanner />
             <UpdateBanner />
             <Suspense fallback={
               <div className="flex flex-col gap-4 animate-pulse pt-2">

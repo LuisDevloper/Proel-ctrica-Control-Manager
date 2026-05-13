@@ -12,7 +12,7 @@ import { cn } from "../../lib/utils";
  *   className
  *   placeholder
  */
-export function CurrencyInput({ value, onChange, className, placeholder = "0" }) {
+export function CurrencyInput({ value, onChange, className, placeholder = "0", id, ...rest }) {
   const [display, setDisplay] = useState("");
 
   // Sincroniza el display cuando el valor externo cambia (ej. al limpiar el form)
@@ -47,6 +47,7 @@ export function CurrencyInput({ value, onChange, className, placeholder = "0" })
     <div className="relative">
       <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[#4a6a8a] text-sm select-none">$</span>
       <input
+        id={id}
         type="text"
         inputMode="decimal"
         value={display}
@@ -58,6 +59,7 @@ export function CurrencyInput({ value, onChange, className, placeholder = "0" })
           "focus:border-[#2f8dff] focus:ring-2 focus:ring-[#2f8dff33]",
           className
         )}
+        {...rest}
       />
     </div>
   );

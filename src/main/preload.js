@@ -52,5 +52,6 @@ contextBridge.exposeInMainWorld("proelectricaApi", {
     ipcRenderer.on("updater:event", handler);
     return () => ipcRenderer.removeListener("updater:event", handler);
   },
+  checkForUpdates: () => ipcRenderer.invoke("updater:check"),
   installUpdate: () => ipcRenderer.send("updater:install-now")
 });

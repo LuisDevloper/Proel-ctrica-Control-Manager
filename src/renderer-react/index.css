@@ -85,8 +85,8 @@
     --border:     #cbd5e1;
     --border-soft:#e2e8f0;
     --text:       #1e293b;
-    --muted:      #64748b;
-    --faint:      #94a3b8;
+    --muted:      #475569;
+    --faint:      #64748b;
     --primary:    #2563eb;
     --warning:    #d97706;
     --danger:     #dc2626;
@@ -109,6 +109,12 @@
     background-attachment: fixed;
     color: var(--text);
     transition: background-color 0.3s ease, color 0.3s ease;
+  }
+
+  /* Foco visible al navegar con teclado */
+  :where(button, [role="button"], a, input, select, textarea, summary):focus-visible {
+    outline: 2px solid var(--primary) !important;
+    outline-offset: 2px;
   }
 
   ::-webkit-scrollbar { width: 6px; height: 6px; }

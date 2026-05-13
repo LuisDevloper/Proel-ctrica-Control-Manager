@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { Download, RefreshCw, CheckCircle, X } from "lucide-react";
+import { Download, RefreshCw, CheckCircle, X, Loader2 } from "lucide-react";
 import { cn } from "../../lib/utils";
 
 export function UpdateBanner() {
@@ -9,9 +9,26 @@ export function UpdateBanner() {
   useEffect(() => {
     if (!window.proelectricaApi?.onUpdaterEvent) return;
     const unsub = window.proelectricaApi.onUpdaterEvent((data) => {
-      // Ignorar eventos silenciosos o errores 404 (sin releases publicados)
-      if (data.event === "checking" || data.event === "up-to-date") return;
-      if (data.event === "error" && data.message?.includes("404")) return;
+      if (data.event === "checking") {
+        setState({ event: "checking" });
+        return;
+      }
+      if (data.event === "up-to-date") {
+        setState((prev) => (prev?.event === "checking" ? null : prev));
+        return;
+      }
+      if (data.event === "error") {
+        const msg = String(data.message || "");
+        const is404 = /404|not found|Cannot find latest\.yml|latest\.yml/i.test(msg);
+        if (is404) {
+          setState({
+            event: "error",
+            message:
+              "GitHub no devolvió latest.yml o el release no tiene el instalador publicado. En cada release deben estar el .exe y el archivo latest.yml generado por electron-builder (carpeta dist). La etiqueta del release debe ser una versión mayor que la instalada.",
+          });
+          return;
+        }
+      }
       setState(data);
     });
     return unsub;
@@ -22,6 +39,13 @@ export function UpdateBanner() {
   const { event, version, percent, message } = state;
 
   const configs = {
+    checking: {
+      icon: Loader2,
+      bg: "bg-[var(--panel-deep)]/80 border-[var(--border)]/60",
+      text: "text-[var(--muted)]",
+      msg: "Comprobando actualizaciones…",
+      showClose: false,
+    },
     available: {
       icon: Download,
       bg: "bg-[#0d1e38] border-[#2f8dff]/40",
@@ -56,13 +80,29 @@ export function UpdateBanner() {
   const cfg = configs[event];
   if (!cfg) return null;
   const Icon = cfg.icon;
+  const discrete = event === "checking";
 
   return (
-    <div className={cn(
-      "flex items-center gap-3 px-4 py-2.5 rounded-xl border text-xs font-medium mb-3 transition-all",
-      cfg.bg, cfg.text
-    )}>
-      <Icon size={14} className={cn("shrink-0", event === "downloading" && "animate-spin")} />
+    <div
+      className={cn(
+        "flex items-center gap-3 rounded-xl border font-medium mb-3 transition-all",
+        discrete ? "px-3 py-1.5 text-[11px] gap-2 opacity-90" : "px-4 py-2.5 text-xs",
+        cfg.bg, cfg.text
+      )}
+      role={
+        event === "checking"
+          ? "status"
+          : event === "error"
+            ? "alert"
+            : undefined
+      }
+      aria-live={event === "checking" ? "polite" : event === "error" ? "assertive" : undefined}
+    >
+      <Icon
+        size={14}
+        className={cn("shrink-0", (event === "downloading" || event === "checking") && "animate-spin")}
+        aria-hidden
+      />
       <span className="flex-1">{cfg.msg}</span>
 
       {event === "downloading" && (
