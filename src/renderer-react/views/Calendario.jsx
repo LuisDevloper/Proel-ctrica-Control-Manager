@@ -5,6 +5,7 @@ import { Badge, statusBadgeVariant } from "../components/ui/Badge";
 import { Modal } from "../components/ui/Modal";
 import { ChevronLeft, ChevronRight, Calendar } from "lucide-react";
 import { cn } from "../lib/utils";
+import { useToast } from "../components/ui/Toast";
 
 const DAYS   = ["Dom","Lun","Mar","Mie","Jue","Vie","Sab"];
 const MONTHS = ["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
@@ -16,11 +17,16 @@ export function Calendario() {
   const [events, setEvents] = useState([]);
   const [selected, setSelected] = useState(null);
   const [modalOpen, setModalOpen] = useState(false);
+  const { showToast } = useToast();
 
   const load = useCallback(() => {
     window.proelectricaApi.getMaintenancesCalendar({ year, month })
-      .then(setEvents);
-  }, [year, month]);
+      .then((rows) => setEvents(Array.isArray(rows) ? rows : []))
+      .catch(() => {
+        setEvents([]);
+        showToast("No se pudo cargar el calendario de mantenimientos.", "warning");
+      });
+  }, [year, month, showToast]);
 
   useEffect(() => { load(); }, [load]);
 

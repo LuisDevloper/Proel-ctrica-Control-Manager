@@ -1,3 +1,4 @@
+const fs = require("fs");
 const path = require("path");
 const bcrypt = require("bcryptjs");
 const { app } = require("electron");
@@ -152,8 +153,45 @@ function getDatabase() {
   return db;
 }
 
+/** Elimina -wal / -shm junto al .db para evitar estado incoherente tras reemplazar el archivo. */
+function removeDatabaseSidecars(filePath) {
+  for (const ext of ["-wal", "-shm"]) {
+    const p = filePath + ext;
+    try {
+      if (fs.existsSync(p)) fs.unlinkSync(p);
+    } catch (err) {
+      logError("database.sidecar_remove_failed", err, { path: p });
+    }
+  }
+}
+
+/** Cierra la conexión y limpia sidecars antes de sobrescribir el archivo de BD. */
+function closeDatabaseForFileReplace() {
+  if (db) {
+    try {
+      db.close();
+    } catch (err) {
+      logError("database.close_failed", err);
+      throw err;
+    }
+    db = null;
+  }
+  if (dbPath) removeDatabaseSidecars(dbPath);
+}
+
+function reopenDatabase() {
+  if (db) return;
+  if (!dbPath) throw new Error("Base de datos no inicializada.");
+  db = new Database(dbPath);
+  db.pragma("journal_mode = WAL");
+  db.pragma("foreign_keys = ON");
+  logInfo("database.reopened", { dbPath });
+}
+
 module.exports = {
   initializeDatabase,
   saveDatabase,
-  getDatabase
+  getDatabase,
+  closeDatabaseForFileReplace,
+  reopenDatabase
 };

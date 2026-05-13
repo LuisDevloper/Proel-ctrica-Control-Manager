@@ -17,8 +17,8 @@ export function NotificationBell() {
   const load = useCallback(() => {
     setLoading(true);
     window.proelectricaApi.getNotifications()
-      .then(setItems)
-      .catch(() => {})
+      .then((rows) => setItems(Array.isArray(rows) ? rows : []))
+      .catch(() => setItems([]))
       .finally(() => setLoading(false));
   }, []);
 

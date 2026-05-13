@@ -3,12 +3,21 @@ import { useToast } from "../components/ui/Toast";
 
 /**
  * Devuelve una funcion `run` que envuelve llamadas asincronas con manejo
- * automatico de errores y toasts de exito/fallo.
+ * automatico de errores y toasts.
+ *
+ * - Si la promesa resuelve con un objeto `{ ok: false }` (IPC estilo API):
+ *   muestra aviso (warning) con `message`, o info si fue cancelacion; no muestra el toast de exito.
+ * - Si lanza excepcion: toast warning con el mensaje extraido.
+ * - Solo si la operacion tiene exito se muestra `successMsg` como toast success.
  *
  * Uso:
  *   const { run } = useAsync();
- *   await run(() => window.proelectricaApi.createMotor(data), "Motor registrado.");
+ *   const { ok } = await run(() => window.proelectricaApi.createMotor(data), "Motor registrado.");
  */
+function isResultObject(value) {
+  return value !== null && typeof value === "object" && !Array.isArray(value) && "ok" in value;
+}
+
 export function useAsync() {
   const { showToast } = useToast();
 
@@ -16,6 +25,17 @@ export function useAsync() {
     async (fn, successMsg) => {
       try {
         const result = await fn();
+
+        if (isResultObject(result) && result.ok === false) {
+          const canceled = result.canceled === true || result.message === "Cancelado";
+          if (canceled) {
+            showToast("Operacion cancelada.", "info");
+          } else {
+            showToast(result.message || "No se pudo completar la operacion.", "warning");
+          }
+          return { ok: false, result, message: result.message };
+        }
+
         if (successMsg) showToast(successMsg, "success");
         return { ok: true, result };
       } catch (err) {

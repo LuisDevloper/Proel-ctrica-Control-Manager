@@ -1,28 +1,39 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { AppLogo } from "./AppLogo";
 
 export function SplashScreen({ onFinish }) {
   const [phase, setPhase] = useState("in"); // "in" | "idle" | "out"
   const [progress, setProgress] = useState(0);
+  const onFinishRef = useRef(onFinish);
+  onFinishRef.current = onFinish;
 
   useEffect(() => {
-    // Simula progreso de carga
+    const timers = [];
+    const schedule = (fn, ms) => {
+      timers.push(setTimeout(fn, ms));
+    };
+
     const steps = [
-      { delay: 100,  pct: 20,  label: "Iniciando motor..." },
-      { delay: 400,  pct: 50,  label: "Conectando base de datos..." },
-      { delay: 800,  pct: 80,  label: "Cargando modulos..." },
-      { delay: 1200, pct: 100, label: "Listo" }
+      { delay: 100,  pct: 20 },
+      { delay: 400,  pct: 50 },
+      { delay: 800,  pct: 80 },
+      { delay: 1200, pct: 100 },
     ];
 
     steps.forEach(({ delay, pct }) => {
-      setTimeout(() => setProgress(pct), delay);
+      schedule(() => setProgress(pct), delay);
     });
 
-    // Inicia fade-out después de que la barra llegue al 100%
-    setTimeout(() => setPhase("out"), 1700);
+    schedule(() => setPhase("out"), 1700);
+    schedule(() => {
+      try {
+        onFinishRef.current?.();
+      } catch {
+        /* evitar pantalla colgada si el padre lanza */
+      }
+    }, 2200);
 
-    // Notifica al padre cuando termina la animación de salida
-    setTimeout(() => onFinish(), 2200);
+    return () => timers.forEach(clearTimeout);
   }, []);
 
   return (
@@ -31,7 +42,8 @@ export function SplashScreen({ onFinish }) {
       style={{
         background: "radial-gradient(900px 600px at 30% 20%, #15365f44, transparent 60%), #070b10",
         opacity: phase === "out" ? 0 : 1,
-        transition: "opacity 0.5s ease"
+        transition: "opacity 0.5s ease",
+        pointerEvents: phase === "out" ? "none" : "auto",
       }}
     >
       {/* Resplandor de fondo */}

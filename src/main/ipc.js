@@ -1,9 +1,9 @@
-const { ipcMain, dialog, app: electronApp } = require("electron");
+const { ipcMain, dialog, app } = require("electron");
 const bcrypt = require("bcryptjs");
 const fs = require("fs");
 const path = require("path");
-const { getDatabase } = require("../database/db");
-const { logInfo } = require("../services/logger");
+const { getDatabase, closeDatabaseForFileReplace, reopenDatabase } = require("../database/db");
+const { logInfo, logError } = require("../services/logger");
 
 // Registra una entrada en el log de actividad
 function logActivity(db, username, action, entity, entityId, details) {
@@ -12,10 +12,23 @@ function logActivity(db, username, action, entity, entityId, details) {
       INSERT INTO activity_log (username, action, entity, entity_id, details, created_at)
       VALUES (?, ?, ?, ?, ?, ?)
     `).run(username || "sistema", action, entity, entityId || null, details || null, new Date().toISOString());
-  } catch (_) { /* La tabla puede no existir en versiones antiguas */ }
+  } catch (err) {
+    logError("activity_log.insert_failed", err, { action, entity, entityId: entityId ?? null });
+  }
 }
 
-const { app } = require("electron");
+/** Primer y último día del mes (month 1–12) en ISO YYYY-MM-DD para filtros SQLite. */
+function calendarMonthIsoRange(year, month) {
+  const y = Math.trunc(Number(year));
+  const m = Math.trunc(Number(month));
+  const now = new Date();
+  const yy = Number.isFinite(y) && y > 0 ? y : now.getFullYear();
+  const mm = Number.isFinite(m) && m >= 1 && m <= 12 ? m : now.getMonth() + 1;
+  const from = `${yy}-${String(mm).padStart(2, "0")}-01`;
+  const lastDay = new Date(yy, mm, 0).getDate();
+  const to = `${yy}-${String(mm).padStart(2, "0")}-${String(lastDay).padStart(2, "0")}`;
+  return { from, to };
+}
 
 function registerIpcHandlers() {
   // Notificaciones de alertas
@@ -105,8 +118,7 @@ function registerIpcHandlers() {
   // Mantenimientos del mes para el calendario
   ipcMain.handle("maintenances:calendar", (_event, { year, month }) => {
     const db = getDatabase();
-    const from = `${year}-${String(month).padStart(2, "0")}-01`;
-    const to   = `${year}-${String(month).padStart(2, "0")}-31`;
+    const { from, to } = calendarMonthIsoRange(year, month);
     return db.prepare(`
       SELECT m.*, mo.code as motor_code, t.full_name as technician_name
       FROM maintenances m
@@ -587,12 +599,26 @@ function registerIpcHandlers() {
       properties: ["openFile"]
     });
     if (canceled || !filePaths?.length) return { ok: false, message: "Cancelado" };
-    // Hacer copia de seguridad automática antes de restaurar
+
     const autoBackup = dbPath + ".before-restore";
-    fs.copyFileSync(dbPath, autoBackup);
-    fs.copyFileSync(filePaths[0], dbPath);
-    logInfo("db.restore", { src: filePaths[0] });
-    return { ok: true };
+    closeDatabaseForFileReplace();
+    try {
+      if (fs.existsSync(dbPath)) {
+        fs.copyFileSync(dbPath, autoBackup);
+      }
+      fs.copyFileSync(filePaths[0], dbPath);
+      logInfo("db.restore", { src: filePaths[0] });
+      return { ok: true, message: "Base de datos restaurada. Reinicia la aplicacion si ves comportamientos extranos." };
+    } catch (err) {
+      logError("db.restore_failed", err);
+      return { ok: false, message: err?.message || "No se pudo restaurar la base de datos." };
+    } finally {
+      try {
+        reopenDatabase();
+      } catch (err) {
+        logError("db.reopen_after_restore_failed", err);
+      }
+    }
   });
 
   // ── Gestión de usuarios ───────────────────────────────────────

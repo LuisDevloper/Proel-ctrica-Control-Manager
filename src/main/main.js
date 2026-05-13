@@ -59,12 +59,19 @@ function createMainWindow() {
 
   // Mostrar la ventana al terminar de cargar (evita parpadeo blanco)
   mainWindow.once("ready-to-show", () => {
+    // Siempre show() antes de maximize(); en algunos entornos solo maximize()
+    // deja el área de contenido sin pintar correctamente.
+    mainWindow.show();
     if (state.maximized) {
       mainWindow.maximize();
-    } else {
-      mainWindow.show();
     }
   });
+
+  if (isDev && process.env.PCM_DEVTOOLS === "1") {
+    mainWindow.webContents.once("did-finish-load", () => {
+      mainWindow.webContents.openDevTools({ mode: "detach" });
+    });
+  }
 
   // Guardar estado al cerrar
   mainWindow.on("close", () => saveWindowState(mainWindow));

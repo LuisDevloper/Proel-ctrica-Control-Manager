@@ -17,9 +17,8 @@ const EXCEL_COLS = [
   { key: "maintenance_date", header: "Fecha",             width: 14 },
   { key: "technician_name",  header: "Tecnico",           width: 22 },
   { key: "cost",             header: "Costo (Bs)",        width: 14 },
-  { key: "duration_hours",   header: "Duracion (h)",      width: 14 },
   { key: "status",           header: "Estado",            width: 16 },
-  { key: "notes",            header: "Observaciones",     width: 36 },
+  { key: "description",      header: "Descripcion",       width: 36 },
 ];
 import { useToast } from "../components/ui/Toast";
 import { useAsync } from "../hooks/useAsync";

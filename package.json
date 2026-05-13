@@ -11,6 +11,7 @@
     "build:renderer": "vite build",
     "build:icon": "node scripts/make-icon.mjs",
     "build": "npm run build:icon && npm run build:renderer && electron-builder",
+    "rebuild:native": "electron-rebuild -f -w better-sqlite3",
     "start": "electron ."
   },
   "build": {

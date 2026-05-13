@@ -17,9 +17,23 @@ export function Configuracion({ user }) {
   const { run }                       = useAsync();
 
   useEffect(() => {
-    window.proelectricaApi.getAppInfo().then(setAppInfo);
-    window.proelectricaApi.dbPing().then(r => setDbStatus(r.ok));
-  }, []);
+    let cancelled = false;
+    Promise.all([
+      window.proelectricaApi.getAppInfo(),
+      window.proelectricaApi.dbPing()
+    ])
+      .then(([info, ping]) => {
+        if (cancelled) return;
+        setAppInfo(info);
+        setDbStatus(ping?.ok === true);
+      })
+      .catch(() => {
+        if (cancelled) return;
+        showToast("No se pudo obtener la informacion del sistema.", "warning");
+        setDbStatus(false);
+      });
+    return () => { cancelled = true; };
+  }, [showToast]);
 
   async function handleChangePassword(e) {
     e.preventDefault();
@@ -82,10 +96,16 @@ export function Configuracion({ user }) {
               variant="ghost" size="sm"
               onClick={() => {
                 setDbStatus(null);
-                window.proelectricaApi.dbPing().then(r => {
-                  setDbStatus(r.ok);
-                  showToast(r.ok ? "Base de datos respondiendo correctamente." : "No se pudo conectar.", r.ok ? "success" : "warning");
-                });
+                window.proelectricaApi.dbPing()
+                  .then((r) => {
+                    const ok = r?.ok === true;
+                    setDbStatus(ok);
+                    showToast(ok ? "Base de datos respondiendo correctamente." : "No se pudo conectar.", ok ? "success" : "warning");
+                  })
+                  .catch(() => {
+                    setDbStatus(false);
+                    showToast("No se pudo verificar la base de datos.", "warning");
+                  });
               }}
             >
               Verificar
@@ -109,8 +129,7 @@ export function Configuracion({ user }) {
             <Button
               variant="secondary"
               onClick={async () => {
-                const r = await run(() => window.proelectricaApi.backupDb(), "Copia de seguridad guardada correctamente.");
-                if (r?.ok === false && r?.message !== "Cancelado") showToast("No se pudo guardar la copia.", "warning");
+                await run(() => window.proelectricaApi.backupDb(), "Copia de seguridad guardada correctamente.");
               }}
             >
               <Download size={14} className="mr-2" /> Exportar copia de seguridad
@@ -119,8 +138,7 @@ export function Configuracion({ user }) {
               variant="ghost"
               className="border border-[#e0a91f]/40 text-[#e0a91f] hover:bg-[#e0a91f]/10"
               onClick={async () => {
-                const r = await run(() => window.proelectricaApi.restoreDb(), "Base de datos restaurada. Reinicia la aplicacion para ver los cambios.");
-                if (r?.ok === false && r?.message !== "Cancelado") showToast("No se pudo restaurar la copia.", "warning");
+                await run(() => window.proelectricaApi.restoreDb(), "Base de datos restaurada. Reinicia la aplicacion para ver los cambios.");
               }}
             >
               <Upload size={14} className="mr-2" /> Restaurar desde copia

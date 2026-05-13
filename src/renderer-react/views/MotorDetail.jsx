@@ -6,6 +6,7 @@ import { Table, Thead, Th, Tbody, Tr, Td } from "../components/ui/Table";
 import { SkeletonTable } from "../components/ui/Skeleton";
 import { exportMotorDetailPDF } from "../lib/pdfReport";
 import { ArrowLeft, FileText, Cpu, Wrench, AlertTriangle, DollarSign, Activity } from "lucide-react";
+import { useToast } from "../components/ui/Toast";
 
 const fmtCost = (v) => "$" + Number(v || 0).toLocaleString("es-CO");
 const fmtDate = (d) => d || "—";
@@ -23,12 +24,25 @@ export function MotorDetail({ motorId, onBack }) {
   const [data, setData]       = useState(null);
   const [loading, setLoading] = useState(true);
   const [lightbox, setLightbox] = useState(false);
+  const { showToast } = useToast();
 
   useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
     window.proelectricaApi.getMotorDetail(motorId)
-      .then(setData)
-      .finally(() => setLoading(false));
-  }, [motorId]);
+      .then((d) => {
+        if (cancelled) return;
+        setData(d);
+        if (d && !d.motor) showToast("Motor no encontrado.", "warning");
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setData(null);
+        showToast("No se pudo cargar el detalle del motor.", "warning");
+      })
+      .finally(() => { if (!cancelled) setLoading(false); });
+    return () => { cancelled = true; };
+  }, [motorId, showToast]);
 
   if (loading) return (
     <div className="flex flex-col gap-4">
@@ -37,7 +51,18 @@ export function MotorDetail({ motorId, onBack }) {
     </div>
   );
 
-  const { motor, maintenances, failures } = data;
+  if (!data?.motor) {
+    return (
+      <div className="flex flex-col gap-4">
+        <Button variant="ghost" size="sm" onClick={onBack} className="self-start">
+          <ArrowLeft size={14} className="mr-1" /> Volver
+        </Button>
+        <p className="text-sm text-[#9ab0c7]">No hay datos para mostrar.</p>
+      </div>
+    );
+  }
+
+  const { motor, maintenances = [], failures = [] } = data;
   const totalCost    = maintenances.reduce((s, m) => s + Number(m.cost || 0), 0);
   const pendingFails = failures.filter(f => f.status !== "Resuelta").length;
   const completedMtn = maintenances.filter(m => m.status === "Completado").length;

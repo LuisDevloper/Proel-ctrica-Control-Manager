@@ -53,20 +53,20 @@ export function Usuarios({ user: currentUser }) {
   }
 
   async function handleRoleChange(userId, role) {
-    await run(() => window.proelectricaApi.updateUserRole({ id: userId, role }), "Rol actualizado.");
-    load();
+    const r = await run(() => window.proelectricaApi.updateUserRole({ id: userId, role }), "Rol actualizado.");
+    if (r.ok) load();
   }
 
   async function handleResetPassword() {
     if (!newPwd || newPwd.length < 6) { showToast("La nueva contrasena debe tener al menos 6 caracteres.", "warning"); return; }
-    await run(() => window.proelectricaApi.resetUserPassword({ id: resetId, password: newPwd }), "Contrasena restablecida.");
-    setResetId(null); setNewPwd(""); load();
+    const r = await run(() => window.proelectricaApi.resetUserPassword({ id: resetId, password: newPwd }), "Contrasena restablecida.");
+    if (r.ok) { setResetId(null); setNewPwd(""); load(); }
   }
 
   async function handleDelete() {
-    const { ok, message } = await run(() => window.proelectricaApi.deleteUser(deleteId), "Usuario eliminado.");
-    if (!ok && message) showToast(message, "warning");
-    setDeleteId(null); load();
+    const { ok } = await run(() => window.proelectricaApi.deleteUser(deleteId), "Usuario eliminado.");
+    setDeleteId(null);
+    if (ok) load();
   }
 
   return (

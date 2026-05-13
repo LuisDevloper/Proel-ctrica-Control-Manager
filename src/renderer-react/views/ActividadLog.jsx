@@ -45,13 +45,18 @@ export function ActividadLog() {
   const [loading, setLoading] = useState(true);
   const [limit, setLimit] = useState(200);
 
-  const filters = useFilters(items, { filterFn, defaultSortField: "created_at", defaultSortDir: "desc", perPage: 25 });
+  const filters = useFilters(items, { filterFn, defaultSortField: "created_at", perPage: 25 });
 
   const load = useCallback(async () => {
     setLoading(true);
-    const data = await window.proelectricaApi.getActivityLog({ limit });
-    setItems(data || []);
-    setLoading(false);
+    try {
+      const data = await window.proelectricaApi.getActivityLog({ limit });
+      setItems(Array.isArray(data) ? data : []);
+    } catch {
+      setItems([]);
+    } finally {
+      setLoading(false);
+    }
   }, [limit]);
 
   useEffect(() => { load(); }, [load]);
@@ -132,7 +137,7 @@ export function ActividadLog() {
 
           {loading ? (
             <p className="text-center text-[#9ab0c7] py-8">Cargando...</p>
-          ) : filters.page.length === 0 ? (
+          ) : filters.paged.length === 0 ? (
             <p className="text-center text-[#9ab0c7] py-8">No hay registros de actividad.</p>
           ) : (
             <div className="overflow-x-auto rounded-xl border border-[#2a3d57] mt-3">
@@ -147,7 +152,7 @@ export function ActividadLog() {
                   </Tr>
                 </Thead>
                 <Tbody>
-                  {filters.page.map(item => (
+                  {filters.paged.map(item => (
                     <Tr key={item.id}>
                       <Td className="text-xs text-[#9ab0c7] whitespace-nowrap">{fmtDate(item.created_at)}</Td>
                       <Td>
@@ -169,9 +174,12 @@ export function ActividadLog() {
           )}
 
           <Pager
-            page={filters.currentPage} total={filters.filtered.length}
-            perPage={25} totalPages={filters.totalPages}
-            onPrev={filters.prevPage} onNext={filters.nextPage}
+            page={filters.page}
+            totalPages={filters.totalPages}
+            onPrev={() => filters.setPage(filters.page - 1)}
+            onNext={() => filters.setPage(filters.page + 1)}
+            total={filters.filtered.length}
+            perPage={filters.perPage}
           />
         </CardContent>
       </Card>

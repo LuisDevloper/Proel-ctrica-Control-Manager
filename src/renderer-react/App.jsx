@@ -1,4 +1,4 @@
-import React, { useState, lazy, Suspense } from "react";
+import React, { useState, useCallback, lazy, Suspense } from "react";
 import { ToastProvider } from "./components/ui/Toast";
 import { useTheme } from "./context/ThemeContext";
 import { SplashScreen } from "./components/ui/SplashScreen";
@@ -35,6 +35,8 @@ export default function App() {
   const [splashDone, setSplashDone] = useState(false);
   const [fadingOut, setFadingOut]   = useState(false);
 
+  const handleSplashDone = useCallback(() => setSplashDone(true), []);
+
   function handleLogout() {
     setFadingOut(true);
     setTimeout(() => {
@@ -45,7 +47,7 @@ export default function App() {
   }
 
   if (!splashDone) {
-    return <SplashScreen onFinish={() => setSplashDone(true)} />;
+    return <SplashScreen onFinish={handleSplashDone} />;
   }
 
   if (!user) {
