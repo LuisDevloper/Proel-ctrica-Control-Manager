@@ -16,11 +16,14 @@ const Tecnicos       = lazy(() => import("./views/Tecnicos").then(m => ({ defaul
 const Inventario     = lazy(() => import("./views/Inventario").then(m => ({ default: m.Inventario })));
 const Configuracion  = lazy(() => import("./views/Configuracion").then(m => ({ default: m.Configuracion })));
 const Calendario     = lazy(() => import("./views/Calendario").then(m => ({ default: m.Calendario })));
+const Usuarios       = lazy(() => import("./views/Usuarios").then(m => ({ default: m.Usuarios })));
+const ActividadLog   = lazy(() => import("./views/ActividadLog").then(m => ({ default: m.ActividadLog })));
 
 const VIEWS = {
   dashboard: Dashboard, motores: Motores, mantenimientos: Mantenimientos,
   fallas: Fallas, tecnicos: Tecnicos, inventario: Inventario,
   calendario: Calendario, configuracion: Configuracion,
+  usuarios: Usuarios, actividad: ActividadLog,
 };
 
 
@@ -30,6 +33,16 @@ export default function App() {
   const [view, setView]             = useState("dashboard");
   const [collapsed, setCollapsed]   = useState(false);
   const [splashDone, setSplashDone] = useState(false);
+  const [fadingOut, setFadingOut]   = useState(false);
+
+  function handleLogout() {
+    setFadingOut(true);
+    setTimeout(() => {
+      setUser(null);
+      setView("dashboard");
+      setFadingOut(false);
+    }, 350);
+  }
 
   if (!splashDone) {
     return <SplashScreen onFinish={() => setSplashDone(true)} />;
@@ -38,7 +51,9 @@ export default function App() {
   if (!user) {
     return (
       <ToastProvider>
-        <Login onLogin={setUser} />
+        <div className="animate-pageFadeIn">
+          <Login onLogin={setUser} />
+        </div>
       </ToastProvider>
     );
   }
@@ -47,14 +62,17 @@ export default function App() {
 
   return (
     <ToastProvider>
-      <div className="flex gap-4 min-h-screen p-4">
+      <div
+        className="flex gap-4 min-h-screen p-4 animate-pageFadeIn"
+        style={{ transition: "opacity 0.35s ease", opacity: fadingOut ? 0 : 1 }}
+      >
         {/* Sidebar */}
         <div className="shrink-0">
           <Sidebar
             currentView={view}
             onNavigate={setView}
             user={user}
-            onLogout={() => { setUser(null); setView("dashboard"); }}
+            onLogout={handleLogout}
             collapsed={collapsed}
             onToggle={() => setCollapsed((c) => !c)}
             theme={theme}

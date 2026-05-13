@@ -56,6 +56,7 @@ async function initializeDatabase() {
       description TEXT,
       parts_used TEXT,
       cost REAL DEFAULT 0,
+      status TEXT NOT NULL DEFAULT 'Pendiente',
       notes TEXT,
       created_at TEXT NOT NULL,
       FOREIGN KEY (motor_id) REFERENCES motors(id),
@@ -77,6 +78,16 @@ async function initializeDatabase() {
       FOREIGN KEY (technician_id) REFERENCES technicians(id)
     );
 
+    CREATE TABLE IF NOT EXISTS activity_log (
+      id         INTEGER PRIMARY KEY AUTOINCREMENT,
+      username   TEXT NOT NULL,
+      action     TEXT NOT NULL,
+      entity     TEXT NOT NULL,
+      entity_id  INTEGER,
+      details    TEXT,
+      created_at TEXT NOT NULL
+    );
+
     CREATE TABLE IF NOT EXISTS inventory_items (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       part_name TEXT NOT NULL,
@@ -88,6 +99,7 @@ async function initializeDatabase() {
     );
   `);
 
+  runMigrations();
   await seedAdminUser();
   logInfo("database.init", { dbPath });
 }
@@ -113,6 +125,19 @@ async function seedAdminUser() {
       db.prepare("UPDATE users SET username = 'Proelectrica', password_hash = ? WHERE username = 'admin'").run(newHash);
       logInfo("database.admin_migrated");
     }
+  }
+}
+
+function runMigrations() {
+  const mtnCols = db.prepare("PRAGMA table_info(maintenances)").all().map(c => c.name);
+  if (!mtnCols.includes("status")) {
+    db.exec("ALTER TABLE maintenances ADD COLUMN status TEXT NOT NULL DEFAULT 'Pendiente'");
+    logInfo("database.migration_maintenances_status");
+  }
+  const motorCols = db.prepare("PRAGMA table_info(motors)").all().map(c => c.name);
+  if (!motorCols.includes("photo")) {
+    db.exec("ALTER TABLE motors ADD COLUMN photo TEXT");
+    logInfo("database.migration_motors_photo");
   }
 }
 

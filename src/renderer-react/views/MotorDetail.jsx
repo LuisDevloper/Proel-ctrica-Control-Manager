@@ -5,11 +5,24 @@ import { Button } from "../components/ui/Button";
 import { Table, Thead, Th, Tbody, Tr, Td } from "../components/ui/Table";
 import { SkeletonTable } from "../components/ui/Skeleton";
 import { exportMotorDetailPDF } from "../lib/pdfReport";
-import { ArrowLeft, FileText, Cpu, Wrench, AlertTriangle } from "lucide-react";
+import { ArrowLeft, FileText, Cpu, Wrench, AlertTriangle, DollarSign, Activity } from "lucide-react";
+
+const fmtCost = (v) => "$" + Number(v || 0).toLocaleString("es-CO");
+const fmtDate = (d) => d || "—";
+
+function StatMini({ label, value, color = "text-[#eaf2fb]" }) {
+  return (
+    <div className="flex flex-col items-center justify-center bg-[#0d1825] border border-[#2a3d57] rounded-xl p-4 gap-1">
+      <span className={`text-2xl font-bold ${color}`}>{value}</span>
+      <span className="text-xs text-[#9ab0c7] text-center">{label}</span>
+    </div>
+  );
+}
 
 export function MotorDetail({ motorId, onBack }) {
-  const [data, setData]     = useState(null);
+  const [data, setData]       = useState(null);
   const [loading, setLoading] = useState(true);
+  const [lightbox, setLightbox] = useState(false);
 
   useEffect(() => {
     window.proelectricaApi.getMotorDetail(motorId)
@@ -25,54 +38,145 @@ export function MotorDetail({ motorId, onBack }) {
   );
 
   const { motor, maintenances, failures } = data;
+  const totalCost    = maintenances.reduce((s, m) => s + Number(m.cost || 0), 0);
+  const pendingFails = failures.filter(f => f.status !== "Resuelta").length;
+  const completedMtn = maintenances.filter(m => m.status === "Completado").length;
+
+  const fields = [
+    ["Codigo",          motor.code],
+    ["Marca",           motor.brand],
+    ["Modelo",          motor.model || "—"],
+    ["N° Serie",        motor.serial_number || "—"],
+    ["Potencia",        motor.power ? `${motor.power} kW` : "—"],
+    ["Voltaje",         motor.voltage ? `${motor.voltage} V` : "—"],
+    ["RPM",             motor.rpm || "—"],
+    ["Ubicacion",       motor.location || "—"],
+    ["Instalacion",     fmtDate(motor.installed_at)],
+    ["Observaciones",   motor.notes || "—"],
+  ];
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex items-center gap-3">
+      {/* Encabezado */}
+      <div className="flex items-center gap-3 flex-wrap">
         <Button variant="ghost" size="sm" onClick={onBack}>
           <ArrowLeft size={14} className="mr-1" /> Volver
         </Button>
-        <div>
+        <div className="flex-1 min-w-0">
           <h2 className="text-xl font-bold text-[#eaf2fb]">Motor: {motor.code}</h2>
           <p className="text-xs text-[#9ab0c7]">{motor.brand} {motor.model || ""} — {motor.location || "Sin ubicacion"}</p>
         </div>
-        <Badge variant={statusBadgeVariant(motor.status)} className="ml-auto">{motor.status}</Badge>
+        <Badge variant={statusBadgeVariant(motor.status)}>{motor.status}</Badge>
         <Button variant="secondary" size="sm" onClick={() => exportMotorDetailPDF(motor, maintenances, failures)}>
           <FileText size={13} className="mr-1" /> PDF
         </Button>
       </div>
 
-      {/* Info del motor */}
+      {/* Estadísticas rápidas */}
+      <div className="grid grid-cols-4 gap-3">
+        <StatMini label="Mantenimientos" value={maintenances.length} color="text-[#2f8dff]" />
+        <StatMini label="Completados"    value={completedMtn}        color="text-[#29a16a]" />
+        <StatMini label="Fallas"         value={failures.length}     color="text-[#e0a91f]" />
+        <StatMini label="Fallas pendientes" value={pendingFails}     color={pendingFails > 0 ? "text-[#e07070]" : "text-[#29a16a]"} />
+      </div>
+
+      {/* Costo total */}
       <Card>
-        <CardHeader><CardTitle className="flex items-center gap-2"><Cpu size={14}/> Informacion</CardTitle></CardHeader>
+        <CardContent className="flex items-center gap-4 py-4">
+          <div className="p-2.5 rounded-xl bg-[#29a16a]/10 text-[#29a16a]">
+            <DollarSign size={20} />
+          </div>
+          <div>
+            <p className="text-2xl font-bold text-[#eaf2fb]">{fmtCost(totalCost)}</p>
+            <p className="text-xs text-[#9ab0c7]">Costo total acumulado en mantenimientos</p>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Lightbox foto */}
+      {lightbox && motor.photo && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center animate-fadeIn"
+          style={{ background: "rgba(0,0,0,0.85)", backdropFilter: "blur(6px)" }}
+          onClick={() => setLightbox(false)}
+        >
+          <img
+            src={motor.photo}
+            alt={motor.code}
+            className="max-w-[90vw] max-h-[85vh] rounded-2xl shadow-2xl border border-[#2a3d57] animate-slideUp object-contain"
+            onClick={e => e.stopPropagation()}
+          />
+          <button
+            onClick={() => setLightbox(false)}
+            className="absolute top-5 right-6 text-white/70 hover:text-white text-3xl font-light cursor-pointer transition-colors leading-none"
+          >
+            ✕
+          </button>
+        </div>
+      )}
+
+      {/* Ficha técnica */}
+      <Card>
+        <CardHeader><CardTitle className="flex items-center gap-2"><Cpu size={14}/> Ficha tecnica</CardTitle></CardHeader>
         <CardContent>
-          <div className="grid grid-cols-3 gap-x-6 gap-y-2 text-sm">
-            {[["Codigo",motor.code],["Marca",motor.brand],["Modelo",motor.model||"—"],["Ubicacion",motor.location||"—"],["Estado",motor.status],["Notas",motor.notes||"—"]].map(([l,v])=>(
-              <React.Fragment key={l}>
-                <span className="text-[#9ab0c7] col-span-1">{l}</span>
-                <span className="text-[#eaf2fb] col-span-2">{v}</span>
-              </React.Fragment>
-            ))}
+          <div className="flex gap-6">
+            {motor.photo && (
+              <div className="shrink-0">
+                <img
+                  src={motor.photo}
+                  alt={motor.code}
+                  onClick={() => setLightbox(true)}
+                  className="w-28 h-28 rounded-xl object-cover border border-[#2a3d57] shadow-lg cursor-zoom-in hover:scale-105 hover:border-[#2f8dff] transition-all duration-200"
+                  title="Click para ver en grande"
+                />
+              </div>
+            )}
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-x-8 gap-y-2.5 text-sm flex-1">
+              {fields.map(([label, value]) => (
+                <div key={label} className="flex flex-col gap-0.5">
+                  <span className="text-[#9ab0c7] text-xs uppercase tracking-wide">{label}</span>
+                  <span className="text-[#eaf2fb] font-medium">{value}</span>
+                </div>
+              ))}
+            </div>
           </div>
         </CardContent>
       </Card>
 
       {/* Historial mantenimientos */}
       <Card>
-        <CardHeader><CardTitle className="flex items-center gap-2"><Wrench size={14}/> Mantenimientos ({maintenances.length})</CardTitle></CardHeader>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Wrench size={14}/> Historial de mantenimientos
+            <span className="ml-auto text-xs font-normal text-[#9ab0c7]">{maintenances.length} registro(s)</span>
+          </CardTitle>
+        </CardHeader>
         <CardContent>
           {maintenances.length === 0
             ? <p className="text-sm text-[#9ab0c7]">Sin mantenimientos registrados.</p>
             : <Table>
-                <Thead><tr><Th>Tipo</Th><Th>Fecha</Th><Th>Tecnico</Th><Th>Costo</Th><Th>Descripcion</Th></tr></Thead>
+                <Thead>
+                  <tr>
+                    <Th>Tipo</Th><Th>Fecha</Th><Th>Estado</Th><Th>Tecnico</Th><Th>Costo</Th><Th>Descripcion</Th>
+                  </tr>
+                </Thead>
                 <Tbody>
                   {maintenances.map(m => (
-                    <Tr key={m.id}>
+                    <Tr key={m.id} className={m.status === "Completado" ? "opacity-70" : ""}>
                       <Td><Badge variant={statusBadgeVariant(m.maintenance_type)}>{m.maintenance_type}</Badge></Td>
                       <Td className="text-[#9ab0c7]">{m.maintenance_date}</Td>
-                      <Td className="text-[#9ab0c7]">{m.technician_name||"—"}</Td>
-                      <Td>${m.cost||0}</Td>
-                      <Td className="text-[#9ab0c7] max-w-[200px] truncate">{m.description||"—"}</Td>
+                      <Td>
+                        <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${
+                          m.status === "Completado"  ? "bg-[#29a16a22] text-[#29a16a] border border-[#29a16a44]" :
+                          m.status === "En progreso" ? "bg-[#2f8dff22] text-[#2f8dff] border border-[#2f8dff44]" :
+                                                       "bg-[#e0a91f22] text-[#e0a91f] border border-[#e0a91f44]"
+                        }`}>
+                          {m.status || "Pendiente"}
+                        </span>
+                      </Td>
+                      <Td className="text-[#9ab0c7]">{m.technician_name || "—"}</Td>
+                      <Td className="font-medium text-[#29a16a]">{fmtCost(m.cost)}</Td>
+                      <Td className="text-[#9ab0c7] max-w-[200px] truncate">{m.description || "—"}</Td>
                     </Tr>
                   ))}
                 </Tbody>
@@ -83,20 +187,30 @@ export function MotorDetail({ motorId, onBack }) {
 
       {/* Historial fallas */}
       <Card>
-        <CardHeader><CardTitle className="flex items-center gap-2"><AlertTriangle size={14}/> Fallas ({failures.length})</CardTitle></CardHeader>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <AlertTriangle size={14}/> Historial de fallas
+            <span className="ml-auto text-xs font-normal text-[#9ab0c7]">{failures.length} registro(s)</span>
+          </CardTitle>
+        </CardHeader>
         <CardContent>
           {failures.length === 0
             ? <p className="text-sm text-[#9ab0c7]">Sin fallas registradas.</p>
             : <Table>
-                <Thead><tr><Th>Tipo</Th><Th>Prioridad</Th><Th>Estado</Th><Th>Fecha</Th><Th>Solucion</Th></tr></Thead>
+                <Thead>
+                  <tr>
+                    <Th>Tipo</Th><Th>Prioridad</Th><Th>Estado</Th><Th>Fecha</Th><Th>Tecnico</Th><Th>Solucion</Th>
+                  </tr>
+                </Thead>
                 <Tbody>
                   {failures.map(f => (
-                    <Tr key={f.id}>
+                    <Tr key={f.id} className={f.status === "Resuelta" ? "opacity-70" : ""}>
                       <Td className="font-medium">{f.failure_type}</Td>
                       <Td><Badge variant={statusBadgeVariant(f.priority)}>{f.priority}</Badge></Td>
                       <Td><Badge variant={statusBadgeVariant(f.status)}>{f.status}</Badge></Td>
                       <Td className="text-[#9ab0c7]">{f.reported_at}</Td>
-                      <Td className="text-[#9ab0c7] max-w-[200px] truncate">{f.solution||"Pendiente"}</Td>
+                      <Td className="text-[#9ab0c7]">{f.technician_name || "—"}</Td>
+                      <Td className="text-[#9ab0c7] max-w-[200px] truncate">{f.solution || "—"}</Td>
                     </Tr>
                   ))}
                 </Tbody>

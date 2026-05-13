@@ -1,6 +1,6 @@
 import ExcelJS from "exceljs";
 
-// Paleta corporativa Proelectrica
+// Paleta corporativa Proéléctrica
 const COLORS = {
   headerBg:    "0D1825",   // Azul oscuro
   headerText:  "EAF2FB",   // Blanco azulado
@@ -20,7 +20,7 @@ const COLORS = {
  */
 export async function xlsxExport(fileName, sheetTitle, columns, rows) {
   const wb = new ExcelJS.Workbook();
-  wb.creator  = "Proelectrica Control Manager";
+  wb.creator  = "Proélectrica Control Manager";
   wb.created  = new Date();
   wb.modified = new Date();
 

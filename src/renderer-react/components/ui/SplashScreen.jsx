@@ -74,7 +74,7 @@ export function SplashScreen({ onFinish }) {
 
         {/* Nombre */}
         <div className="text-center">
-          <h1 className="text-2xl font-bold text-white tracking-tight">Proelectrica</h1>
+          <h1 className="text-2xl font-bold text-white tracking-tight">Proélectrica</h1>
           <p className="text-xs text-[#7a9bb8] tracking-widest uppercase mt-1">Control Manager</p>
         </div>
 
@@ -96,7 +96,7 @@ export function SplashScreen({ onFinish }) {
       </div>
 
       <p className="absolute bottom-6 text-[11px] text-[#2a3d57]">
-        Proelectrica © {new Date().getFullYear()}
+        Proélectrica © {new Date().getFullYear()}
       </p>
 
       <style>{`@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`}</style>

@@ -8,6 +8,8 @@ import { ConfirmModal } from "../components/ui/Modal";
 import { Table, Thead, Th, Tbody, Tr, Td } from "../components/ui/Table";
 import { useFilters } from "../hooks/useFilters";
 import { xlsxExport } from "../lib/excelExport";
+import { ImportModal } from "../components/ui/ImportModal";
+import { FileSpreadsheet } from "lucide-react";
 
 const EXCEL_COLS = [
   { key: "id",           header: "ID",              width: 8  },
@@ -26,12 +28,13 @@ const filterFn = (item, query) => {
   return !query || hay.includes(query.toLowerCase());
 };
 
-export function Tecnicos() {
+export function Tecnicos({ user }) {
   const [items, setItems]         = useState([]);
   const [editId, setEditId]       = useState(null);
   const [editData, setEditData]   = useState({});
   const [deleteId, setDeleteId]   = useState(null);
   const [form, setForm]           = useState({ fullName:"", specialty:"", phone:"", email:"" });
+  const [showImport, setShowImport] = useState(false);
   const { showToast }             = useToast();
   const { run }                   = useAsync();
   const filters = useFilters(items, { filterFn, defaultSortField:"full_name", perPage:8 });
@@ -44,12 +47,12 @@ export function Tecnicos() {
 
   async function handleSave() {
     if (!form.fullName) { showToast("El nombre es obligatorio.", "warning"); return; }
-    const { ok } = await run(() => window.proelectricaApi.createTechnician(form), "Tecnico registrado.");
+    const { ok } = await run(() => window.proelectricaApi.createTechnician({ ...form, _username: user?.username }), "Tecnico registrado.");
     if (ok) { setForm({ fullName:"", specialty:"", phone:"", email:"" }); load(); }
   }
 
   async function handleUpdate() {
-    const { ok } = await run(() => window.proelectricaApi.updateTechnician({ id: editId, ...editData }), "Tecnico actualizado.");
+    const { ok } = await run(() => window.proelectricaApi.updateTechnician({ id: editId, ...editData, _username: user?.username }), "Tecnico actualizado.");
     if (ok) { setEditId(null); load(); }
   }
 
@@ -60,6 +63,8 @@ export function Tecnicos() {
 
   return (
     <div className="flex flex-col gap-4">
+      <ImportModal open={showImport} entity="technicians" user={user} onClose={() => setShowImport(false)} onSuccess={() => { setShowImport(false); load(); }} />
+
       <h2 className="text-xl font-bold text-[#eaf2fb]">Tecnicos</h2>
 
       <Card>
@@ -76,7 +81,14 @@ export function Tecnicos() {
       </Card>
 
       <Card>
-        <CardHeader><CardTitle>Lista de tecnicos</CardTitle></CardHeader>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <CardTitle>Lista de tecnicos</CardTitle>
+            <Button variant="ghost" size="sm" className="border border-[#2a3d57] text-[#9ab0c7]" onClick={() => setShowImport(true)}>
+              <FileSpreadsheet size={13} className="mr-1" /> Importar Excel
+            </Button>
+          </div>
+        </CardHeader>
         <CardContent>
           <FilterBar
             searchPlaceholder="Buscar por nombre, especialidad o telefono"

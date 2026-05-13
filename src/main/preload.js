@@ -30,6 +30,22 @@ contextBridge.exposeInMainWorld("proelectricaApi", {
   dbPing: () => ipcRenderer.invoke("db:ping"),
   getAppInfo: () => ipcRenderer.invoke("app:info"),
   changePassword: (data) => ipcRenderer.invoke("auth:changePassword", data),
+  // Importar desde Excel
+  parseExcel:       (opts)  => ipcRenderer.invoke("import:parse-excel", opts),
+  importMotors:     (data)  => ipcRenderer.invoke("import:save-motors", data),
+  importTechnicians:(data)  => ipcRenderer.invoke("import:save-technicians", data),
+  // Registro de actividad
+  getActivityLog: (opts) => ipcRenderer.invoke("activity:list", opts),
+  logActivity:    (data) => ipcRenderer.invoke("activity:log", data),
+  // Backup / Restore
+  backupDb:  () => ipcRenderer.invoke("db:backup"),
+  restoreDb: () => ipcRenderer.invoke("db:restore"),
+  // Gestión de usuarios
+  getUsers:          ()     => ipcRenderer.invoke("users:list"),
+  createUser:        (data) => ipcRenderer.invoke("users:create", data),
+  updateUserRole:    (data) => ipcRenderer.invoke("users:update-role", data),
+  resetUserPassword: (data) => ipcRenderer.invoke("users:reset-password", data),
+  deleteUser:        (id)   => ipcRenderer.invoke("users:delete", id),
   // Auto-updater
   onUpdaterEvent: (cb) => {
     const handler = (_, data) => cb(data);

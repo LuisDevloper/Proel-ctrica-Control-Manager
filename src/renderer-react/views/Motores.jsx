@@ -27,7 +27,35 @@ import { useToast } from "../components/ui/Toast";
 import { useAsync } from "../hooks/useAsync";
 import { SkeletonTable } from "../components/ui/Skeleton";
 import { MotorDetail } from "./MotorDetail";
-import { Pencil, Trash2, Plus, X, Check, Eye } from "lucide-react";
+import { Pencil, Trash2, Plus, X, Check, Eye, Camera, ImageOff, FileText, FileSpreadsheet } from "lucide-react";
+import { exportMotoresPDF } from "../lib/pdfReport";
+import { ImportModal } from "../components/ui/ImportModal";
+
+function PhotoInput({ value, onChange }) {
+  function handleFile(e) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 2 * 1024 * 1024) { alert("La imagen no debe superar 2 MB."); return; }
+    const reader = new FileReader();
+    reader.onload = (ev) => onChange(ev.target.result);
+    reader.readAsDataURL(file);
+  }
+  return (
+    <div className="flex items-center gap-3">
+      {value
+        ? <img src={value} alt="motor" className="w-16 h-16 rounded-xl object-cover border border-[#2a3d57]" />
+        : <div className="w-16 h-16 rounded-xl bg-[#0d1825] border border-[#2a3d57] flex items-center justify-center text-[#4a6a8a]"><Camera size={22}/></div>
+      }
+      <div className="flex flex-col gap-1">
+        <label className="cursor-pointer text-xs text-[#2f8dff] hover:text-[#4a9fff] transition-colors">
+          {value ? "Cambiar foto" : "Subir foto"}
+          <input type="file" accept="image/*" className="hidden" onChange={handleFile} />
+        </label>
+        {value && <button onClick={() => onChange(null)} className="text-xs text-[#9ab0c7] hover:text-[#e07070] text-left cursor-pointer">Quitar foto</button>}
+      </div>
+    </div>
+  );
+}
 
 const STATUS_OPTIONS = ["Operativo", "En mantenimiento", "Fuera de servicio"];
 
@@ -36,9 +64,9 @@ const filterFn = (item, query, status) => {
   return (!query || hay.includes(query.toLowerCase())) && (!status || item.status === status);
 };
 
-const EMPTY_FORM = { code: "", brand: "", model: "", serial_number: "", power: "", voltage: "", rpm: "", location: "", status: "Operativo", installed_at: "", notes: "" };
+const EMPTY_FORM = { code: "", brand: "", model: "", serial_number: "", power: "", voltage: "", rpm: "", location: "", status: "Operativo", installed_at: "", notes: "", photo: null };
 
-export function Motores() {
+export function Motores({ user }) {
   const [motors, setMotors]       = useState([]);
   const [loadingData, setLoadingData] = useState(true);
   const [detailId, setDetailId]   = useState(null);
@@ -46,6 +74,7 @@ export function Motores() {
   const [editData, setEditData]   = useState({});
   const [deleteId, setDeleteId]   = useState(null);
   const [form, setForm]           = useState(EMPTY_FORM);
+  const [showImport, setShowImport] = useState(false);
   const { showToast }             = useToast();
   const { run }                   = useAsync();
 
@@ -65,12 +94,12 @@ export function Motores() {
 
   async function handleSave() {
     if (!form.code || !form.brand) { showToast("Codigo y marca son obligatorios.", "warning"); return; }
-    const { ok } = await run(() => window.proelectricaApi.createMotor(form), "Motor registrado.");
+    const { ok } = await run(() => window.proelectricaApi.createMotor({ ...form, _username: user?.username }), "Motor registrado.");
     if (ok) { setForm(EMPTY_FORM); load(); }
   }
 
   async function handleUpdate() {
-    const { ok } = await run(() => window.proelectricaApi.updateMotor({ id: editId, ...editData }), "Motor actualizado.");
+    const { ok } = await run(() => window.proelectricaApi.updateMotor({ id: editId, ...editData, _username: user?.username }), "Motor actualizado.");
     if (ok) { setEditId(null); load(); }
   }
 
@@ -104,13 +133,30 @@ export function Motores() {
               </Select>
             </Field>
             <Field label="Observaciones" className="col-span-2"><Textarea placeholder="Notas adicionales..." value={form.notes} onChange={(e) => setForm({...form, notes: e.target.value})} /></Field>
+            <Field label="Foto del motor" className="col-span-3">
+              <PhotoInput value={form.photo} onChange={v => setForm({...form, photo: v})} />
+            </Field>
           </div>
           <Button className="mt-2" onClick={handleSave}>Guardar motor</Button>
         </CardContent>
       </Card>
 
+      <ImportModal open={showImport} entity="motors" user={user} onClose={() => setShowImport(false)} onSuccess={() => { setShowImport(false); load(); }} />
+
       <Card>
-        <CardHeader><CardTitle>Lista de motores</CardTitle></CardHeader>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <CardTitle>Lista de motores</CardTitle>
+            <div className="flex gap-2">
+              <Button variant="ghost" size="sm" className="border border-[#2a3d57] text-[#9ab0c7]" onClick={() => setShowImport(true)}>
+                <FileSpreadsheet size={13} className="mr-1" /> Importar Excel
+              </Button>
+              <Button variant="secondary" size="sm" onClick={() => { if (!filters.filtered.length) { showToast("No hay datos para exportar.", "warning"); return; } exportMotoresPDF(filters.filtered); }}>
+                <FileText size={13} className="mr-1" /> PDF
+              </Button>
+            </div>
+          </div>
+        </CardHeader>
         <CardContent>
           <FilterBar
             searchPlaceholder="Buscar por codigo, marca o ubicacion"
@@ -119,6 +165,7 @@ export function Motores() {
             sortOptions={[{value:"code",label:"Codigo"},{value:"brand",label:"Marca"},{value:"status",label:"Estado"}]}
             sortField={filters.sortField} onSortFieldChange={filters.setSortField}
             sortDir={filters.sortDir} onSortDirChange={filters.setSortDir}
+            perPage={filters.perPage} onPerPageChange={filters.setPerPage}
             onExport={() => xlsxExport("Motores", "Registro de Motores", EXCEL_COLS, filters.filtered)} exportCount={filters.filtered.length}
             onClear={filters.reset}
           />
@@ -129,13 +176,19 @@ export function Motores() {
             : <Table>
                 <Thead>
                   <tr>
-                    <Th>Codigo</Th><Th>Marca / Modelo</Th><Th>Ubicacion</Th><Th>Estado</Th><Th>Acciones</Th>
+                    <Th>Foto</Th><Th>Codigo</Th><Th>Marca / Modelo</Th><Th>Ubicacion</Th><Th>Estado</Th><Th>Acciones</Th>
                   </tr>
                 </Thead>
                 <Tbody>
                   {filters.paged.map(motor => (
                     <React.Fragment key={motor.id}>
                       <Tr>
+                        <Td>
+                          {motor.photo
+                            ? <img src={motor.photo} alt={motor.code} className="w-10 h-10 rounded-lg object-cover border border-[#2a3d57]" />
+                            : <div className="w-10 h-10 rounded-lg bg-[#0d1825] border border-[#2a3d57] flex items-center justify-center text-[#2a3d57]"><ImageOff size={13}/></div>
+                          }
+                        </Td>
                         <Td className="font-medium">{motor.code}</Td>
                         <Td>{motor.brand} {motor.model || ""}</Td>
                         <Td className="text-[#9ab0c7]">{motor.location || "—"}</Td>
@@ -145,7 +198,7 @@ export function Motores() {
                             <Button variant="ghost" size="icon" title="Ver detalle" onClick={() => setDetailId(motor.id)}>
                               <Eye size={13}/>
                             </Button>
-                            <Button variant="ghost" size="icon" onClick={() => { setEditId(motor.id); setEditData({code:motor.code,brand:motor.brand,model:motor.model||"",serial_number:motor.serial_number||"",power:motor.power||"",voltage:motor.voltage||"",rpm:motor.rpm||"",location:motor.location||"",status:motor.status,installed_at:motor.installed_at||"",notes:motor.notes||""}); }}>
+                            <Button variant="ghost" size="icon" onClick={() => { setEditId(motor.id); setEditData({code:motor.code,brand:motor.brand,model:motor.model||"",serial_number:motor.serial_number||"",power:motor.power||"",voltage:motor.voltage||"",rpm:motor.rpm||"",location:motor.location||"",status:motor.status,installed_at:motor.installed_at||"",notes:motor.notes||"",photo:motor.photo||null}); }}>
                               <Pencil size={13}/>
                             </Button>
                             <Button variant="ghost" size="icon" className="hover:text-[#e07070]" onClick={() => setDeleteId(motor.id)}>
@@ -156,7 +209,7 @@ export function Motores() {
                       </Tr>
                       {editId === motor.id && (
                         <Tr className="bg-[#0d1e30]">
-                          <Td colSpan={5}>
+                          <Td colSpan={6}>
                             <div className="grid grid-cols-2 gap-3 py-1">
                               <Field label="Codigo"><Input value={editData.code} onChange={(e)=>setEditData({...editData,code:e.target.value})}/></Field>
                               <Field label="Marca"><Input value={editData.brand} onChange={(e)=>setEditData({...editData,brand:e.target.value})}/></Field>
@@ -169,6 +222,9 @@ export function Motores() {
                               <Field label="Instalacion"><Input type="date" value={editData.installed_at} onChange={(e)=>setEditData({...editData,installed_at:e.target.value})}/></Field>
                               <Field label="Estado"><Select value={editData.status} onChange={(e)=>setEditData({...editData,status:e.target.value})}>{STATUS_OPTIONS.map(s=><option key={s}>{s}</option>)}</Select></Field>
                               <Field label="Notas"><Textarea value={editData.notes} onChange={(e)=>setEditData({...editData,notes:e.target.value})}/></Field>
+                              <Field label="Foto" className="col-span-2">
+                                <PhotoInput value={editData.photo} onChange={v=>setEditData({...editData,photo:v})}/>
+                              </Field>
                             </div>
                             <div className="flex gap-2 mt-2">
                               <Button size="sm" onClick={handleUpdate}><Check size={13} className="mr-1"/>Guardar</Button>
@@ -182,7 +238,7 @@ export function Motores() {
                 </Tbody>
               </Table>
           }
-          <Pager page={filters.page} totalPages={filters.totalPages} onPrev={()=>filters.setPage(filters.page-1)} onNext={()=>filters.setPage(filters.page+1)}/>
+          <Pager page={filters.page} totalPages={filters.totalPages} onPrev={()=>filters.setPage(filters.page-1)} onNext={()=>filters.setPage(filters.page+1)} total={filters.filtered.length} perPage={filters.perPage}/>
         </CardContent>
       </Card>
 

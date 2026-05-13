@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { useTheme } from "../context/ThemeContext";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/Card";
 import { Cpu, Wrench, AlertTriangle, Package, TrendingUp } from "lucide-react";
 import { Badge } from "../components/ui/Badge";
@@ -7,7 +8,7 @@ import { SkeletonStatCards, SkeletonCard } from "../components/ui/Skeleton";
 import {
   PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer,
   BarChart, Bar, XAxis, YAxis, CartesianGrid,
-  AreaChart, Area
+  AreaChart, Area, LabelList
 } from "recharts";
 
 const MOTOR_COLORS = {
@@ -72,11 +73,28 @@ function TooltipFallas({ active, payload }) {
   );
 }
 
+function TooltipCostos({ active, payload }) {
+  if (!active || !payload?.length) return null;
+  const d = payload[0].payload;
+  return (
+    <div style={{ background:"#111d2c", border:"1px solid #2a3d57", borderRadius:8, padding:"8px 14px", fontSize:12 }}>
+      <p style={{ color:"#9ab0c7", marginBottom:4 }}>Motor: {d.motor}</p>
+      <p style={{ color:"#29a16a", fontWeight:600 }}>
+        {"$" + Number(d.total).toLocaleString("es-CO")}
+      </p>
+    </div>
+  );
+}
+
 export function Dashboard() {
   const [stats, setStats]   = useState(null);
   const [charts, setCharts] = useState(null);
   const [loading, setLoading] = useState(true);
   const { showToast } = useToast();
+  const { theme } = useTheme();
+  const tickColor  = theme === "light" ? "#475569" : "#9ab0c7";
+  const gridColor  = theme === "light" ? "#e2e8f0" : "#1e2f44";
+  const labelColor = theme === "light" ? "#64748b" : "#9ab0c7";
 
   useEffect(() => {
     Promise.all([
@@ -100,9 +118,10 @@ export function Dashboard() {
     );
   }
 
-  const pieData  = (charts?.motorsByStatus || []).map(r => ({ name: r.status, value: r.count }));
-  const barData  = (charts?.maintenancesByMonth || []).map(r => ({ mes: fmtMonth(r.month), mesFull: fmtMonthFull(r.month), total: r.count }));
-  const lineData = (charts?.failuresByMonth || []).map(r => ({ mes: fmtMonth(r.month), mesFull: fmtMonthFull(r.month), fallas: r.count }));
+  const pieData   = (charts?.motorsByStatus || []).map(r => ({ name: r.status, value: r.count }));
+  const barData   = (charts?.maintenancesByMonth || []).map(r => ({ mes: fmtMonth(r.month), mesFull: fmtMonthFull(r.month), total: r.count }));
+  const lineData  = (charts?.failuresByMonth || []).map(r => ({ mes: fmtMonth(r.month), mesFull: fmtMonthFull(r.month), fallas: r.count }));
+  const costData  = (charts?.costByMotor || []).map(r => ({ motor: r.motor, total: Number(r.total || 0) }));
 
   const alerts = [
     stats?.upcomingMaintenances > 0 && `${stats.upcomingMaintenances} mantenimientos en los proximos 7 dias.`,
@@ -157,9 +176,9 @@ export function Dashboard() {
               ? <p className="text-sm text-[#9ab0c7]">Sin datos en los ultimos 12 meses.</p>
               : <ResponsiveContainer width="100%" height={220}>
                   <BarChart data={barData} barSize={22}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#1e2f44" vertical={false} />
-                    <XAxis dataKey="mes" tick={{ fill: "#9ab0c7", fontSize: 11 }} axisLine={false} tickLine={false} />
-                    <YAxis allowDecimals={false} tick={{ fill: "#9ab0c7", fontSize: 11 }} axisLine={false} tickLine={false} width={28} />
+                    <CartesianGrid strokeDasharray="3 3" stroke={gridColor} vertical={false} />
+                    <XAxis dataKey="mes" tick={{ fill: tickColor, fontSize: 11 }} axisLine={false} tickLine={false} />
+                    <YAxis allowDecimals={false} tick={{ fill: tickColor, fontSize: 11 }} axisLine={false} tickLine={false} width={28} />
                     <Tooltip content={<TooltipMantenimientos />} cursor={{ fill: "#ffffff08" }} />
                     <Bar dataKey="total" name="Mantenimientos" fill="#2f8dff" radius={[5,5,0,0]} />
                   </BarChart>
@@ -182,9 +201,9 @@ export function Dashboard() {
                         <stop offset="95%" stopColor="#e0a91f" stopOpacity={0} />
                       </linearGradient>
                     </defs>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#1e2f44" vertical={false} />
-                    <XAxis dataKey="mes" tick={{ fill: "#9ab0c7", fontSize: 11 }} axisLine={false} tickLine={false} />
-                    <YAxis allowDecimals={false} tick={{ fill: "#9ab0c7", fontSize: 11 }} axisLine={false} tickLine={false} width={28} />
+                    <CartesianGrid strokeDasharray="3 3" stroke={gridColor} vertical={false} />
+                    <XAxis dataKey="mes" tick={{ fill: tickColor, fontSize: 11 }} axisLine={false} tickLine={false} />
+                    <YAxis allowDecimals={false} tick={{ fill: tickColor, fontSize: 11 }} axisLine={false} tickLine={false} width={28} />
                     <Tooltip content={<TooltipFallas />} cursor={{ stroke: "#ffffff20", strokeWidth: 1 }} />
                     <Area type="monotone" dataKey="fallas" name="Fallas" stroke="#e0a91f" fill="url(#fallaGrad)" strokeWidth={2} dot={{ fill: "#e0a91f", r: 4, strokeWidth: 0 }} activeDot={{ r: 6, fill: "#e0a91f" }} />
                   </AreaChart>
@@ -193,6 +212,36 @@ export function Dashboard() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Costo por motor */}
+      {costData.length > 0 && (
+        <Card>
+          <CardHeader><CardTitle>Costo acumulado por motor</CardTitle></CardHeader>
+          <CardContent>
+            <ResponsiveContainer width="100%" height={Math.max(80, costData.length * 48 + 40)}>
+                <BarChart data={costData} layout="vertical" margin={{ left: 0, right: 80, top: 4, bottom: 4 }} barSize={22}>
+                <CartesianGrid strokeDasharray="3 3" stroke={gridColor} horizontal={false} />
+                <XAxis
+                  type="number"
+                  tick={{ fill: tickColor, fontSize: 10 }}
+                  axisLine={false} tickLine={false}
+                  tickFormatter={v => "$" + Number(v).toLocaleString("es-CO")}
+                />
+                <YAxis type="category" dataKey="motor" tick={{ fill: tickColor, fontSize: 11 }} axisLine={false} tickLine={false} width={65} />
+                <Tooltip content={<TooltipCostos />} cursor={{ fill: "#ffffff06" }} />
+                <Bar dataKey="total" name="Costo" fill="#29a16a" radius={[0,6,6,0]} maxBarSize={26}>
+                  <LabelList
+                    dataKey="total"
+                    position="right"
+                    formatter={v => "$" + Number(v).toLocaleString("es-CO")}
+                    style={{ fill: labelColor, fontSize: 10 }}
+                  />
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Alertas */}
       {alerts.length > 0 && (

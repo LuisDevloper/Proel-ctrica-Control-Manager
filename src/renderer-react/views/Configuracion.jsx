@@ -5,7 +5,7 @@ import { Button } from "../components/ui/Button";
 import { Badge } from "../components/ui/Badge";
 import { useToast } from "../components/ui/Toast";
 import { useAsync } from "../hooks/useAsync";
-import { KeyRound, Info, Database, Monitor } from "lucide-react";
+import { KeyRound, Info, Database, Monitor, Download, Upload, AlertTriangle } from "lucide-react";
 
 export function Configuracion({ user }) {
   const [appInfo, setAppInfo]         = useState(null);
@@ -90,6 +90,47 @@ export function Configuracion({ user }) {
             >
               Verificar
             </Button>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Backup / Restore */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Database size={15} className="text-[#2f8dff]" /> Copia de seguridad
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <p className="text-sm text-[#9ab0c7] mb-4">
+            Guarda una copia de todos los datos o restaura desde una copia anterior.
+          </p>
+          <div className="flex gap-3 flex-wrap">
+            <Button
+              variant="secondary"
+              onClick={async () => {
+                const r = await run(() => window.proelectricaApi.backupDb(), "Copia de seguridad guardada correctamente.");
+                if (r?.ok === false && r?.message !== "Cancelado") showToast("No se pudo guardar la copia.", "warning");
+              }}
+            >
+              <Download size={14} className="mr-2" /> Exportar copia de seguridad
+            </Button>
+            <Button
+              variant="ghost"
+              className="border border-[#e0a91f]/40 text-[#e0a91f] hover:bg-[#e0a91f]/10"
+              onClick={async () => {
+                const r = await run(() => window.proelectricaApi.restoreDb(), "Base de datos restaurada. Reinicia la aplicacion para ver los cambios.");
+                if (r?.ok === false && r?.message !== "Cancelado") showToast("No se pudo restaurar la copia.", "warning");
+              }}
+            >
+              <Upload size={14} className="mr-2" /> Restaurar desde copia
+            </Button>
+          </div>
+          <div className="flex items-start gap-2 mt-4 bg-[#e0a91f]/5 border border-[#e0a91f]/20 rounded-xl p-3">
+            <AlertTriangle size={14} className="text-[#e0a91f] shrink-0 mt-0.5" />
+            <p className="text-xs text-[#9ab0c7]">
+              Al restaurar, se hace una copia automatica antes de reemplazar la BD. Reinicia la app despues de restaurar.
+            </p>
           </div>
         </CardContent>
       </Card>

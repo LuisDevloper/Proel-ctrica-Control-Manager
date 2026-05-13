@@ -24,24 +24,102 @@ const EXCEL_COLS = [
 import { useToast } from "../components/ui/Toast";
 import { useAsync } from "../hooks/useAsync";
 import { exportFailuresPDF } from "../lib/pdfReport";
-import { Plus, Pencil, Trash2, X, Check, FileText } from "lucide-react";
+import { Plus, Pencil, Trash2, X, Check, FileText, CheckCircle2 } from "lucide-react";
+import { Input as InputComp, Field as FieldComp } from "../components/ui/Input";
 
 const filterFn = (item, query, status) => {
   const hay = `${item.failure_type||""} ${item.motor_code||""}`.toLowerCase();
   return (!query || hay.includes(query.toLowerCase())) && (!status || item.status === status);
 };
 
-export function Fallas() {
+function ResolveModal({ open, failure, motors, technicians, onClose, onConfirm }) {
+  const today = new Date().toISOString().split("T")[0];
+  const [createMtn, setCreateMtn] = useState(true);
+  const [solution, setSolution]   = useState("");
+  const [mtnDate, setMtnDate]     = useState(today);
+  const [techId, setTechId]       = useState("");
+
+  if (!open || !failure) return null;
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center">
+      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm animate-fadeIn" onClick={onClose} />
+      <div className="relative z-10 bg-[#111d2c] border border-[#2a3d57] rounded-2xl shadow-2xl p-6 w-[440px] animate-slideUp">
+        <div className="flex justify-center mb-4">
+          <div className="w-14 h-14 rounded-full bg-[#29a16a]/10 border border-[#29a16a]/30 flex items-center justify-center">
+            <CheckCircle2 size={28} className="text-[#29a16a]" />
+          </div>
+        </div>
+        <h3 className="text-center text-base font-bold text-[#eaf2fb] mb-1">Resolver falla</h3>
+        <p className="text-center text-sm text-[#9ab0c7] mb-5">
+          Falla: <span className="text-[#eaf2fb] font-medium">{failure.failure_type}</span> — Motor: <span className="text-[#eaf2fb] font-medium">{failure.motor_code}</span>
+        </p>
+
+        <div className="flex flex-col gap-3 mb-5">
+          <FieldComp label="Solucion aplicada">
+            <InputComp placeholder="Describe la solucion..." value={solution} onChange={e => setSolution(e.target.value)} />
+          </FieldComp>
+
+          {/* Toggle crear mantenimiento */}
+          <label className="flex items-start gap-3 cursor-pointer select-none bg-[#0d1825] rounded-xl p-3 border border-[#2a3d57]">
+            <div
+              onClick={() => setCreateMtn(v => !v)}
+              className={`w-5 h-5 rounded flex items-center justify-center border shrink-0 mt-0.5 transition-all ${createMtn ? "bg-[#2f8dff] border-[#2f8dff]" : "bg-transparent border-[#2a3d57]"}`}
+            >
+              {createMtn && <Check size={11} className="text-white" />}
+            </div>
+            <div>
+              <p className="text-sm text-[#eaf2fb] font-medium">Crear mantenimiento correctivo</p>
+              <p className="text-xs text-[#9ab0c7] mt-0.5">Se registrara automaticamente un mantenimiento asociado a esta falla</p>
+            </div>
+          </label>
+
+          {createMtn && (
+            <div className="grid grid-cols-2 gap-3 pl-1">
+              <FieldComp label="Fecha mantenimiento">
+                <InputComp type="date" value={mtnDate} onChange={e => setMtnDate(e.target.value)} />
+              </FieldComp>
+              <FieldComp label="Tecnico">
+                <select
+                  value={techId}
+                  onChange={e => setTechId(e.target.value)}
+                  className="w-full rounded-lg border border-[#2a3d57] bg-[#0d1825] text-[#eaf2fb] text-sm px-3 py-2 focus:outline-none focus:border-[#2f8dff]"
+                >
+                  <option value="">Sin asignar</option>
+                  {technicians.map(t => <option key={t.id} value={t.id}>{t.full_name}</option>)}
+                </select>
+              </FieldComp>
+            </div>
+          )}
+        </div>
+
+        <div className="flex gap-3">
+          <button onClick={onClose} className="flex-1 py-2 rounded-xl text-sm font-medium border border-[#2a3d57] text-[#9ab0c7] hover:text-[#eaf2fb] hover:bg-white/5 transition-all cursor-pointer">
+            Cancelar
+          </button>
+          <button
+            onClick={() => onConfirm({ solution, createMtn, mtnDate, techId })}
+            className="flex-1 py-2 rounded-xl text-sm font-medium bg-[#29a16a] hover:bg-[#34c47e] text-white transition-all cursor-pointer shadow-lg shadow-green-900/30"
+          >
+            Resolver falla
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export function Fallas({ user }) {
   const [items, setItems]         = useState([]);
   const [motors, setMotors]       = useState([]);
   const [technicians, setTechs]   = useState([]);
   const [editId, setEditId]       = useState(null);
   const [editData, setEditData]   = useState({});
   const [deleteId, setDeleteId]   = useState(null);
+  const [resolveItem, setResolveItem] = useState(null);
   const [form, setForm]           = useState({ motorId:"", technicianId:"", failureType:"", priority:"Alta", status:"Pendiente", reportedAt:"", solution:"" });
   const { showToast }             = useToast();
   const { run }                   = useAsync();
-  const filters = useFilters(items, { filterFn, defaultSortField:"reported_at", perPage:8 });
+  const filters = useFilters(items, { filterFn, defaultSortField:"reported_at", perPage:10, dateField:"reported_at" });
 
   const load = useCallback(async () => {
     const [m, t, f] = await Promise.all([window.proelectricaApi.getMotors(), window.proelectricaApi.getTechnicians(), window.proelectricaApi.getFailures()]);
@@ -52,18 +130,48 @@ export function Fallas() {
 
   async function handleSave() {
     if (!form.motorId || !form.failureType || !form.reportedAt) { showToast("Motor, tipo y fecha son obligatorios.", "warning"); return; }
-    const { ok } = await run(() => window.proelectricaApi.createFailure(form), "Falla registrada.");
+    const { ok } = await run(() => window.proelectricaApi.createFailure({ ...form, _username: user?.username }), "Falla registrada.");
     if (ok) { setForm({ motorId:"", technicianId:"", failureType:"", priority:"Alta", status:"Pendiente", reportedAt:"", solution:"" }); load(); }
   }
 
   async function handleUpdate() {
-    const { ok } = await run(() => window.proelectricaApi.updateFailure({ id: editId, ...editData }), "Falla actualizada.");
+    const { ok } = await run(() => window.proelectricaApi.updateFailure({ id: editId, ...editData, _username: user?.username }), "Falla actualizada.");
     if (ok) { setEditId(null); load(); }
   }
 
   async function handleDelete() {
     const { ok } = await run(() => window.proelectricaApi.deleteFailure(deleteId), "Falla eliminada.");
     if (ok) { setDeleteId(null); load(); }
+  }
+
+  async function handleResolve({ solution, createMtn, mtnDate, techId }) {
+    const item = resolveItem;
+    const motorObj = motors.find(m => m.code === item.motor_code);
+    const { ok } = await run(() => window.proelectricaApi.updateFailure({
+      id: item.id,
+      motorId: motorObj?.id || "",
+      technicianId: technicians.find(t => t.full_name === item.technician_name)?.id || "",
+      failureType: item.failure_type,
+      priority: item.priority,
+      status: "Resuelta",
+      reportedAt: item.reported_at,
+      solution,
+      _username: user?.username,
+    }), "Falla marcada como resuelta.");
+    if (ok && createMtn && motorObj) {
+      await run(() => window.proelectricaApi.createMaintenance({
+        motorId: motorObj.id,
+        technicianId: techId || "",
+        maintenanceType: "Correctivo",
+        maintenanceDate: mtnDate,
+        description: `Mantenimiento correctivo por falla: ${item.failure_type}`,
+        cost: "",
+        status: "Pendiente",
+        _username: user?.username,
+      }), "Mantenimiento correctivo creado.");
+    }
+    setResolveItem(null);
+    load();
   }
 
   return (
@@ -103,6 +211,9 @@ export function Fallas() {
             sortOptions={[{value:"reported_at",label:"Fecha"},{value:"priority",label:"Prioridad"},{value:"status",label:"Estado"}]}
             sortField={filters.sortField} onSortFieldChange={filters.setSortField}
             sortDir={filters.sortDir} onSortDirChange={filters.setSortDir}
+            dateFrom={filters.dateFrom} onDateFromChange={filters.setDateFrom}
+            dateTo={filters.dateTo} onDateToChange={filters.setDateTo}
+            perPage={filters.perPage} onPerPageChange={filters.setPerPage}
             onExport={() => xlsxExport("Fallas", "Registro de Fallas", EXCEL_COLS, filters.filtered)} exportCount={filters.filtered.length}
             onClear={filters.reset}
           />
@@ -122,6 +233,11 @@ export function Fallas() {
                         <Td className="text-[#9ab0c7]">{item.technician_name||"—"}</Td>
                         <Td>
                           <div className="flex gap-2">
+                            {item.status !== "Resuelta" && (
+                              <Button variant="ghost" size="icon" className="hover:text-[#29a16a]" title="Resolver falla" onClick={() => setResolveItem(item)}>
+                                <CheckCircle2 size={14}/>
+                              </Button>
+                            )}
                             <Button variant="ghost" size="icon" onClick={()=>{setEditId(item.id);setEditData({failureType:item.failure_type||"",priority:item.priority,status:item.status,reportedAt:item.reported_at||"",solution:item.solution||"",motorId:motors.find(m=>m.code===item.motor_code)?.id||"",technicianId:technicians.find(t=>t.full_name===item.technician_name)?.id||""})}}><Pencil size={13}/></Button>
                             <Button variant="ghost" size="icon" className="hover:text-[#e07070]" onClick={()=>setDeleteId(item.id)}><Trash2 size={13}/></Button>
                           </div>
@@ -149,11 +265,12 @@ export function Fallas() {
                 </Tbody>
               </Table>
           }
-          <Pager page={filters.page} totalPages={filters.totalPages} onPrev={()=>filters.setPage(filters.page-1)} onNext={()=>filters.setPage(filters.page+1)}/>
+          <Pager page={filters.page} totalPages={filters.totalPages} onPrev={()=>filters.setPage(filters.page-1)} onNext={()=>filters.setPage(filters.page+1)} total={filters.filtered.length} perPage={filters.perPage}/>
         </CardContent>
       </Card>
 
       <ConfirmModal open={!!deleteId} onClose={()=>setDeleteId(null)} onConfirm={handleDelete} message="Se eliminara esta falla de forma permanente."/>
+      <ResolveModal open={!!resolveItem} failure={resolveItem} motors={motors} technicians={technicians} onClose={()=>setResolveItem(null)} onConfirm={handleResolve}/>
     </div>
   );
 }

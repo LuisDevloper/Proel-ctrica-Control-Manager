@@ -1,11 +1,53 @@
 import React, { useEffect, useState } from "react";
 import {
   LayoutDashboard, Cpu, Wrench, AlertTriangle, Users, Package, LogOut,
-  PanelLeftClose, PanelLeftOpen, Settings, CalendarDays, Sun, Moon
+  PanelLeftClose, PanelLeftOpen, Settings, CalendarDays, Sun, Moon, UserCog, Activity
 } from "lucide-react";
 import { cn } from "../../lib/utils";
 import { Button } from "../ui/Button";
 import { AppLogo } from "../ui/AppLogo";
+
+function LogoutModal({ open, onConfirm, onCancel }) {
+  if (!open) return null;
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center">
+      {/* Fondo oscuro con fade */}
+      <div
+        className="absolute inset-0 bg-black/60 backdrop-blur-sm animate-fadeIn"
+        onClick={onCancel}
+      />
+      {/* Tarjeta con slide-up */}
+      <div className="relative z-10 bg-[#111d2c] border border-[#2a3d57] rounded-2xl shadow-2xl p-6 w-80 animate-slideUp">
+        {/* Icono */}
+        <div className="flex justify-center mb-4">
+          <div className="w-14 h-14 rounded-full bg-[#2e1212]/80 border border-[#e07070]/30 flex items-center justify-center">
+            <LogOut size={26} className="text-[#e07070]" />
+          </div>
+        </div>
+        <h3 className="text-center text-base font-bold text-[#eaf2fb] mb-1">
+          Cerrar sesion
+        </h3>
+        <p className="text-center text-sm text-[#9ab0c7] mb-6">
+          ¿Estas seguro que deseas salir de la aplicacion?
+        </p>
+        <div className="flex gap-3">
+          <button
+            onClick={onCancel}
+            className="flex-1 py-2 rounded-xl text-sm font-medium border border-[#2a3d57] text-[#9ab0c7] hover:text-[#eaf2fb] hover:bg-white/5 transition-all cursor-pointer"
+          >
+            Cancelar
+          </button>
+          <button
+            onClick={onConfirm}
+            className="flex-1 py-2 rounded-xl text-sm font-medium bg-[#b83232] hover:bg-[#c94a4a] text-white transition-all cursor-pointer shadow-lg shadow-red-900/30"
+          >
+            Cerrar sesion
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 const NAV_ITEMS = [
   { view: "dashboard",      label: "Dashboard",       icon: LayoutDashboard },
@@ -16,10 +58,13 @@ const NAV_ITEMS = [
   { view: "inventario",     label: "Inventario",       icon: Package },
   { view: "calendario",     label: "Calendario",       icon: CalendarDays },
   { view: "configuracion",  label: "Configuracion",    icon: Settings },
+  { view: "usuarios",       label: "Usuarios",         icon: UserCog,  adminOnly: true },
+  { view: "actividad",      label: "Actividad",        icon: Activity, adminOnly: true },
 ];
 
 export function Sidebar({ currentView, onNavigate, user, onLogout, collapsed, onToggle, theme, onThemeToggle }) {
-  const [dbStatus, setDbStatus] = useState(null); // null=checking, true=ok, false=error
+  const [dbStatus, setDbStatus]       = useState(null);
+  const [showLogoutModal, setShowLogoutModal] = useState(false);
 
   useEffect(() => {
     function check() {
@@ -33,6 +78,12 @@ export function Sidebar({ currentView, onNavigate, user, onLogout, collapsed, on
   }, []);
 
   return (
+    <>
+    <LogoutModal
+      open={showLogoutModal}
+      onCancel={() => setShowLogoutModal(false)}
+      onConfirm={() => { setShowLogoutModal(false); onLogout(); }}
+    />
     <aside className={cn(
       "flex flex-col gap-3 h-[calc(100vh-48px)] sticky top-6",
       "bg-gradient-to-b from-[#122033ee] to-[#101926ee] border border-[#2a3d57]",
@@ -54,7 +105,7 @@ export function Sidebar({ currentView, onNavigate, user, onLogout, collapsed, on
       {!collapsed && (
         <div className="pb-3 border-b border-[#2a3d57]">
           <AppLogo size="md" className="mb-2" />
-          <h2 className="text-base font-bold text-[#eaf2fb] leading-tight">Proelectrica</h2>
+          <h2 className="text-base font-bold text-[#eaf2fb] leading-tight">Proélectrica</h2>
           <p className="text-xs text-[#9ab0c7] mt-0.5">Control Manager</p>
           {user && (
             <p className="text-xs text-[#9ab0c7] mt-2 pt-2 border-t border-[#2a3d57]">
@@ -66,7 +117,7 @@ export function Sidebar({ currentView, onNavigate, user, onLogout, collapsed, on
       )}
 
       <nav className="flex flex-col gap-1 flex-1 overflow-y-auto">
-        {NAV_ITEMS.map(({ view, label, icon: Icon }) => {
+        {NAV_ITEMS.filter(item => !item.adminOnly || user?.role === "ADMIN").map(({ view, label, icon: Icon }) => {
           const active = currentView === view;
           return (
             <button
@@ -135,7 +186,7 @@ export function Sidebar({ currentView, onNavigate, user, onLogout, collapsed, on
 
       <div className="border-t border-[#2a3d57] pt-3">
         <button
-          onClick={onLogout}
+          onClick={() => setShowLogoutModal(true)}
           title={collapsed ? "Cerrar sesion" : undefined}
           className={cn(
             "flex items-center gap-3 w-full rounded-xl px-3 py-2.5 text-sm font-medium",
@@ -148,5 +199,6 @@ export function Sidebar({ currentView, onNavigate, user, onLogout, collapsed, on
         </button>
       </div>
     </aside>
+    </>
   );
 }

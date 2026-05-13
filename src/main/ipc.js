@@ -1,7 +1,19 @@
-const { ipcMain } = require("electron");
+const { ipcMain, dialog, app: electronApp } = require("electron");
 const bcrypt = require("bcryptjs");
+const fs = require("fs");
+const path = require("path");
 const { getDatabase } = require("../database/db");
 const { logInfo } = require("../services/logger");
+
+// Registra una entrada en el log de actividad
+function logActivity(db, username, action, entity, entityId, details) {
+  try {
+    db.prepare(`
+      INSERT INTO activity_log (username, action, entity, entity_id, details, created_at)
+      VALUES (?, ?, ?, ?, ?, ?)
+    `).run(username || "sistema", action, entity, entityId || null, details || null, new Date().toISOString());
+  } catch (_) { /* La tabla puede no existir en versiones antiguas */ }
+}
 
 const { app } = require("electron");
 
@@ -16,6 +28,7 @@ function registerIpcHandlers() {
       FROM maintenances m
       JOIN motors mo ON mo.id = m.motor_id
       WHERE m.maintenance_date BETWEEN date('now') AND date('now', '+7 day')
+        AND m.status != 'Completado'
       ORDER BY m.maintenance_date
     `).all();
     const failures = db.prepare(`
@@ -58,7 +71,16 @@ function registerIpcHandlers() {
       GROUP BY month ORDER BY month
     `).all();
 
-    return { motorsByStatus, maintenancesByMonth, failuresByMonth };
+    const costByMotor = db.prepare(`
+      SELECT mo.code AS motor, SUM(m.cost) AS total
+      FROM maintenances m
+      JOIN motors mo ON mo.id = m.motor_id
+      GROUP BY mo.id
+      ORDER BY total DESC
+      LIMIT 10
+    `).all();
+
+    return { motorsByStatus, maintenancesByMonth, failuresByMonth, costByMotor };
   });
 
   // Detalle completo de un motor
@@ -160,7 +182,7 @@ function registerIpcHandlers() {
         (SELECT COUNT(*) FROM failures WHERE status <> 'Resuelta') AS pendingFailures,
         (SELECT COUNT(*) FROM technicians) AS totalTechnicians,
         (SELECT COUNT(*) FROM inventory_items WHERE quantity <= min_stock) AS lowStockItems,
-        (SELECT COUNT(*) FROM maintenances WHERE maintenance_date >= date('now') AND maintenance_date <= date('now', '+7 day')) AS upcomingMaintenances
+        (SELECT COUNT(*) FROM maintenances WHERE maintenance_date >= date('now') AND maintenance_date <= date('now', '+7 day') AND status != 'Completado') AS upcomingMaintenances
     `).get();
   });
 
@@ -173,8 +195,8 @@ function registerIpcHandlers() {
     const db = getDatabase();
     db.prepare(`
       INSERT INTO motors (
-        code, brand, model, serial_number, voltage, power, rpm, location, status, installed_at, notes, created_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        code, brand, model, serial_number, voltage, power, rpm, location, status, installed_at, notes, photo, created_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).run(
       motor.code,
       motor.brand,
@@ -187,9 +209,12 @@ function registerIpcHandlers() {
       motor.status || "Operativo",
       motor.installed_at || null,
       motor.notes || "",
+      motor.photo || null,
       new Date().toISOString()
     );
     logInfo("motors.create", { code: motor.code });
+    const newRow = db.prepare("SELECT id FROM motors WHERE code = ? ORDER BY id DESC LIMIT 1").get(motor.code);
+    logActivity(db, motor._username, "CREATE", "motors", newRow?.id, `Motor ${motor.code} — ${motor.brand}`);
     return { ok: true };
   });
 
@@ -198,7 +223,7 @@ function registerIpcHandlers() {
     db.prepare(`
       UPDATE motors
       SET code = ?, brand = ?, model = ?, serial_number = ?, power = ?, voltage = ?, rpm = ?,
-          location = ?, status = ?, installed_at = ?, notes = ?
+          location = ?, status = ?, installed_at = ?, notes = ?, photo = ?
       WHERE id = ?
     `).run(
       motor.code,
@@ -212,14 +237,18 @@ function registerIpcHandlers() {
       motor.status || "Operativo",
       motor.installed_at || null,
       motor.notes || "",
+      motor.photo !== undefined ? motor.photo : null,
       Number(motor.id)
     );
+    logActivity(db, motor._username, "UPDATE", "motors", motor.id, `Motor ${motor.code} — ${motor.brand}`);
     return { ok: true };
   });
 
   ipcMain.handle("motors:delete", async (_event, id) => {
     const db = getDatabase();
+    const row = db.prepare("SELECT code, brand FROM motors WHERE id = ?").get(Number(id));
     db.prepare("DELETE FROM motors WHERE id = ?").run(Number(id));
+    logActivity(db, null, "DELETE", "motors", id, row ? `Motor ${row.code} — ${row.brand}` : "");
     return { ok: true };
   });
 
@@ -234,6 +263,8 @@ function registerIpcHandlers() {
       INSERT INTO technicians (full_name, phone, email, specialty, created_at)
       VALUES (?, ?, ?, ?, ?)
     `).run(technician.fullName, technician.phone || "", technician.email || "", technician.specialty || "", new Date().toISOString());
+    const newTech = db.prepare("SELECT id FROM technicians WHERE full_name = ? ORDER BY id DESC LIMIT 1").get(technician.fullName);
+    logActivity(db, technician._username, "CREATE", "technicians", newTech?.id, technician.fullName);
     return { ok: true };
   });
 
@@ -244,12 +275,15 @@ function registerIpcHandlers() {
       SET full_name = ?, phone = ?, email = ?, specialty = ?
       WHERE id = ?
     `).run(technician.fullName, technician.phone || "", technician.email || "", technician.specialty || "", Number(technician.id));
+    logActivity(db, technician._username, "UPDATE", "technicians", technician.id, technician.fullName);
     return { ok: true };
   });
 
   ipcMain.handle("technicians:delete", async (_event, id) => {
     const db = getDatabase();
+    const row = db.prepare("SELECT full_name FROM technicians WHERE id = ?").get(Number(id));
     db.prepare("DELETE FROM technicians WHERE id = ?").run(Number(id));
+    logActivity(db, null, "DELETE", "technicians", id, row?.full_name || "");
     return { ok: true };
   });
 
@@ -262,6 +296,7 @@ function registerIpcHandlers() {
         m.maintenance_date,
         m.description,
         m.cost,
+        m.status,
         mo.code AS motor_code,
         t.full_name AS technician_name
       FROM maintenances m
@@ -275,8 +310,8 @@ function registerIpcHandlers() {
     const db = getDatabase();
     db.prepare(`
       INSERT INTO maintenances (
-        motor_id, technician_id, maintenance_type, maintenance_date, description, parts_used, cost, notes, created_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        motor_id, technician_id, maintenance_type, maintenance_date, description, parts_used, cost, status, notes, created_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).run(
       Number(maintenance.motorId),
       maintenance.technicianId ? Number(maintenance.technicianId) : null,
@@ -285,9 +320,12 @@ function registerIpcHandlers() {
       maintenance.description || "",
       maintenance.partsUsed || "",
       Number(maintenance.cost || 0),
+      maintenance.status || "Pendiente",
       maintenance.notes || "",
       new Date().toISOString()
     );
+    const newMtn = db.prepare("SELECT id FROM maintenances ORDER BY id DESC LIMIT 1").get();
+    logActivity(db, maintenance._username, "CREATE", "maintenances", newMtn?.id, `${maintenance.maintenanceType} — Motor #${maintenance.motorId}`);
     return { ok: true };
   });
 
@@ -295,7 +333,7 @@ function registerIpcHandlers() {
     const db = getDatabase();
     db.prepare(`
       UPDATE maintenances
-      SET motor_id = ?, technician_id = ?, maintenance_type = ?, maintenance_date = ?, description = ?, cost = ?
+      SET motor_id = ?, technician_id = ?, maintenance_type = ?, maintenance_date = ?, description = ?, cost = ?, status = ?
       WHERE id = ?
     `).run(
       Number(maintenance.motorId),
@@ -304,14 +342,17 @@ function registerIpcHandlers() {
       maintenance.maintenanceDate,
       maintenance.description || "",
       Number(maintenance.cost || 0),
+      maintenance.status || "Pendiente",
       Number(maintenance.id)
     );
+    logActivity(db, maintenance._username, "UPDATE", "maintenances", maintenance.id, `${maintenance.maintenanceType} — estado: ${maintenance.status}`);
     return { ok: true };
   });
 
   ipcMain.handle("maintenances:delete", async (_event, id) => {
     const db = getDatabase();
     db.prepare("DELETE FROM maintenances WHERE id = ?").run(Number(id));
+    logActivity(db, null, "DELETE", "maintenances", id, "");
     return { ok: true };
   });
 
@@ -351,6 +392,8 @@ function registerIpcHandlers() {
       failure.notes || "",
       new Date().toISOString()
     );
+    const newFail = db.prepare("SELECT id FROM failures ORDER BY id DESC LIMIT 1").get();
+    logActivity(db, failure._username, "CREATE", "failures", newFail?.id, `${failure.failureType} — Motor #${failure.motorId}`);
     return { ok: true };
   });
 
@@ -370,12 +413,14 @@ function registerIpcHandlers() {
       failure.solution || "",
       Number(failure.id)
     );
+    logActivity(db, failure._username, "UPDATE", "failures", failure.id, `${failure.failureType} — estado: ${failure.status}`);
     return { ok: true };
   });
 
   ipcMain.handle("failures:delete", async (_event, id) => {
     const db = getDatabase();
     db.prepare("DELETE FROM failures WHERE id = ?").run(Number(id));
+    logActivity(db, null, "DELETE", "failures", id, "");
     return { ok: true };
   });
 
@@ -406,6 +451,185 @@ function registerIpcHandlers() {
   ipcMain.handle("inventory:delete", async (_event, id) => {
     const db = getDatabase();
     db.prepare("DELETE FROM inventory_items WHERE id = ?").run(Number(id));
+    return { ok: true };
+  });
+
+  // ── Importar desde Excel ──────────────────────────────────────
+  ipcMain.handle("import:parse-excel", async (_event, { entity }) => {
+    const { filePaths, canceled } = await dialog.showOpenDialog({
+      title: `Seleccionar archivo Excel de ${entity}`,
+      filters: [{ name: "Excel", extensions: ["xlsx", "xls"] }],
+      properties: ["openFile"]
+    });
+    if (canceled || !filePaths?.length) return { ok: false, canceled: true };
+
+    try {
+      const ExcelJS = require("exceljs");
+      const wb = new ExcelJS.Workbook();
+      await wb.xlsx.readFile(filePaths[0]);
+      const ws = wb.worksheets[0];
+      if (!ws) return { ok: false, message: "El archivo no tiene hojas." };
+
+      const rows = [];
+      let headers = [];
+      ws.eachRow((row, idx) => {
+        const vals = row.values.slice(1).map(v =>
+          v === null || v === undefined ? "" : String(v?.result ?? v?.text ?? v).trim()
+        );
+        if (idx === 1) { headers = vals; return; }
+        if (vals.every(v => !v)) return; // fila vacía
+        const obj = {};
+        headers.forEach((h, i) => { obj[h] = vals[i] || ""; });
+        rows.push(obj);
+      });
+      return { ok: true, headers, rows: rows.slice(0, 200) }; // máx 200 filas preview
+    } catch (e) {
+      return { ok: false, message: "No se pudo leer el archivo: " + e.message };
+    }
+  });
+
+  ipcMain.handle("import:save-motors", async (_event, { rows, username }) => {
+    const db = getDatabase();
+    let inserted = 0, skipped = 0;
+    const stmt = db.prepare(`
+      INSERT OR IGNORE INTO motors
+        (code, brand, model, serial_number, power, voltage, rpm, location, status, installed_at, notes, created_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `);
+    const insertMany = db.transaction((items) => {
+      for (const r of items) {
+        const code = r["Codigo"] || r["codigo"] || r["Code"] || "";
+        const brand = r["Marca"] || r["marca"] || r["Brand"] || "";
+        if (!code || !brand) { skipped++; continue; }
+        const info = stmt.run(
+          code, brand,
+          r["Modelo"] || r["modelo"] || "",
+          r["N° Serie"] || r["Serie"] || r["serie"] || "",
+          r["Potencia (kW)"] || r["Potencia"] || r["potencia"] || "",
+          r["Voltaje (V)"] || r["Voltaje"] || r["voltaje"] || "",
+          r["RPM"] || r["rpm"] || "",
+          r["Ubicacion"] || r["ubicacion"] || "",
+          r["Estado"] || r["estado"] || "Operativo",
+          r["Fecha instalacion"] || r["Fecha instalación"] || r["installed_at"] || null,
+          r["Observaciones"] || r["notas"] || "",
+          new Date().toISOString()
+        );
+        if (info.changes > 0) inserted++;
+        else skipped++;
+      }
+    });
+    insertMany(rows);
+    logActivity(db, username, "IMPORT", "motors", null, `${inserted} motores importados, ${skipped} omitidos`);
+    return { ok: true, inserted, skipped };
+  });
+
+  ipcMain.handle("import:save-technicians", async (_event, { rows, username }) => {
+    const db = getDatabase();
+    let inserted = 0, skipped = 0;
+    const stmt = db.prepare(`
+      INSERT OR IGNORE INTO technicians (full_name, phone, email, specialty, created_at)
+      VALUES (?, ?, ?, ?, ?)
+    `);
+    const insertMany = db.transaction((items) => {
+      for (const r of items) {
+        const name = r["Nombre"] || r["nombre"] || r["full_name"] || "";
+        if (!name) { skipped++; continue; }
+        const info = stmt.run(
+          name,
+          r["Telefono"] || r["telefono"] || r["Phone"] || "",
+          r["Email"] || r["email"] || "",
+          r["Especialidad"] || r["especialidad"] || r["Specialty"] || "",
+          new Date().toISOString()
+        );
+        if (info.changes > 0) inserted++;
+        else skipped++;
+      }
+    });
+    insertMany(rows);
+    logActivity(db, username, "IMPORT", "technicians", null, `${inserted} técnicos importados, ${skipped} omitidos`);
+    return { ok: true, inserted, skipped };
+  });
+
+  // ── Registro de actividad ─────────────────────────────────────
+  ipcMain.handle("activity:list", (_event, { limit = 100 } = {}) => {
+    const db = getDatabase();
+    return db.prepare(`
+      SELECT * FROM activity_log ORDER BY created_at DESC LIMIT ?
+    `).all(limit);
+  });
+
+  ipcMain.handle("activity:log", (_event, { username, action, entity, entityId, details }) => {
+    const db = getDatabase();
+    logActivity(db, username, action, entity, entityId, details);
+    return { ok: true };
+  });
+
+  // ── Backup / Restore ──────────────────────────────────────────
+  ipcMain.handle("db:backup", async (_event) => {
+    const dbPath = path.join(app.getPath("userData"), "proelectrica.db");
+    const now = new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19);
+    const { filePath, canceled } = await dialog.showSaveDialog({
+      title: "Guardar copia de seguridad",
+      defaultPath: `proelectrica-backup-${now}.db`,
+      filters: [{ name: "Base de datos SQLite", extensions: ["db"] }]
+    });
+    if (canceled || !filePath) return { ok: false, message: "Cancelado" };
+    fs.copyFileSync(dbPath, filePath);
+    logInfo("db.backup", { dest: filePath });
+    return { ok: true };
+  });
+
+  ipcMain.handle("db:restore", async (_event) => {
+    const dbPath = path.join(app.getPath("userData"), "proelectrica.db");
+    const { filePaths, canceled } = await dialog.showOpenDialog({
+      title: "Seleccionar copia de seguridad",
+      filters: [{ name: "Base de datos SQLite", extensions: ["db"] }],
+      properties: ["openFile"]
+    });
+    if (canceled || !filePaths?.length) return { ok: false, message: "Cancelado" };
+    // Hacer copia de seguridad automática antes de restaurar
+    const autoBackup = dbPath + ".before-restore";
+    fs.copyFileSync(dbPath, autoBackup);
+    fs.copyFileSync(filePaths[0], dbPath);
+    logInfo("db.restore", { src: filePaths[0] });
+    return { ok: true };
+  });
+
+  // ── Gestión de usuarios ───────────────────────────────────────
+  ipcMain.handle("users:list", () => {
+    const db = getDatabase();
+    return db.prepare("SELECT id, username, role FROM users ORDER BY id ASC").all();
+  });
+
+  ipcMain.handle("users:create", async (_event, data) => {
+    const db = getDatabase();
+    const exists = db.prepare("SELECT id FROM users WHERE username = ?").get(data.username);
+    if (exists) return { ok: false, message: "El nombre de usuario ya existe." };
+    const hash = await bcrypt.hash(data.password, 10);
+    db.prepare("INSERT INTO users (username, password_hash, role) VALUES (?, ?, ?)").run(data.username, hash, data.role || "OPERADOR");
+    logInfo("users.create", { username: data.username });
+    return { ok: true };
+  });
+
+  ipcMain.handle("users:update-role", async (_event, data) => {
+    const db = getDatabase();
+    db.prepare("UPDATE users SET role = ? WHERE id = ?").run(data.role, Number(data.id));
+    return { ok: true };
+  });
+
+  ipcMain.handle("users:reset-password", async (_event, data) => {
+    const db = getDatabase();
+    const hash = await bcrypt.hash(data.password, 10);
+    db.prepare("UPDATE users SET password_hash = ? WHERE id = ?").run(hash, Number(data.id));
+    return { ok: true };
+  });
+
+  ipcMain.handle("users:delete", async (_event, id) => {
+    const db = getDatabase();
+    const admins = db.prepare("SELECT COUNT(*) as c FROM users WHERE role = 'ADMIN'").get();
+    const target = db.prepare("SELECT role FROM users WHERE id = ?").get(Number(id));
+    if (target?.role === "ADMIN" && admins.c <= 1) return { ok: false, message: "No puedes eliminar el ultimo administrador." };
+    db.prepare("DELETE FROM users WHERE id = ?").run(Number(id));
     return { ok: true };
   });
 }

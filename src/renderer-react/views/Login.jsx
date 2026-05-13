@@ -13,6 +13,7 @@ export function Login({ onLogin }) {
   const [remember, setRemember] = useState(!!savedUser);
   const [error, setError]       = useState("");
   const [loading, setLoading]   = useState(false);
+  const [success, setSuccess]   = useState(false);
   const { showToast }           = useToast();
 
   async function handleLogin(e) {
@@ -22,11 +23,12 @@ export function Login({ onLogin }) {
     try {
       const res = await window.proelectricaApi.login({ username, password });
       if (!res.ok) { setError(res.message || "Credenciales incorrectas."); return; }
-      // Guardar o borrar usuario recordado
       if (remember) localStorage.setItem(SAVED_USER_KEY, username);
       else localStorage.removeItem(SAVED_USER_KEY);
       showToast("Bienvenido, " + res.user.username, "success");
-      onLogin(res.user);
+      // Animación de salida antes de entrar al dashboard
+      setSuccess(true);
+      setTimeout(() => onLogin(res.user), 400);
     } catch {
       setError("Error al conectar con la base de datos.");
     } finally {
@@ -35,7 +37,13 @@ export function Login({ onLogin }) {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4 relative overflow-hidden">
+    <div
+      className="min-h-screen flex items-center justify-center p-4 relative overflow-hidden"
+      style={{
+        transition: "opacity 0.4s ease",
+        opacity: success ? 0 : 1,
+      }}
+    >
 
       {/* Fondo con luces */}
       <div className="absolute inset-0 pointer-events-none">
@@ -44,7 +52,14 @@ export function Login({ onLogin }) {
         <div className="absolute top-[40%] left-[50%] w-[300px] h-[300px] rounded-full bg-[#2f8dff] opacity-5 blur-[80px] -translate-x-1/2" />
       </div>
 
-      <div className="w-full max-w-[400px] relative z-10">
+      <div
+        className="w-full max-w-[400px] relative z-10"
+        style={{
+          animation: "slideUp 0.4s cubic-bezier(0.34,1.1,0.64,1) both",
+          transition: "transform 0.4s ease, opacity 0.4s ease",
+          transform: success ? "scale(0.96) translateY(-8px)" : undefined,
+        }}
+      >
 
         {/* Logo + título */}
         <div className="text-center mb-8">
@@ -53,7 +68,7 @@ export function Login({ onLogin }) {
             <AppLogo size="xl" className="relative drop-shadow-2xl" />
           </div>
           <h1 className="text-3xl font-bold text-white tracking-tight">
-            Proelectrica
+            Proélectrica
           </h1>
           <p className="text-sm text-[#7a9bb8] mt-1 tracking-widest uppercase font-medium">
             Control Manager
@@ -149,7 +164,7 @@ export function Login({ onLogin }) {
 
         {/* Pie */}
         <p className="text-center text-[11px] text-[#4a6a8a] mt-5">
-          Proelectrica © {new Date().getFullYear()} — Sistema de Control Industrial
+          Proélectrica © {new Date().getFullYear()} — Sistema de Control Industrial
         </p>
 
       </div>
