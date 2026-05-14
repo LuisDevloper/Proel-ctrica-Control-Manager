@@ -22,6 +22,7 @@ const EXCEL_COLS = [
 import { useToast } from "../components/ui/Toast";
 import { useAsync } from "../hooks/useAsync";
 import { Plus, Pencil, Trash2, X, Check } from "lucide-react";
+import { useDbHealth } from "../context/DbHealthContext";
 
 const filterFn = (item, query) => {
   const hay = `${item.full_name||""} ${item.specialty||""} ${item.phone||""}`.toLowerCase();
@@ -37,6 +38,8 @@ export function Tecnicos({ user }) {
   const [showImport, setShowImport] = useState(false);
   const { showToast }             = useToast();
   const { run }                   = useAsync();
+  const { dbWritable }            = useDbHealth();
+  const dbTitle                   = !dbWritable ? "Sin conexion a la base de datos." : undefined;
   const filters = useFilters(items, { filterFn, defaultSortField:"full_name", perPage:8 });
 
   const load = useCallback(async () => {
@@ -76,7 +79,7 @@ export function Tecnicos({ user }) {
             <Field label="Telefono"><Input placeholder="Telefono" value={form.phone} onChange={(e)=>setForm({...form,phone:e.target.value})}/></Field>
             <Field label="Email"><Input type="email" placeholder="Email" value={form.email} onChange={(e)=>setForm({...form,email:e.target.value})}/></Field>
           </div>
-          <Button className="mt-2" onClick={handleSave}>Guardar tecnico</Button>
+          <Button className="mt-2" onClick={handleSave} disabled={!dbWritable} title={dbTitle}>Guardar tecnico</Button>
         </CardContent>
       </Card>
 
@@ -84,7 +87,7 @@ export function Tecnicos({ user }) {
         <CardHeader>
           <div className="flex items-center justify-between">
             <CardTitle>Lista de tecnicos</CardTitle>
-            <Button variant="ghost" size="sm" className="border border-[#2a3d57] text-[#9ab0c7]" onClick={() => setShowImport(true)}>
+            <Button variant="ghost" size="sm" className="border border-[#2a3d57] text-[#9ab0c7]" onClick={() => setShowImport(true)} disabled={!dbWritable} title={dbTitle}>
               <FileSpreadsheet size={13} className="mr-1" /> Importar Excel
             </Button>
           </div>
@@ -113,8 +116,8 @@ export function Tecnicos({ user }) {
                         <Td className="text-[#9ab0c7]">{item.email||"—"}</Td>
                         <Td>
                           <div className="flex gap-2">
-                            <Button variant="ghost" size="icon" onClick={()=>{setEditId(item.id);setEditData({fullName:item.full_name,specialty:item.specialty||"",phone:item.phone||"",email:item.email||""})}}><Pencil size={13}/></Button>
-                            <Button variant="ghost" size="icon" className="hover:text-[#e07070]" onClick={()=>setDeleteId(item.id)}><Trash2 size={13}/></Button>
+                            <Button variant="ghost" size="icon" onClick={()=>{setEditId(item.id);setEditData({fullName:item.full_name,specialty:item.specialty||"",phone:item.phone||"",email:item.email||""})}} disabled={!dbWritable} title={dbTitle}><Pencil size={13}/></Button>
+                            <Button variant="ghost" size="icon" className="hover:text-[#e07070]" onClick={()=>setDeleteId(item.id)} disabled={!dbWritable} title={dbTitle}><Trash2 size={13}/></Button>
                           </div>
                         </Td>
                       </Tr>
@@ -128,7 +131,7 @@ export function Tecnicos({ user }) {
                               <Field label="Email"><Input type="email" value={editData.email} onChange={(e)=>setEditData({...editData,email:e.target.value})}/></Field>
                             </div>
                             <div className="flex gap-2 mt-2">
-                              <Button size="sm" onClick={handleUpdate}><Check size={13} className="mr-1"/>Guardar</Button>
+                              <Button size="sm" onClick={handleUpdate} disabled={!dbWritable} title={dbTitle}><Check size={13} className="mr-1"/>Guardar</Button>
                               <Button size="sm" variant="secondary" onClick={()=>setEditId(null)}><X size={13} className="mr-1"/>Cancelar</Button>
                             </div>
                           </Td>

@@ -27,6 +27,7 @@ import { useToast } from "../components/ui/Toast";
 import { useAsync } from "../hooks/useAsync";
 import { SkeletonTable } from "../components/ui/Skeleton";
 import { MotorDetail } from "./MotorDetail";
+import { useDbHealth } from "../context/DbHealthContext";
 import { Pencil, Trash2, Plus, X, Check, Eye, Camera, ImageOff, FileText, FileSpreadsheet } from "lucide-react";
 import { exportMotoresPDF } from "../lib/pdfReport";
 import { ImportModal } from "../components/ui/ImportModal";
@@ -77,6 +78,8 @@ export function Motores({ user }) {
   const [showImport, setShowImport] = useState(false);
   const { showToast }             = useToast();
   const { run }                   = useAsync();
+  const { dbWritable }            = useDbHealth();
+  const dbTitle                   = !dbWritable ? "Sin conexion a la base de datos." : undefined;
 
   const filters = useFilters(motors, {
     filterFn,
@@ -137,7 +140,7 @@ export function Motores({ user }) {
               <PhotoInput value={form.photo} onChange={v => setForm({...form, photo: v})} />
             </Field>
           </div>
-          <Button className="mt-2" onClick={handleSave}>Guardar motor</Button>
+          <Button className="mt-2" onClick={handleSave} disabled={!dbWritable} title={dbTitle}>Guardar motor</Button>
         </CardContent>
       </Card>
 
@@ -148,7 +151,7 @@ export function Motores({ user }) {
           <div className="flex items-center justify-between">
             <CardTitle>Lista de motores</CardTitle>
             <div className="flex gap-2">
-              <Button variant="ghost" size="sm" className="border border-[#2a3d57] text-[#9ab0c7]" onClick={() => setShowImport(true)}>
+              <Button variant="ghost" size="sm" className="border border-[#2a3d57] text-[#9ab0c7]" onClick={() => setShowImport(true)} disabled={!dbWritable} title={dbTitle}>
                 <FileSpreadsheet size={13} className="mr-1" /> Importar Excel
               </Button>
               <Button variant="secondary" size="sm" onClick={() => { if (!filters.filtered.length) { showToast("No hay datos para exportar.", "warning"); return; } exportMotoresPDF(filters.filtered); }}>
@@ -198,10 +201,10 @@ export function Motores({ user }) {
                             <Button variant="ghost" size="icon" title="Ver detalle" onClick={() => setDetailId(motor.id)}>
                               <Eye size={13}/>
                             </Button>
-                            <Button variant="ghost" size="icon" onClick={() => { setEditId(motor.id); setEditData({code:motor.code,brand:motor.brand,model:motor.model||"",serial_number:motor.serial_number||"",power:motor.power||"",voltage:motor.voltage||"",rpm:motor.rpm||"",location:motor.location||"",status:motor.status,installed_at:motor.installed_at||"",notes:motor.notes||"",photo:motor.photo||null}); }}>
+                            <Button variant="ghost" size="icon" onClick={() => { setEditId(motor.id); setEditData({code:motor.code,brand:motor.brand,model:motor.model||"",serial_number:motor.serial_number||"",power:motor.power||"",voltage:motor.voltage||"",rpm:motor.rpm||"",location:motor.location||"",status:motor.status,installed_at:motor.installed_at||"",notes:motor.notes||"",photo:motor.photo||null}); }} disabled={!dbWritable} title={dbTitle}>
                               <Pencil size={13}/>
                             </Button>
-                            <Button variant="ghost" size="icon" className="hover:text-[#e07070]" onClick={() => setDeleteId(motor.id)}>
+                            <Button variant="ghost" size="icon" className="hover:text-[#e07070]" onClick={() => setDeleteId(motor.id)} disabled={!dbWritable} title={dbTitle}>
                               <Trash2 size={13}/>
                             </Button>
                           </div>
@@ -227,7 +230,7 @@ export function Motores({ user }) {
                               </Field>
                             </div>
                             <div className="flex gap-2 mt-2">
-                              <Button size="sm" onClick={handleUpdate}><Check size={13} className="mr-1"/>Guardar</Button>
+                              <Button size="sm" onClick={handleUpdate} disabled={!dbWritable} title={dbTitle}><Check size={13} className="mr-1"/>Guardar</Button>
                               <Button size="sm" variant="secondary" onClick={()=>setEditId(null)}><X size={13} className="mr-1"/>Cancelar</Button>
                             </div>
                           </Td>

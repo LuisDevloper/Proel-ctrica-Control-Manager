@@ -22,6 +22,7 @@ const EXCEL_COLS = [
 import { useToast } from "../components/ui/Toast";
 import { useAsync } from "../hooks/useAsync";
 import { Pencil, Trash2, Plus, X, Check } from "lucide-react";
+import { useDbHealth } from "../context/DbHealthContext";
 
 const filterFn = (item, query) => {
   const hay = `${item.part_name||""} ${item.sku||""} ${item.location||""}`.toLowerCase();
@@ -36,6 +37,8 @@ export function Inventario() {
   const [form, setForm]         = useState({ partName:"", sku:"", quantity:"", minStock:"", location:"" });
   const { showToast }           = useToast();
   const { run }                 = useAsync();
+  const { dbWritable }          = useDbHealth();
+  const dbTitle                 = !dbWritable ? "Sin conexion a la base de datos." : undefined;
 
   const filters = useFilters(items, { filterFn, defaultSortField:"part_name", perPage:10 });
 
@@ -75,7 +78,7 @@ export function Inventario() {
             <Field label="Cantidad"><Input type="number" placeholder="0" value={form.quantity} onChange={(e)=>setForm({...form,quantity:e.target.value})}/></Field>
             <Field label="Stock minimo"><Input type="number" placeholder="0" value={form.minStock} onChange={(e)=>setForm({...form,minStock:e.target.value})}/></Field>
           </div>
-          <Button className="mt-2" onClick={handleSave}>Guardar repuesto</Button>
+          <Button className="mt-2" onClick={handleSave} disabled={!dbWritable} title={dbTitle}>Guardar repuesto</Button>
         </CardContent>
       </Card>
 
@@ -113,10 +116,10 @@ export function Inventario() {
                         </Td>
                         <Td>
                           <div className="flex gap-2">
-                            <Button variant="ghost" size="icon" onClick={()=>{ setEditId(item.id); setEditData({partName:item.part_name,sku:item.sku||"",quantity:item.quantity,minStock:item.min_stock,location:item.location||""}); }}>
+                            <Button variant="ghost" size="icon" onClick={()=>{ setEditId(item.id); setEditData({partName:item.part_name,sku:item.sku||"",quantity:item.quantity,minStock:item.min_stock,location:item.location||""}); }} disabled={!dbWritable} title={dbTitle}>
                               <Pencil size={13}/>
                             </Button>
-                            <Button variant="ghost" size="icon" className="hover:text-[#e07070]" onClick={()=>setDeleteId(item.id)}>
+                            <Button variant="ghost" size="icon" className="hover:text-[#e07070]" onClick={()=>setDeleteId(item.id)} disabled={!dbWritable} title={dbTitle}>
                               <Trash2 size={13}/>
                             </Button>
                           </div>
@@ -133,7 +136,7 @@ export function Inventario() {
                               <Field label="Stock minimo"><Input type="number" value={editData.minStock} onChange={(e)=>setEditData({...editData,minStock:e.target.value})}/></Field>
                             </div>
                             <div className="flex gap-2 mt-2">
-                              <Button size="sm" onClick={handleUpdate}><Check size={13} className="mr-1"/>Guardar</Button>
+                              <Button size="sm" onClick={handleUpdate} disabled={!dbWritable} title={dbTitle}><Check size={13} className="mr-1"/>Guardar</Button>
                               <Button size="sm" variant="secondary" onClick={()=>setEditId(null)}><X size={13} className="mr-1"/>Cancelar</Button>
                             </div>
                           </Td>

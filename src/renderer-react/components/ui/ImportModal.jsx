@@ -1,4 +1,5 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+import { useDbHealth } from "../../context/DbHealthContext";
 import { Button } from "./Button";
 import { X, Upload, CheckCircle2, AlertTriangle, FileSpreadsheet, Download } from "lucide-react";
 
@@ -21,8 +22,24 @@ export function ImportModal({ open, entity, user, onClose, onSuccess }) {
   const [result, setResult]     = useState(null);
   const [loading, setLoading]   = useState(false);
   const [error, setError]       = useState("");
+  const { dbWritable }          = useDbHealth();
+  const dbTitle                 = !dbWritable ? "Sin conexion a la base de datos." : undefined;
 
   const tmpl = TEMPLATES[entity] || TEMPLATES.motors;
+
+  useEffect(() => {
+    if (!open) return;
+    const handler = (e) => {
+      if (e.key !== "Escape") return;
+      setStep("idle");
+      setParsed(null);
+      setResult(null);
+      setError("");
+      onClose();
+    };
+    document.addEventListener("keydown", handler);
+    return () => document.removeEventListener("keydown", handler);
+  }, [open, onClose]);
 
   if (!open) return null;
 
@@ -184,7 +201,7 @@ export function ImportModal({ open, entity, user, onClose, onSuccess }) {
                 <Button variant="ghost" size="sm" className="border border-[#2a3d57] text-[#9ab0c7]" onClick={handleDownloadTemplate}>
                   <Download size={13} className="mr-1.5" /> Descargar plantilla
                 </Button>
-                <Button onClick={handleSelectFile} disabled={loading} className="flex-1">
+                <Button onClick={handleSelectFile} disabled={loading || !dbWritable} title={dbTitle} className="flex-1">
                   <Upload size={13} className="mr-1.5" /> {loading ? "Leyendo..." : "Seleccionar archivo .xlsx"}
                 </Button>
               </div>
@@ -226,7 +243,7 @@ export function ImportModal({ open, entity, user, onClose, onSuccess }) {
 
               <div className="flex gap-3">
                 <Button variant="secondary" onClick={() => { setStep("idle"); setParsed(null); }}>Cancelar</Button>
-                <Button onClick={handleImport} disabled={loading} className="flex-1 bg-[#29a16a] hover:bg-[#34c47e]">
+                <Button onClick={handleImport} disabled={loading || !dbWritable} title={dbTitle} className="flex-1 bg-[#29a16a] hover:bg-[#34c47e]">
                   {loading ? "Importando..." : `Importar ${parsed.rows.length} registros`}
                 </Button>
               </div>

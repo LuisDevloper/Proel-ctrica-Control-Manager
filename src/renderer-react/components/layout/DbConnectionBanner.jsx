@@ -1,41 +1,18 @@
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useState } from "react";
 import { AlertTriangle, RefreshCw } from "lucide-react";
 import { Button } from "../ui/Button";
+import { useDbHealth } from "../../context/DbHealthContext";
 
 /**
- * Aviso claro cuando la base de datos no responde (tras comprobar al iniciar y cada 20s).
+ * Aviso cuando la base de datos no responde (estado global en DbHealthProvider).
  */
 export function DbConnectionBanner() {
-  const [status, setStatus] = useState(null); // null = comprobando, true = ok, false = error
+  const { status, refresh } = useDbHealth();
   const [retrying, setRetrying] = useState(false);
-
-  const ping = useCallback(async () => {
-    try {
-      const r = await window.proelectricaApi.dbPing();
-      setStatus(r?.ok === true);
-    } catch {
-      setStatus(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      try {
-        const r = await window.proelectricaApi.dbPing();
-        if (!cancelled) setStatus(r?.ok === true);
-      } catch {
-        if (!cancelled) setStatus(false);
-      }
-    })();
-    const id = setInterval(() => { if (!cancelled) ping(); }, 20000);
-    return () => { cancelled = true; clearInterval(id); };
-  }, [ping]);
 
   async function handleRetry() {
     setRetrying(true);
-    setStatus(null);
-    await ping();
+    await refresh();
     setRetrying(false);
   }
 
@@ -50,7 +27,7 @@ export function DbConnectionBanner() {
       <div className="flex-1 min-w-[200px]">
         <p className="font-semibold text-[#fef2f2]">No hay conexion con la base de datos</p>
         <p className="text-xs text-[#fca5a5]/90 mt-0.5">
-          La app puede no guardar cambios. Comprueba que el disco este disponible y reinicia si el problema continua.
+          Las acciones de guardado estan desactivadas hasta que vuelva la conexion.
         </p>
       </div>
       <Button

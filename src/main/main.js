@@ -5,9 +5,25 @@ const { registerIpcHandlers } = require("./ipc");
 const { initializeDatabase } = require("../database/db");
 const { startBackupScheduler, stopBackupScheduler } = require("../services/backup");
 const { logInfo, logError } = require("../services/logger");
+const semver = require("semver");
 
 const VITE_DEV_PORT = 5173;
 const isDev = !app.isPackaged;
+
+// Una sola instancia: si el usuario abre de nuevo el acceso directo, se enfoca la ventana ya abierta.
+const gotTheLock = app.requestSingleInstanceLock();
+if (!gotTheLock) {
+  app.quit();
+} else {
+  app.on("second-instance", () => {
+    const win = BrowserWindow.getAllWindows()[0];
+    if (win) {
+      if (win.isMinimized()) win.restore();
+      win.show();
+      win.focus();
+    }
+  });
+}
 
 /** Referencia al autoUpdater empaquetado (para comprobación manual desde el renderer). */
 let packagedAutoUpdater = null;
@@ -15,6 +31,8 @@ let packagedAutoUpdater = null;
 // Estado persistente de la ventana (sin dependencias externas)
 const Store = require("electron-store");
 const windowStore = new Store({ name: "window-state" });
+/** Actualizacion descargada pendiente de instalar (recordatorio al reiniciar). */
+const updaterStateStore = new Store({ name: "updater-state" });
 
 function getWindowState() {
   const display = screen.getPrimaryDisplay().workAreaSize;
@@ -125,58 +143,92 @@ function setupAutoUpdater() {
   autoUpdater.on("update-not-available", ()     => sendStatus("up-to-date"));
   autoUpdater.on("update-available",     (info) => sendStatus("available",   { version: info.version }));
   autoUpdater.on("download-progress",    (prog) => sendStatus("downloading", { percent: Math.round(prog.percent) }));
-  autoUpdater.on("update-downloaded",    (info) => sendStatus("downloaded",  { version: info.version }));
+  autoUpdater.on("update-downloaded",    (info) => {
+    try {
+      updaterStateStore.set("pendingVersion", info.version);
+    } catch (e) {
+      logError("updater.pending_store", e);
+    }
+    sendStatus("downloaded", { version: info.version });
+  });
   autoUpdater.on("error",                (err)  => {
     logError("updater.error", err);
     sendStatus("error", { message: err.message });
   });
 
-  ipcMain.on("updater:install-now", () => autoUpdater.quitAndInstall(false, true));
+  ipcMain.on("updater:install-now", () => {
+    try {
+      updaterStateStore.delete("pendingVersion");
+    } catch (e) {
+      logError("updater.pending_clear", e);
+    }
+    autoUpdater.quitAndInstall(false, true);
+  });
 
   setTimeout(() => { try { autoUpdater.checkForUpdates(); } catch(e) { logError("updater.check", e); } }, 5000);
   setInterval(() => { try { autoUpdater.checkForUpdates(); } catch(e) { logError("updater.check", e); } }, 2 * 60 * 60 * 1000);
 }
 
-app.whenReady().then(async () => {
-  try {
-    await initializeDatabase();
-    registerIpcHandlers();
-    startBackupScheduler();
-    createMainWindow();
-    setupAutoUpdater();
+if (gotTheLock) {
+  app.whenReady().then(async () => {
+    try {
+      await initializeDatabase();
+      registerIpcHandlers();
+      startBackupScheduler();
+      createMainWindow();
+      setupAutoUpdater();
 
-    ipcMain.handle("updater:check", async () => {
-      if (isDev) return { ok: false, reason: "dev" };
-      if (!packagedAutoUpdater) return { ok: false, reason: "no_updater" };
-      try {
-        const result = await packagedAutoUpdater.checkForUpdates();
-        const updateAvailable =
-          result != null &&
-          Object.prototype.hasOwnProperty.call(result, "downloadPromise") &&
-          result.downloadPromise != null;
-        return { ok: true, updateAvailable };
-      } catch (e) {
-        logError("updater.check_manual", e);
-        return { ok: false, message: e?.message || String(e) };
-      }
-    });
+      ipcMain.handle("updater:check", async () => {
+        if (isDev) return { ok: false, reason: "dev" };
+        if (!packagedAutoUpdater) return { ok: false, reason: "no_updater" };
+        try {
+          const result = await packagedAutoUpdater.checkForUpdates();
+          const updateAvailable =
+            result != null &&
+            Object.prototype.hasOwnProperty.call(result, "downloadPromise") &&
+            result.downloadPromise != null;
+          return { ok: true, updateAvailable };
+        } catch (e) {
+          logError("updater.check_manual", e);
+          return { ok: false, message: e?.message || String(e) };
+        }
+      });
 
-    logInfo("app.ready");
+      ipcMain.handle("updater:getPendingInstall", () => {
+        if (isDev || !app.isPackaged) return null;
+        const pending = updaterStateStore.get("pendingVersion");
+        if (!pending || typeof pending !== "string") return null;
+        const cur = app.getVersion();
+        try {
+          if (!semver.valid(pending) || !semver.gt(pending, cur)) {
+            updaterStateStore.delete("pendingVersion");
+            return null;
+          }
+        } catch (e) {
+          logError("updater.pending_semver", e);
+          updaterStateStore.delete("pendingVersion");
+          return null;
+        }
+        return { version: pending };
+      });
 
-    app.on("activate", () => {
-      if (BrowserWindow.getAllWindows().length === 0) {
-        createMainWindow();
-      }
-    });
-  } catch (error) {
-    logError("app.init_failed", error);
-    throw error;
-  }
-});
+      logInfo("app.ready");
 
-app.on("window-all-closed", () => {
-  stopBackupScheduler();
-  if (process.platform !== "darwin") {
-    app.quit();
-  }
-});
+      app.on("activate", () => {
+        if (BrowserWindow.getAllWindows().length === 0) {
+          createMainWindow();
+        }
+      });
+    } catch (error) {
+      logError("app.init_failed", error);
+      throw error;
+    }
+  });
+
+  app.on("window-all-closed", () => {
+    stopBackupScheduler();
+    if (process.platform !== "darwin") {
+      app.quit();
+    }
+  });
+}

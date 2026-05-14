@@ -5,32 +5,29 @@ import { Button } from "../components/ui/Button";
 import { Badge } from "../components/ui/Badge";
 import { useToast } from "../components/ui/Toast";
 import { useAsync } from "../hooks/useAsync";
-import { KeyRound, Info, Database, Monitor, Download, Upload, AlertTriangle, RefreshCw } from "lucide-react";
+import { useDbHealth } from "../context/DbHealthContext";
+import { useAccessibility } from "../context/AccessibilityContext";
+import { KeyRound, Info, Database, Monitor, Download, Upload, AlertTriangle, RefreshCw, Type } from "lucide-react";
 
 export function Configuracion({ user }) {
   const [appInfo, setAppInfo]         = useState(null);
-  const [dbStatus, setDbStatus]       = useState(null);
   const [currentPwd, setCurrentPwd]   = useState("");
   const [newPwd, setNewPwd]           = useState("");
   const [confirmPwd, setConfirmPwd]   = useState("");
   const { showToast }                 = useToast();
   const { run }                       = useAsync();
+  const { status: dbHealthStatus, refresh: dbRefresh } = useDbHealth();
+  const { fontPercent, setFontPercent } = useAccessibility();
+  const dbTitle                       = dbHealthStatus !== true ? "Sin conexion a la base de datos." : undefined;
 
   useEffect(() => {
     let cancelled = false;
-    Promise.all([
-      window.proelectricaApi.getAppInfo(),
-      window.proelectricaApi.dbPing()
-    ])
-      .then(([info, ping]) => {
-        if (cancelled) return;
-        setAppInfo(info);
-        setDbStatus(ping?.ok === true);
+    window.proelectricaApi.getAppInfo()
+      .then((info) => {
+        if (!cancelled) setAppInfo(info);
       })
       .catch(() => {
-        if (cancelled) return;
-        showToast("No se pudo obtener la informacion del sistema.", "warning");
-        setDbStatus(false);
+        if (!cancelled) showToast("No se pudo obtener la informacion del sistema.", "warning");
       });
     return () => { cancelled = true; };
   }, [showToast]);
@@ -99,6 +96,26 @@ export function Configuracion({ user }) {
         </CardContent>
       </Card>
 
+      {/* Tamaño de texto */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Type size={15} className="text-[#9ab0c7]" /> Lectura en pantalla
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <p className="text-sm text-[#9ab0c7] mb-3">
+            Tamano de texto en toda la aplicacion. Atajes de teclado: Alt + + / Alt + - / Alt + 0 (restablecer).
+            En el menu lateral: Alt + 1 a 9 para ir al modulo correspondiente (segun tu rol).
+          </p>
+          <div className="flex flex-wrap gap-2">
+            <Button type="button" variant={fontPercent === 100 ? "secondary" : "ghost"} size="sm" onClick={() => setFontPercent(100)}>Normal</Button>
+            <Button type="button" variant={fontPercent === 112 ? "secondary" : "ghost"} size="sm" onClick={() => setFontPercent(112)}>Grande</Button>
+            <Button type="button" variant={fontPercent === 125 ? "secondary" : "ghost"} size="sm" onClick={() => setFontPercent(125)}>Muy grande</Button>
+          </div>
+        </CardContent>
+      </Card>
+
       {/* Estado de BD */}
       <Card>
         <CardHeader>
@@ -108,24 +125,15 @@ export function Configuracion({ user }) {
         </CardHeader>
         <CardContent>
           <div className="flex items-center gap-3">
-            <Badge variant={dbStatus === true ? "success" : dbStatus === false ? "danger" : "default"}>
-              {dbStatus === null ? "Verificando..." : dbStatus ? "Conectada" : "Error"}
+            <Badge variant={dbHealthStatus === true ? "success" : dbHealthStatus === false ? "danger" : "default"}>
+              {dbHealthStatus === null ? "Verificando..." : dbHealthStatus ? "Conectada" : "Error"}
             </Badge>
             <span className="text-sm text-[#9ab0c7]">SQLite — proelectrica.db</span>
             <Button
               variant="ghost" size="sm"
-              onClick={() => {
-                setDbStatus(null);
-                window.proelectricaApi.dbPing()
-                  .then((r) => {
-                    const ok = r?.ok === true;
-                    setDbStatus(ok);
-                    showToast(ok ? "Base de datos respondiendo correctamente." : "No se pudo conectar.", ok ? "success" : "warning");
-                  })
-                  .catch(() => {
-                    setDbStatus(false);
-                    showToast("No se pudo verificar la base de datos.", "warning");
-                  });
+              onClick={async () => {
+                const ok = await dbRefresh();
+                showToast(ok ? "Base de datos respondiendo correctamente." : "No se pudo conectar.", ok ? "success" : "warning");
               }}
             >
               Verificar
@@ -165,6 +173,8 @@ export function Configuracion({ user }) {
           <div className="flex gap-3 flex-wrap">
             <Button
               variant="secondary"
+              disabled={dbHealthStatus !== true}
+              title={dbTitle}
               onClick={async () => {
                 await run(() => window.proelectricaApi.backupDb(), "Copia de seguridad guardada correctamente.");
               }}
@@ -174,6 +184,8 @@ export function Configuracion({ user }) {
             <Button
               variant="ghost"
               className="border border-[#e0a91f]/40 text-[#e0a91f] hover:bg-[#e0a91f]/10"
+              disabled={dbHealthStatus !== true}
+              title={dbTitle}
               onClick={async () => {
                 await run(() => window.proelectricaApi.restoreDb(), "Base de datos restaurada. Reinicia la aplicacion para ver los cambios.");
               }}
@@ -200,15 +212,15 @@ export function Configuracion({ user }) {
         <CardContent>
           <form onSubmit={handleChangePassword} className="flex flex-col gap-3 max-w-sm">
             <Field label="Contrasena actual">
-              <Input type="password" value={currentPwd} onChange={(e) => setCurrentPwd(e.target.value)} placeholder="••••••••" />
+              <Input type="password" value={currentPwd} onChange={(e) => setCurrentPwd(e.target.value)} placeholder="••••••••" disabled={dbHealthStatus !== true} />
             </Field>
             <Field label="Nueva contrasena">
-              <Input type="password" value={newPwd} onChange={(e) => setNewPwd(e.target.value)} placeholder="Min. 6 caracteres" />
+              <Input type="password" value={newPwd} onChange={(e) => setNewPwd(e.target.value)} placeholder="Min. 6 caracteres" disabled={dbHealthStatus !== true} />
             </Field>
             <Field label="Confirmar nueva contrasena">
-              <Input type="password" value={confirmPwd} onChange={(e) => setConfirmPwd(e.target.value)} placeholder="Repetir contrasena" />
+              <Input type="password" value={confirmPwd} onChange={(e) => setConfirmPwd(e.target.value)} placeholder="Repetir contrasena" disabled={dbHealthStatus !== true} />
             </Field>
-            <Button type="submit" className="self-start mt-1">Guardar contrasena</Button>
+            <Button type="submit" className="self-start mt-1" disabled={dbHealthStatus !== true} title={dbTitle}>Guardar contrasena</Button>
           </form>
         </CardContent>
       </Card>

@@ -4,10 +4,19 @@ import {
   PanelLeftClose, PanelLeftOpen, Settings, CalendarDays, Sun, Moon, UserCog, Activity
 } from "lucide-react";
 import { cn } from "../../lib/utils";
-import { Button } from "../ui/Button";
 import { AppLogo } from "../ui/AppLogo";
+import { useDbHealth } from "../../context/DbHealthContext";
 
 function LogoutModal({ open, onConfirm, onCancel }) {
+  useEffect(() => {
+    if (!open) return;
+    const handler = (e) => {
+      if (e.key === "Escape") onCancel?.();
+    };
+    document.addEventListener("keydown", handler);
+    return () => document.removeEventListener("keydown", handler);
+  }, [open, onCancel]);
+
   if (!open) return null;
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
@@ -49,7 +58,7 @@ function LogoutModal({ open, onConfirm, onCancel }) {
   );
 }
 
-const NAV_ITEMS = [
+export const NAV_ITEMS = [
   { view: "dashboard",      label: "Dashboard",       icon: LayoutDashboard },
   { view: "motores",        label: "Motores",          icon: Cpu },
   { view: "mantenimientos", label: "Mantenimientos",   icon: Wrench },
@@ -63,19 +72,8 @@ const NAV_ITEMS = [
 ];
 
 export function Sidebar({ currentView, onNavigate, user, onLogout, collapsed, onToggle, theme, onThemeToggle }) {
-  const [dbStatus, setDbStatus]       = useState(null);
+  const { status: dbStatus } = useDbHealth();
   const [showLogoutModal, setShowLogoutModal] = useState(false);
-
-  useEffect(() => {
-    function check() {
-      window.proelectricaApi.dbPing()
-        .then(r => setDbStatus(r.ok))
-        .catch(() => setDbStatus(false));
-    }
-    check();
-    const interval = setInterval(check, 15000);
-    return () => clearInterval(interval);
-  }, []);
 
   return (
     <>

@@ -25,6 +25,7 @@ import { useAsync } from "../hooks/useAsync";
 import { exportMaintenancesPDF } from "../lib/pdfReport";
 import { CurrencyInput } from "../components/ui/CurrencyInput";
 import { Plus, Pencil, Trash2, X, Check, FileText, CheckCircle2 } from "lucide-react";
+import { useDbHealth } from "../context/DbHealthContext";
 
 const filterFn = (item, query, status) => {
   const hay = `${item.motor_code||""} ${item.technician_name||""}`.toLowerCase();
@@ -59,6 +60,8 @@ export function Mantenimientos({ user }) {
   const [form, setForm]           = useState({ motorId:"", technicianId:"", maintenanceType:"Preventivo", maintenanceDate:"", description:"", cost:"" });
   const { showToast }             = useToast();
   const { run }                   = useAsync();
+  const { dbWritable }            = useDbHealth();
+  const dbTitle                   = !dbWritable ? "Sin conexion a la base de datos." : undefined;
   const filters = useFilters(items, { filterFn, defaultSortField:"maintenance_date", perPage:10, dateField:"maintenance_date" });
 
   const load = useCallback(async () => {
@@ -129,7 +132,7 @@ export function Mantenimientos({ user }) {
             <Field label="Costo"><CurrencyInput value={form.cost} onChange={(v)=>setForm({...form,cost:v})}/></Field>
             <Field label="Descripcion"><Textarea placeholder="Descripcion del trabajo" value={form.description} onChange={(e)=>setForm({...form,description:e.target.value})}/></Field>
           </div>
-          <Button className="mt-2" onClick={handleSave}>Guardar mantenimiento</Button>
+          <Button className="mt-2" onClick={handleSave} disabled={!dbWritable} title={dbTitle}>Guardar mantenimiento</Button>
         </CardContent>
       </Card>
 
@@ -173,12 +176,12 @@ export function Mantenimientos({ user }) {
                         <Td>
                           <div className="flex gap-2">
                             {item.status !== "Completado" && (
-                              <Button variant="ghost" size="icon" className="hover:text-[#29a16a]" title="Marcar como completado" onClick={()=>handleComplete(item)}>
+                              <Button variant="ghost" size="icon" className="hover:text-[#29a16a]" title={dbTitle || "Marcar como completado"} onClick={()=>handleComplete(item)} disabled={!dbWritable}>
                                 <CheckCircle2 size={14}/>
                               </Button>
                             )}
-                            <Button variant="ghost" size="icon" onClick={()=>{setEditId(item.id);setEditData({maintenanceType:item.maintenance_type,maintenanceDate:item.maintenance_date||"",description:item.description||"",cost:item.cost||0,status:item.status||"Pendiente",motorId:motors.find(m=>m.code===item.motor_code)?.id||"",technicianId:technicians.find(t=>t.full_name===item.technician_name)?.id||""})}}><Pencil size={13}/></Button>
-                            <Button variant="ghost" size="icon" className="hover:text-[#e07070]" onClick={()=>setDeleteId(item.id)}><Trash2 size={13}/></Button>
+                            <Button variant="ghost" size="icon" onClick={()=>{setEditId(item.id);setEditData({maintenanceType:item.maintenance_type,maintenanceDate:item.maintenance_date||"",description:item.description||"",cost:item.cost||0,status:item.status||"Pendiente",motorId:motors.find(m=>m.code===item.motor_code)?.id||"",technicianId:technicians.find(t=>t.full_name===item.technician_name)?.id||""})}} disabled={!dbWritable} title={dbTitle}><Pencil size={13}/></Button>
+                            <Button variant="ghost" size="icon" className="hover:text-[#e07070]" onClick={()=>setDeleteId(item.id)} disabled={!dbWritable} title={dbTitle}><Trash2 size={13}/></Button>
                           </div>
                         </Td>
                       </Tr>
@@ -199,7 +202,7 @@ export function Mantenimientos({ user }) {
                               <Field label="Descripcion" className="col-span-2"><Textarea value={editData.description} onChange={(e)=>setEditData({...editData,description:e.target.value})}/></Field>
                             </div>
                             <div className="flex gap-2 mt-2">
-                              <Button size="sm" onClick={handleUpdate}><Check size={13} className="mr-1"/>Guardar</Button>
+                              <Button size="sm" onClick={handleUpdate} disabled={!dbWritable} title={dbTitle}><Check size={13} className="mr-1"/>Guardar</Button>
                               <Button size="sm" variant="secondary" onClick={()=>setEditId(null)}><X size={13} className="mr-1"/>Cancelar</Button>
                             </div>
                           </Td>

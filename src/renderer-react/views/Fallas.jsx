@@ -26,18 +26,28 @@ import { useAsync } from "../hooks/useAsync";
 import { exportFailuresPDF } from "../lib/pdfReport";
 import { Plus, Pencil, Trash2, X, Check, FileText, CheckCircle2 } from "lucide-react";
 import { Input as InputComp, Field as FieldComp } from "../components/ui/Input";
+import { useDbHealth } from "../context/DbHealthContext";
 
 const filterFn = (item, query, status) => {
   const hay = `${item.failure_type||""} ${item.motor_code||""}`.toLowerCase();
   return (!query || hay.includes(query.toLowerCase())) && (!status || item.status === status);
 };
 
-function ResolveModal({ open, failure, motors, technicians, onClose, onConfirm }) {
+function ResolveModal({ open, failure, motors, technicians, onClose, onConfirm, confirmDisabled, disableTitle }) {
   const today = new Date().toISOString().split("T")[0];
   const [createMtn, setCreateMtn] = useState(true);
   const [solution, setSolution]   = useState("");
   const [mtnDate, setMtnDate]     = useState(today);
   const [techId, setTechId]       = useState("");
+
+  useEffect(() => {
+    if (!open) return;
+    const handler = (e) => {
+      if (e.key === "Escape") onClose?.();
+    };
+    document.addEventListener("keydown", handler);
+    return () => document.removeEventListener("keydown", handler);
+  }, [open, onClose]);
 
   if (!open || !failure) return null;
   return (
@@ -98,7 +108,9 @@ function ResolveModal({ open, failure, motors, technicians, onClose, onConfirm }
           </button>
           <button
             onClick={() => onConfirm({ solution, createMtn, mtnDate, techId })}
-            className="flex-1 py-2 rounded-xl text-sm font-medium bg-[#29a16a] hover:bg-[#34c47e] text-white transition-all cursor-pointer shadow-lg shadow-green-900/30"
+            disabled={confirmDisabled}
+            title={disableTitle}
+            className="flex-1 py-2 rounded-xl text-sm font-medium bg-[#29a16a] hover:bg-[#34c47e] text-white transition-all cursor-pointer shadow-lg shadow-green-900/30 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             Resolver falla
           </button>
@@ -119,6 +131,8 @@ export function Fallas({ user }) {
   const [form, setForm]           = useState({ motorId:"", technicianId:"", failureType:"", priority:"Alta", status:"Pendiente", reportedAt:"", solution:"" });
   const { showToast }             = useToast();
   const { run }                   = useAsync();
+  const { dbWritable }            = useDbHealth();
+  const dbTitle                   = !dbWritable ? "Sin conexion a la base de datos." : undefined;
   const filters = useFilters(items, { filterFn, defaultSortField:"reported_at", perPage:10, dateField:"reported_at" });
 
   const load = useCallback(async () => {
@@ -190,7 +204,7 @@ export function Fallas({ user }) {
             <Field label="Estado"><Select value={form.status} onChange={(e)=>setForm({...form,status:e.target.value})}><option>Pendiente</option><option>En proceso</option><option>Resuelta</option></Select></Field>
             <Field label="Solucion" className="col-span-2"><Textarea placeholder="Solucion aplicada" value={form.solution} onChange={(e)=>setForm({...form,solution:e.target.value})}/></Field>
           </div>
-          <Button className="mt-2" onClick={handleSave}>Guardar falla</Button>
+          <Button className="mt-2" onClick={handleSave} disabled={!dbWritable} title={dbTitle}>Guardar falla</Button>
         </CardContent>
       </Card>
 
@@ -234,12 +248,12 @@ export function Fallas({ user }) {
                         <Td>
                           <div className="flex gap-2">
                             {item.status !== "Resuelta" && (
-                              <Button variant="ghost" size="icon" className="hover:text-[#29a16a]" title="Resolver falla" onClick={() => setResolveItem(item)}>
+                              <Button variant="ghost" size="icon" className="hover:text-[#29a16a]" title={dbTitle || "Resolver falla"} onClick={() => setResolveItem(item)} disabled={!dbWritable}>
                                 <CheckCircle2 size={14}/>
                               </Button>
                             )}
-                            <Button variant="ghost" size="icon" onClick={()=>{setEditId(item.id);setEditData({failureType:item.failure_type||"",priority:item.priority,status:item.status,reportedAt:item.reported_at||"",solution:item.solution||"",motorId:motors.find(m=>m.code===item.motor_code)?.id||"",technicianId:technicians.find(t=>t.full_name===item.technician_name)?.id||""})}}><Pencil size={13}/></Button>
-                            <Button variant="ghost" size="icon" className="hover:text-[#e07070]" onClick={()=>setDeleteId(item.id)}><Trash2 size={13}/></Button>
+                            <Button variant="ghost" size="icon" onClick={()=>{setEditId(item.id);setEditData({failureType:item.failure_type||"",priority:item.priority,status:item.status,reportedAt:item.reported_at||"",solution:item.solution||"",motorId:motors.find(m=>m.code===item.motor_code)?.id||"",technicianId:technicians.find(t=>t.full_name===item.technician_name)?.id||""})}} disabled={!dbWritable} title={dbTitle}><Pencil size={13}/></Button>
+                            <Button variant="ghost" size="icon" className="hover:text-[#e07070]" onClick={()=>setDeleteId(item.id)} disabled={!dbWritable} title={dbTitle}><Trash2 size={13}/></Button>
                           </div>
                         </Td>
                       </Tr>
@@ -254,7 +268,7 @@ export function Fallas({ user }) {
                               <Field label="Solucion" className="col-span-2"><Textarea value={editData.solution} onChange={(e)=>setEditData({...editData,solution:e.target.value})}/></Field>
                             </div>
                             <div className="flex gap-2 mt-2">
-                              <Button size="sm" onClick={handleUpdate}><Check size={13} className="mr-1"/>Guardar</Button>
+                              <Button size="sm" onClick={handleUpdate} disabled={!dbWritable} title={dbTitle}><Check size={13} className="mr-1"/>Guardar</Button>
                               <Button size="sm" variant="secondary" onClick={()=>setEditId(null)}><X size={13} className="mr-1"/>Cancelar</Button>
                             </div>
                           </Td>
@@ -270,7 +284,7 @@ export function Fallas({ user }) {
       </Card>
 
       <ConfirmModal open={!!deleteId} onClose={()=>setDeleteId(null)} onConfirm={handleDelete} message="Se eliminara esta falla de forma permanente."/>
-      <ResolveModal open={!!resolveItem} failure={resolveItem} motors={motors} technicians={technicians} onClose={()=>setResolveItem(null)} onConfirm={handleResolve}/>
+      <ResolveModal open={!!resolveItem} failure={resolveItem} motors={motors} technicians={technicians} onClose={()=>setResolveItem(null)} onConfirm={handleResolve} confirmDisabled={!dbWritable} disableTitle={dbTitle}/>
     </div>
   );
 }

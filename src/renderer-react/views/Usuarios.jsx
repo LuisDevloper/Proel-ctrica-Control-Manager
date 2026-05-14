@@ -6,6 +6,7 @@ import { Table, Thead, Th, Tbody, Tr, Td } from "../components/ui/Table";
 import { ConfirmModal } from "../components/ui/Modal";
 import { useToast } from "../components/ui/Toast";
 import { useAsync } from "../hooks/useAsync";
+import { useDbHealth } from "../context/DbHealthContext";
 import { Plus, Trash2, KeyRound, ShieldCheck, Shield, Eye } from "lucide-react";
 
 const ROLES = ["ADMIN", "OPERADOR", "VISOR"];
@@ -36,12 +37,23 @@ export function Usuarios({ user: currentUser }) {
   const [newPwd, setNewPwd]     = useState("");
   const { showToast }           = useToast();
   const { run }                 = useAsync();
+  const { dbWritable }          = useDbHealth();
+  const dbTitle                 = !dbWritable ? "Sin conexion a la base de datos." : undefined;
 
   const load = useCallback(async () => {
     setUsers(await window.proelectricaApi.getUsers());
   }, []);
 
   useEffect(() => { load(); }, [load]);
+
+  useEffect(() => {
+    if (!resetId) return;
+    const handler = (e) => {
+      if (e.key === "Escape") { setResetId(null); setNewPwd(""); }
+    };
+    document.addEventListener("keydown", handler);
+    return () => document.removeEventListener("keydown", handler);
+  }, [resetId]);
 
   async function handleCreate(e) {
     e.preventDefault();
@@ -112,7 +124,7 @@ export function Usuarios({ user: currentUser }) {
                 <Input type="password" placeholder="Repetir contrasena" value={form.confirmPassword} onChange={e => setForm({...form, confirmPassword: e.target.value})} autoComplete="new-password" />
               </Field>
             </div>
-            <Button type="submit" className="mt-3">Crear usuario</Button>
+            <Button type="submit" className="mt-3" disabled={!dbWritable} title={dbTitle}>Crear usuario</Button>
           </form>
         </CardContent>
       </Card>
@@ -141,6 +153,8 @@ export function Usuarios({ user: currentUser }) {
                               value={u.role}
                               onChange={e => handleRoleChange(u.id, e.target.value)}
                               className="text-xs py-1"
+                              disabled={!dbWritable}
+                              title={dbTitle}
                             >
                               {ROLES.map(r => <option key={r} value={r}>{ROLE_META[r].label}</option>)}
                             </Select>
@@ -151,7 +165,8 @@ export function Usuarios({ user: currentUser }) {
                           <Button
                             variant="ghost" size="sm"
                             className="text-xs text-[#9ab0c7] hover:text-[#e0a91f]"
-                            title="Restablecer contrasena"
+                            title={dbTitle || "Restablecer contrasena"}
+                            disabled={!dbWritable}
                             onClick={() => { setResetId(u.id); setNewPwd(""); }}
                           >
                             <KeyRound size={13} className="mr-1" /> Contrasena
@@ -161,6 +176,8 @@ export function Usuarios({ user: currentUser }) {
                               variant="ghost" size="icon"
                               className="hover:text-[#e07070]"
                               onClick={() => setDeleteId(u.id)}
+                              disabled={!dbWritable}
+                              title={dbTitle}
                             >
                               <Trash2 size={13} />
                             </Button>
@@ -187,7 +204,7 @@ export function Usuarios({ user: currentUser }) {
             </Field>
             <div className="flex gap-3 mt-4">
               <button onClick={() => setResetId(null)} className="flex-1 py-2 rounded-xl text-sm border border-[#2a3d57] text-[#9ab0c7] hover:bg-white/5 cursor-pointer transition-all">Cancelar</button>
-              <button onClick={handleResetPassword} className="flex-1 py-2 rounded-xl text-sm font-medium bg-[#2f8dff] hover:bg-[#4a9fff] text-white cursor-pointer transition-all">Guardar</button>
+              <button type="button" onClick={handleResetPassword} disabled={!dbWritable} title={dbTitle} className="flex-1 py-2 rounded-xl text-sm font-medium bg-[#2f8dff] hover:bg-[#4a9fff] text-white cursor-pointer transition-all disabled:opacity-50 disabled:cursor-not-allowed">Guardar</button>
             </div>
           </div>
         </div>
