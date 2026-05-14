@@ -1,6 +1,6 @@
 {
   "name": "proelectrica-control-manager",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "description": "Aplicacion de escritorio para control de motores y mantenimientos industriales.",
   "main": "src/main/main.js",
   "author": "Proelectrica",
