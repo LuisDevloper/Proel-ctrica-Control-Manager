@@ -35,9 +35,6 @@
     ],
     "win": {
       "icon": "build/icon.ico",
-      "signingHashAlgorithms": [
-        "sha256"
-      ],
       "target": [
         {
           "target": "nsis",
