@@ -7,6 +7,7 @@ import { useToast } from "../components/ui/Toast";
 import { useAsync } from "../hooks/useAsync";
 import { useDbHealth } from "../context/DbHealthContext";
 import { useAccessibility } from "../context/AccessibilityContext";
+import { canMutateRecords, READ_ONLY_ROLE_TITLE } from "../lib/permissions";
 import { KeyRound, Info, Database, Monitor, Download, Upload, AlertTriangle, RefreshCw, Type } from "lucide-react";
 
 export function Configuracion({ user }) {
@@ -19,6 +20,8 @@ export function Configuracion({ user }) {
   const { status: dbHealthStatus, refresh: dbRefresh } = useDbHealth();
   const { fontPercent, setFontPercent } = useAccessibility();
   const dbTitle                       = dbHealthStatus !== true ? "Sin conexion a la base de datos." : undefined;
+  const canMutateOps                  = canMutateRecords(user?.role);
+  const restoreTitle                  = dbHealthStatus !== true ? dbTitle : (!canMutateOps ? READ_ONLY_ROLE_TITLE : undefined);
 
   useEffect(() => {
     let cancelled = false;
@@ -184,8 +187,8 @@ export function Configuracion({ user }) {
             <Button
               variant="ghost"
               className="border border-[#e0a91f]/40 text-[#e0a91f] hover:bg-[#e0a91f]/10"
-              disabled={dbHealthStatus !== true}
-              title={dbTitle}
+              disabled={dbHealthStatus !== true || !canMutateOps}
+              title={restoreTitle}
               onClick={async () => {
                 await run(() => window.proelectricaApi.restoreDb(), "Base de datos restaurada. Reinicia la aplicacion para ver los cambios.");
               }}

@@ -5,6 +5,28 @@ const path = require("path");
 const { getDatabase, closeDatabaseForFileReplace, reopenDatabase } = require("../database/db");
 const { logInfo, logError } = require("../services/logger");
 
+/** Sesión tras login (main process). Sin esto, las IPC de escritura fallan. */
+let authSession = null;
+
+function denyIfNotAuthenticated() {
+  if (!authSession) return { ok: false, message: "Sesion no iniciada. Inicia sesion de nuevo." };
+  return null;
+}
+
+function denyIfVisor() {
+  const a = denyIfNotAuthenticated();
+  if (a) return a;
+  if (authSession.role === "VISOR") return { ok: false, message: "Tu rol solo permite consultar datos." };
+  return null;
+}
+
+function denyIfNotAdmin() {
+  const a = denyIfNotAuthenticated();
+  if (a) return a;
+  if (authSession.role !== "ADMIN") return { ok: false, message: "Solo un administrador puede realizar esta accion." };
+  return null;
+}
+
 // Registra una entrada en el log de actividad
 function logActivity(db, username, action, entity, entityId, details) {
   try {
@@ -151,6 +173,11 @@ function registerIpcHandlers() {
 
   // Cambiar contrasena
   ipcMain.handle("auth:changePassword", async (_event, { userId, currentPassword, newPassword }) => {
+    const denied = denyIfNotAuthenticated();
+    if (denied) return denied;
+    if (Number(userId) !== Number(authSession.id)) {
+      return { ok: false, message: "No puedes cambiar la contrasena de otro usuario desde aqui." };
+    }
     const db = getDatabase();
     const user = db.prepare("SELECT password_hash FROM users WHERE id = ?").get(userId);
     if (!user) return { ok: false, message: "Usuario no encontrado." };
@@ -160,6 +187,12 @@ function registerIpcHandlers() {
     db.prepare("UPDATE users SET password_hash = ? WHERE id = ?").run(newHash, userId);
     return { ok: true };
   });
+
+  ipcMain.handle("auth:logout", () => {
+    authSession = null;
+    return { ok: true };
+  });
+
   ipcMain.handle("auth:login", async (_event, credentials) => {
     const db = getDatabase();
     const user = db.prepare("SELECT id, username, password_hash, role FROM users WHERE username = ?").get(credentials.username);
@@ -172,6 +205,8 @@ function registerIpcHandlers() {
     if (!validPassword) {
       return { ok: false, message: "Credenciales inválidas." };
     }
+
+    authSession = { id: user.id, username: user.username, role: user.role };
 
     return {
       ok: true,
@@ -204,6 +239,8 @@ function registerIpcHandlers() {
   });
 
   ipcMain.handle("motors:create", async (_event, motor) => {
+    const denied = denyIfVisor();
+    if (denied) return denied;
     const db = getDatabase();
     db.prepare(`
       INSERT INTO motors (
@@ -231,6 +268,8 @@ function registerIpcHandlers() {
   });
 
   ipcMain.handle("motors:update", async (_event, motor) => {
+    const denied = denyIfVisor();
+    if (denied) return denied;
     const db = getDatabase();
     db.prepare(`
       UPDATE motors
@@ -257,6 +296,8 @@ function registerIpcHandlers() {
   });
 
   ipcMain.handle("motors:delete", async (_event, id) => {
+    const denied = denyIfVisor();
+    if (denied) return denied;
     const db = getDatabase();
     const row = db.prepare("SELECT code, brand FROM motors WHERE id = ?").get(Number(id));
     db.prepare("DELETE FROM motors WHERE id = ?").run(Number(id));
@@ -270,6 +311,8 @@ function registerIpcHandlers() {
   });
 
   ipcMain.handle("technicians:create", async (_event, technician) => {
+    const denied = denyIfVisor();
+    if (denied) return denied;
     const db = getDatabase();
     db.prepare(`
       INSERT INTO technicians (full_name, phone, email, specialty, created_at)
@@ -281,6 +324,8 @@ function registerIpcHandlers() {
   });
 
   ipcMain.handle("technicians:update", async (_event, technician) => {
+    const denied = denyIfVisor();
+    if (denied) return denied;
     const db = getDatabase();
     db.prepare(`
       UPDATE technicians
@@ -292,6 +337,8 @@ function registerIpcHandlers() {
   });
 
   ipcMain.handle("technicians:delete", async (_event, id) => {
+    const denied = denyIfVisor();
+    if (denied) return denied;
     const db = getDatabase();
     const row = db.prepare("SELECT full_name FROM technicians WHERE id = ?").get(Number(id));
     db.prepare("DELETE FROM technicians WHERE id = ?").run(Number(id));
@@ -319,6 +366,8 @@ function registerIpcHandlers() {
   });
 
   ipcMain.handle("maintenances:create", async (_event, maintenance) => {
+    const denied = denyIfVisor();
+    if (denied) return denied;
     const db = getDatabase();
     db.prepare(`
       INSERT INTO maintenances (
@@ -342,6 +391,8 @@ function registerIpcHandlers() {
   });
 
   ipcMain.handle("maintenances:update", async (_event, maintenance) => {
+    const denied = denyIfVisor();
+    if (denied) return denied;
     const db = getDatabase();
     db.prepare(`
       UPDATE maintenances
@@ -362,6 +413,8 @@ function registerIpcHandlers() {
   });
 
   ipcMain.handle("maintenances:delete", async (_event, id) => {
+    const denied = denyIfVisor();
+    if (denied) return denied;
     const db = getDatabase();
     db.prepare("DELETE FROM maintenances WHERE id = ?").run(Number(id));
     logActivity(db, null, "DELETE", "maintenances", id, "");
@@ -388,6 +441,8 @@ function registerIpcHandlers() {
   });
 
   ipcMain.handle("failures:create", async (_event, failure) => {
+    const denied = denyIfVisor();
+    if (denied) return denied;
     const db = getDatabase();
     db.prepare(`
       INSERT INTO failures (
@@ -410,6 +465,8 @@ function registerIpcHandlers() {
   });
 
   ipcMain.handle("failures:update", async (_event, failure) => {
+    const denied = denyIfVisor();
+    if (denied) return denied;
     const db = getDatabase();
     db.prepare(`
       UPDATE failures
@@ -430,6 +487,8 @@ function registerIpcHandlers() {
   });
 
   ipcMain.handle("failures:delete", async (_event, id) => {
+    const denied = denyIfVisor();
+    if (denied) return denied;
     const db = getDatabase();
     db.prepare("DELETE FROM failures WHERE id = ?").run(Number(id));
     logActivity(db, null, "DELETE", "failures", id, "");
@@ -442,6 +501,8 @@ function registerIpcHandlers() {
   });
 
   ipcMain.handle("inventory:create", async (_event, item) => {
+    const denied = denyIfVisor();
+    if (denied) return denied;
     const db = getDatabase();
     db.prepare(`
       INSERT INTO inventory_items (part_name, sku, quantity, min_stock, location, created_at)
@@ -451,6 +512,8 @@ function registerIpcHandlers() {
   });
 
   ipcMain.handle("inventory:update", async (_event, item) => {
+    const denied = denyIfVisor();
+    if (denied) return denied;
     const db = getDatabase();
     db.prepare(`
       UPDATE inventory_items
@@ -461,6 +524,8 @@ function registerIpcHandlers() {
   });
 
   ipcMain.handle("inventory:delete", async (_event, id) => {
+    const denied = denyIfVisor();
+    if (denied) return denied;
     const db = getDatabase();
     db.prepare("DELETE FROM inventory_items WHERE id = ?").run(Number(id));
     return { ok: true };
@@ -468,6 +533,8 @@ function registerIpcHandlers() {
 
   // ── Importar desde Excel ──────────────────────────────────────
   ipcMain.handle("import:parse-excel", async (_event, { entity }) => {
+    const denied = denyIfVisor();
+    if (denied) return denied;
     const { filePaths, canceled } = await dialog.showOpenDialog({
       title: `Seleccionar archivo Excel de ${entity}`,
       filters: [{ name: "Excel", extensions: ["xlsx", "xls"] }],
@@ -501,6 +568,8 @@ function registerIpcHandlers() {
   });
 
   ipcMain.handle("import:save-motors", async (_event, { rows, username }) => {
+    const denied = denyIfVisor();
+    if (denied) return denied;
     const db = getDatabase();
     let inserted = 0, skipped = 0;
     const stmt = db.prepare(`
@@ -536,6 +605,8 @@ function registerIpcHandlers() {
   });
 
   ipcMain.handle("import:save-technicians", async (_event, { rows, username }) => {
+    const denied = denyIfVisor();
+    if (denied) return denied;
     const db = getDatabase();
     let inserted = 0, skipped = 0;
     const stmt = db.prepare(`
@@ -564,6 +635,8 @@ function registerIpcHandlers() {
 
   // ── Registro de actividad ─────────────────────────────────────
   ipcMain.handle("activity:list", (_event, { limit = 100 } = {}) => {
+    const denied = denyIfNotAdmin();
+    if (denied) return denied;
     const db = getDatabase();
     return db.prepare(`
       SELECT * FROM activity_log ORDER BY created_at DESC LIMIT ?
@@ -571,6 +644,8 @@ function registerIpcHandlers() {
   });
 
   ipcMain.handle("activity:log", (_event, { username, action, entity, entityId, details }) => {
+    const denied = denyIfVisor();
+    if (denied) return denied;
     const db = getDatabase();
     logActivity(db, username, action, entity, entityId, details);
     return { ok: true };
@@ -578,6 +653,8 @@ function registerIpcHandlers() {
 
   // ── Backup / Restore ──────────────────────────────────────────
   ipcMain.handle("db:backup", async (_event) => {
+    const denied = denyIfNotAuthenticated();
+    if (denied) return denied;
     const dbPath = path.join(app.getPath("userData"), "proelectrica.db");
     const now = new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19);
     const { filePath, canceled } = await dialog.showSaveDialog({
@@ -592,6 +669,8 @@ function registerIpcHandlers() {
   });
 
   ipcMain.handle("db:restore", async (_event) => {
+    const denied = denyIfVisor();
+    if (denied) return denied;
     const dbPath = path.join(app.getPath("userData"), "proelectrica.db");
     const { filePaths, canceled } = await dialog.showOpenDialog({
       title: "Seleccionar copia de seguridad",
@@ -623,11 +702,15 @@ function registerIpcHandlers() {
 
   // ── Gestión de usuarios ───────────────────────────────────────
   ipcMain.handle("users:list", () => {
+    const denied = denyIfNotAdmin();
+    if (denied) return denied;
     const db = getDatabase();
     return db.prepare("SELECT id, username, role FROM users ORDER BY id ASC").all();
   });
 
   ipcMain.handle("users:create", async (_event, data) => {
+    const denied = denyIfNotAdmin();
+    if (denied) return denied;
     const db = getDatabase();
     const exists = db.prepare("SELECT id FROM users WHERE username = ?").get(data.username);
     if (exists) return { ok: false, message: "El nombre de usuario ya existe." };
@@ -638,12 +721,16 @@ function registerIpcHandlers() {
   });
 
   ipcMain.handle("users:update-role", async (_event, data) => {
+    const denied = denyIfNotAdmin();
+    if (denied) return denied;
     const db = getDatabase();
     db.prepare("UPDATE users SET role = ? WHERE id = ?").run(data.role, Number(data.id));
     return { ok: true };
   });
 
   ipcMain.handle("users:reset-password", async (_event, data) => {
+    const denied = denyIfNotAdmin();
+    if (denied) return denied;
     const db = getDatabase();
     const hash = await bcrypt.hash(data.password, 10);
     db.prepare("UPDATE users SET password_hash = ? WHERE id = ?").run(hash, Number(data.id));
@@ -651,6 +738,8 @@ function registerIpcHandlers() {
   });
 
   ipcMain.handle("users:delete", async (_event, id) => {
+    const denied = denyIfNotAdmin();
+    if (denied) return denied;
     const db = getDatabase();
     const admins = db.prepare("SELECT COUNT(*) as c FROM users WHERE role = 'ADMIN'").get();
     const target = db.prepare("SELECT role FROM users WHERE id = ?").get(Number(id));

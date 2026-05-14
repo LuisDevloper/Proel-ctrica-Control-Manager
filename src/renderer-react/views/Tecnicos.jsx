@@ -23,6 +23,7 @@ import { useToast } from "../components/ui/Toast";
 import { useAsync } from "../hooks/useAsync";
 import { Plus, Pencil, Trash2, X, Check } from "lucide-react";
 import { useDbHealth } from "../context/DbHealthContext";
+import { canMutateRecords, READ_ONLY_ROLE_TITLE } from "../lib/permissions";
 
 const filterFn = (item, query) => {
   const hay = `${item.full_name||""} ${item.specialty||""} ${item.phone||""}`.toLowerCase();
@@ -40,6 +41,9 @@ export function Tecnicos({ user }) {
   const { run }                   = useAsync();
   const { dbWritable }            = useDbHealth();
   const dbTitle                   = !dbWritable ? "Sin conexion a la base de datos." : undefined;
+  const canMutate                 = canMutateRecords(user?.role);
+  const mutBlockTitle             = !dbWritable ? dbTitle : (!canMutate ? READ_ONLY_ROLE_TITLE : undefined);
+  const formDisabled              = !dbWritable || !canMutate;
   const filters = useFilters(items, { filterFn, defaultSortField:"full_name", perPage:8 });
 
   const load = useCallback(async () => {
@@ -70,16 +74,22 @@ export function Tecnicos({ user }) {
 
       <h2 className="text-xl font-bold text-[#eaf2fb]">Tecnicos</h2>
 
+      {!canMutate && (
+        <p className="text-sm text-[#9ab0c7] bg-[#2f8dff]/5 border border-[#2f8dff]/20 rounded-xl px-4 py-2">
+          Modulo en modo solo lectura: puedes consultar y exportar, no registrar ni editar tecnicos.
+        </p>
+      )}
+
       <Card>
         <CardHeader><CardTitle className="flex items-center gap-2"><Plus size={15}/> Registrar tecnico</CardTitle></CardHeader>
         <CardContent>
           <div className="grid grid-cols-2 gap-3">
-            <Field label="Nombre completo*"><Input placeholder="Nombre completo" value={form.fullName} onChange={(e)=>setForm({...form,fullName:e.target.value})}/></Field>
-            <Field label="Especialidad"><Input placeholder="Especialidad" value={form.specialty} onChange={(e)=>setForm({...form,specialty:e.target.value})}/></Field>
-            <Field label="Telefono"><Input placeholder="Telefono" value={form.phone} onChange={(e)=>setForm({...form,phone:e.target.value})}/></Field>
-            <Field label="Email"><Input type="email" placeholder="Email" value={form.email} onChange={(e)=>setForm({...form,email:e.target.value})}/></Field>
+            <Field label="Nombre completo*"><Input disabled={formDisabled} placeholder="Nombre completo" value={form.fullName} onChange={(e)=>setForm({...form,fullName:e.target.value})}/></Field>
+            <Field label="Especialidad"><Input disabled={formDisabled} placeholder="Especialidad" value={form.specialty} onChange={(e)=>setForm({...form,specialty:e.target.value})}/></Field>
+            <Field label="Telefono"><Input disabled={formDisabled} placeholder="Telefono" value={form.phone} onChange={(e)=>setForm({...form,phone:e.target.value})}/></Field>
+            <Field label="Email"><Input disabled={formDisabled} type="email" placeholder="Email" value={form.email} onChange={(e)=>setForm({...form,email:e.target.value})}/></Field>
           </div>
-          <Button className="mt-2" onClick={handleSave} disabled={!dbWritable} title={dbTitle}>Guardar tecnico</Button>
+          <Button className="mt-2" onClick={handleSave} disabled={formDisabled} title={mutBlockTitle}>Guardar tecnico</Button>
         </CardContent>
       </Card>
 
@@ -87,7 +97,7 @@ export function Tecnicos({ user }) {
         <CardHeader>
           <div className="flex items-center justify-between">
             <CardTitle>Lista de tecnicos</CardTitle>
-            <Button variant="ghost" size="sm" className="border border-[#2a3d57] text-[#9ab0c7]" onClick={() => setShowImport(true)} disabled={!dbWritable} title={dbTitle}>
+            <Button variant="ghost" size="sm" className="border border-[#2a3d57] text-[#9ab0c7]" onClick={() => setShowImport(true)} disabled={formDisabled} title={mutBlockTitle}>
               <FileSpreadsheet size={13} className="mr-1" /> Importar Excel
             </Button>
           </div>
@@ -116,8 +126,8 @@ export function Tecnicos({ user }) {
                         <Td className="text-[#9ab0c7]">{item.email||"—"}</Td>
                         <Td>
                           <div className="flex gap-2">
-                            <Button variant="ghost" size="icon" onClick={()=>{setEditId(item.id);setEditData({fullName:item.full_name,specialty:item.specialty||"",phone:item.phone||"",email:item.email||""})}} disabled={!dbWritable} title={dbTitle}><Pencil size={13}/></Button>
-                            <Button variant="ghost" size="icon" className="hover:text-[#e07070]" onClick={()=>setDeleteId(item.id)} disabled={!dbWritable} title={dbTitle}><Trash2 size={13}/></Button>
+                            <Button variant="ghost" size="icon" onClick={()=>{setEditId(item.id);setEditData({fullName:item.full_name,specialty:item.specialty||"",phone:item.phone||"",email:item.email||""})}} disabled={formDisabled} title={mutBlockTitle}><Pencil size={13}/></Button>
+                            <Button variant="ghost" size="icon" className="hover:text-[#e07070]" onClick={()=>setDeleteId(item.id)} disabled={formDisabled} title={mutBlockTitle}><Trash2 size={13}/></Button>
                           </div>
                         </Td>
                       </Tr>
@@ -125,13 +135,13 @@ export function Tecnicos({ user }) {
                         <Tr className="bg-[#0d1e30]">
                           <Td colSpan={5}>
                             <div className="grid grid-cols-2 gap-3 py-1">
-                              <Field label="Nombre"><Input value={editData.fullName} onChange={(e)=>setEditData({...editData,fullName:e.target.value})}/></Field>
-                              <Field label="Especialidad"><Input value={editData.specialty} onChange={(e)=>setEditData({...editData,specialty:e.target.value})}/></Field>
-                              <Field label="Telefono"><Input value={editData.phone} onChange={(e)=>setEditData({...editData,phone:e.target.value})}/></Field>
-                              <Field label="Email"><Input type="email" value={editData.email} onChange={(e)=>setEditData({...editData,email:e.target.value})}/></Field>
+                              <Field label="Nombre"><Input disabled={formDisabled} value={editData.fullName} onChange={(e)=>setEditData({...editData,fullName:e.target.value})}/></Field>
+                              <Field label="Especialidad"><Input disabled={formDisabled} value={editData.specialty} onChange={(e)=>setEditData({...editData,specialty:e.target.value})}/></Field>
+                              <Field label="Telefono"><Input disabled={formDisabled} value={editData.phone} onChange={(e)=>setEditData({...editData,phone:e.target.value})}/></Field>
+                              <Field label="Email"><Input disabled={formDisabled} type="email" value={editData.email} onChange={(e)=>setEditData({...editData,email:e.target.value})}/></Field>
                             </div>
                             <div className="flex gap-2 mt-2">
-                              <Button size="sm" onClick={handleUpdate} disabled={!dbWritable} title={dbTitle}><Check size={13} className="mr-1"/>Guardar</Button>
+                              <Button size="sm" onClick={handleUpdate} disabled={formDisabled} title={mutBlockTitle}><Check size={13} className="mr-1"/>Guardar</Button>
                               <Button size="sm" variant="secondary" onClick={()=>setEditId(null)}><X size={13} className="mr-1"/>Cancelar</Button>
                             </div>
                           </Td>

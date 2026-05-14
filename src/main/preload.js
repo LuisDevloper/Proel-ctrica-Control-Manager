@@ -2,6 +2,7 @@ const { contextBridge, ipcRenderer } = require("electron");
 
 contextBridge.exposeInMainWorld("proelectricaApi", {
   login: (credentials) => ipcRenderer.invoke("auth:login", credentials),
+  logout: () => ipcRenderer.invoke("auth:logout"),
   getDashboardStats: () => ipcRenderer.invoke("dashboard:stats"),
   getMotors: () => ipcRenderer.invoke("motors:list"),
   createMotor: (motor) => ipcRenderer.invoke("motors:create", motor),

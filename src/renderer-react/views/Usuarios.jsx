@@ -41,7 +41,8 @@ export function Usuarios({ user: currentUser }) {
   const dbTitle                 = !dbWritable ? "Sin conexion a la base de datos." : undefined;
 
   const load = useCallback(async () => {
-    setUsers(await window.proelectricaApi.getUsers());
+    const r = await window.proelectricaApi.getUsers();
+    setUsers(Array.isArray(r) ? r : []);
   }, []);
 
   useEffect(() => { load(); }, [load]);

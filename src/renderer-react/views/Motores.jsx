@@ -31,8 +31,9 @@ import { useDbHealth } from "../context/DbHealthContext";
 import { Pencil, Trash2, Plus, X, Check, Eye, Camera, ImageOff, FileText, FileSpreadsheet } from "lucide-react";
 import { exportMotoresPDF } from "../lib/pdfReport";
 import { ImportModal } from "../components/ui/ImportModal";
+import { canMutateRecords, READ_ONLY_ROLE_TITLE } from "../lib/permissions";
 
-function PhotoInput({ value, onChange }) {
+function PhotoInput({ value, onChange, disabled }) {
   function handleFile(e) {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -48,11 +49,17 @@ function PhotoInput({ value, onChange }) {
         : <div className="w-16 h-16 rounded-xl bg-[#0d1825] border border-[#2a3d57] flex items-center justify-center text-[#4a6a8a]"><Camera size={22}/></div>
       }
       <div className="flex flex-col gap-1">
-        <label className="cursor-pointer text-xs text-[#2f8dff] hover:text-[#4a9fff] transition-colors">
-          {value ? "Cambiar foto" : "Subir foto"}
-          <input type="file" accept="image/*" className="hidden" onChange={handleFile} />
-        </label>
-        {value && <button onClick={() => onChange(null)} className="text-xs text-[#9ab0c7] hover:text-[#e07070] text-left cursor-pointer">Quitar foto</button>}
+        {!disabled ? (
+          <>
+            <label className="cursor-pointer text-xs text-[#2f8dff] hover:text-[#4a9fff] transition-colors">
+              {value ? "Cambiar foto" : "Subir foto"}
+              <input type="file" accept="image/*" className="hidden" onChange={handleFile} />
+            </label>
+            {value && <button type="button" onClick={() => onChange(null)} className="text-xs text-[#9ab0c7] hover:text-[#e07070] text-left cursor-pointer">Quitar foto</button>}
+          </>
+        ) : (
+          <span className="text-xs text-[#6a7d94]">Solo lectura</span>
+        )}
       </div>
     </div>
   );
@@ -80,6 +87,9 @@ export function Motores({ user }) {
   const { run }                   = useAsync();
   const { dbWritable }            = useDbHealth();
   const dbTitle                   = !dbWritable ? "Sin conexion a la base de datos." : undefined;
+  const canMutate                 = canMutateRecords(user?.role);
+  const mutBlockTitle             = !dbWritable ? dbTitle : (!canMutate ? READ_ONLY_ROLE_TITLE : undefined);
+  const formDisabled              = !dbWritable || !canMutate;
 
   const filters = useFilters(motors, {
     filterFn,
@@ -117,30 +127,36 @@ export function Motores({ user }) {
     <div className="flex flex-col gap-4">
       <h2 className="text-xl font-bold text-[#eaf2fb]">Motores</h2>
 
+      {!canMutate && (
+        <p className="text-sm text-[#9ab0c7] bg-[#2f8dff]/5 border border-[#2f8dff]/20 rounded-xl px-4 py-2">
+          Estas viendo este modulo en modo solo lectura. Puedes consultar datos y exportar, pero no crear ni editar registros.
+        </p>
+      )}
+
       <Card>
         <CardHeader><CardTitle className="flex items-center gap-2"><Plus size={15}/> Registrar motor</CardTitle></CardHeader>
         <CardContent>
           <div className="grid grid-cols-3 gap-3">
-            <Field label="Codigo*"><Input placeholder="Ej: MOT-001" value={form.code} onChange={(e) => setForm({...form, code: e.target.value})} /></Field>
-            <Field label="Marca*"><Input placeholder="Ej: Siemens" value={form.brand} onChange={(e) => setForm({...form, brand: e.target.value})} /></Field>
-            <Field label="Modelo"><Input placeholder="Ej: 1LA7" value={form.model} onChange={(e) => setForm({...form, model: e.target.value})} /></Field>
-            <Field label="N° Serie"><Input placeholder="Numero de serie" value={form.serial_number} onChange={(e) => setForm({...form, serial_number: e.target.value})} /></Field>
-            <Field label="Potencia (kW)"><Input placeholder="Ej: 15" type="number" value={form.power} onChange={(e) => setForm({...form, power: e.target.value})} /></Field>
-            <Field label="Voltaje (V)"><Input placeholder="Ej: 440" type="number" value={form.voltage} onChange={(e) => setForm({...form, voltage: e.target.value})} /></Field>
-            <Field label="RPM"><Input placeholder="Ej: 1800" type="number" value={form.rpm} onChange={(e) => setForm({...form, rpm: e.target.value})} /></Field>
-            <Field label="Ubicacion"><Input placeholder="Ej: Planta Norte" value={form.location} onChange={(e) => setForm({...form, location: e.target.value})} /></Field>
-            <Field label="Fecha instalacion"><Input type="date" value={form.installed_at} onChange={(e) => setForm({...form, installed_at: e.target.value})} /></Field>
+            <Field label="Codigo*"><Input disabled={formDisabled} placeholder="Ej: MOT-001" value={form.code} onChange={(e) => setForm({...form, code: e.target.value})} /></Field>
+            <Field label="Marca*"><Input disabled={formDisabled} placeholder="Ej: Siemens" value={form.brand} onChange={(e) => setForm({...form, brand: e.target.value})} /></Field>
+            <Field label="Modelo"><Input disabled={formDisabled} placeholder="Ej: 1LA7" value={form.model} onChange={(e) => setForm({...form, model: e.target.value})} /></Field>
+            <Field label="N° Serie"><Input disabled={formDisabled} placeholder="Numero de serie" value={form.serial_number} onChange={(e) => setForm({...form, serial_number: e.target.value})} /></Field>
+            <Field label="Potencia (kW)"><Input disabled={formDisabled} placeholder="Ej: 15" type="number" value={form.power} onChange={(e) => setForm({...form, power: e.target.value})} /></Field>
+            <Field label="Voltaje (V)"><Input disabled={formDisabled} placeholder="Ej: 440" type="number" value={form.voltage} onChange={(e) => setForm({...form, voltage: e.target.value})} /></Field>
+            <Field label="RPM"><Input disabled={formDisabled} placeholder="Ej: 1800" type="number" value={form.rpm} onChange={(e) => setForm({...form, rpm: e.target.value})} /></Field>
+            <Field label="Ubicacion"><Input disabled={formDisabled} placeholder="Ej: Planta Norte" value={form.location} onChange={(e) => setForm({...form, location: e.target.value})} /></Field>
+            <Field label="Fecha instalacion"><Input disabled={formDisabled} type="date" value={form.installed_at} onChange={(e) => setForm({...form, installed_at: e.target.value})} /></Field>
             <Field label="Estado">
-              <Select value={form.status} onChange={(e) => setForm({...form, status: e.target.value})}>
+              <Select disabled={formDisabled} value={form.status} onChange={(e) => setForm({...form, status: e.target.value})}>
                 {STATUS_OPTIONS.map(s => <option key={s}>{s}</option>)}
               </Select>
             </Field>
-            <Field label="Observaciones" className="col-span-2"><Textarea placeholder="Notas adicionales..." value={form.notes} onChange={(e) => setForm({...form, notes: e.target.value})} /></Field>
+            <Field label="Observaciones" className="col-span-2"><Textarea disabled={formDisabled} placeholder="Notas adicionales..." value={form.notes} onChange={(e) => setForm({...form, notes: e.target.value})} /></Field>
             <Field label="Foto del motor" className="col-span-3">
-              <PhotoInput value={form.photo} onChange={v => setForm({...form, photo: v})} />
+              <PhotoInput disabled={formDisabled} value={form.photo} onChange={v => setForm({...form, photo: v})} />
             </Field>
           </div>
-          <Button className="mt-2" onClick={handleSave} disabled={!dbWritable} title={dbTitle}>Guardar motor</Button>
+          <Button className="mt-2" onClick={handleSave} disabled={formDisabled} title={mutBlockTitle}>Guardar motor</Button>
         </CardContent>
       </Card>
 
@@ -151,7 +167,7 @@ export function Motores({ user }) {
           <div className="flex items-center justify-between">
             <CardTitle>Lista de motores</CardTitle>
             <div className="flex gap-2">
-              <Button variant="ghost" size="sm" className="border border-[#2a3d57] text-[#9ab0c7]" onClick={() => setShowImport(true)} disabled={!dbWritable} title={dbTitle}>
+              <Button variant="ghost" size="sm" className="border border-[#2a3d57] text-[#9ab0c7]" onClick={() => setShowImport(true)} disabled={formDisabled} title={mutBlockTitle}>
                 <FileSpreadsheet size={13} className="mr-1" /> Importar Excel
               </Button>
               <Button variant="secondary" size="sm" onClick={() => { if (!filters.filtered.length) { showToast("No hay datos para exportar.", "warning"); return; } exportMotoresPDF(filters.filtered); }}>
@@ -201,10 +217,10 @@ export function Motores({ user }) {
                             <Button variant="ghost" size="icon" title="Ver detalle" onClick={() => setDetailId(motor.id)}>
                               <Eye size={13}/>
                             </Button>
-                            <Button variant="ghost" size="icon" onClick={() => { setEditId(motor.id); setEditData({code:motor.code,brand:motor.brand,model:motor.model||"",serial_number:motor.serial_number||"",power:motor.power||"",voltage:motor.voltage||"",rpm:motor.rpm||"",location:motor.location||"",status:motor.status,installed_at:motor.installed_at||"",notes:motor.notes||"",photo:motor.photo||null}); }} disabled={!dbWritable} title={dbTitle}>
+                            <Button variant="ghost" size="icon" onClick={() => { setEditId(motor.id); setEditData({code:motor.code,brand:motor.brand,model:motor.model||"",serial_number:motor.serial_number||"",power:motor.power||"",voltage:motor.voltage||"",rpm:motor.rpm||"",location:motor.location||"",status:motor.status,installed_at:motor.installed_at||"",notes:motor.notes||"",photo:motor.photo||null}); }} disabled={formDisabled} title={mutBlockTitle}>
                               <Pencil size={13}/>
                             </Button>
-                            <Button variant="ghost" size="icon" className="hover:text-[#e07070]" onClick={() => setDeleteId(motor.id)} disabled={!dbWritable} title={dbTitle}>
+                            <Button variant="ghost" size="icon" className="hover:text-[#e07070]" onClick={() => setDeleteId(motor.id)} disabled={formDisabled} title={mutBlockTitle}>
                               <Trash2 size={13}/>
                             </Button>
                           </div>
@@ -214,23 +230,23 @@ export function Motores({ user }) {
                         <Tr className="bg-[#0d1e30]">
                           <Td colSpan={6}>
                             <div className="grid grid-cols-2 gap-3 py-1">
-                              <Field label="Codigo"><Input value={editData.code} onChange={(e)=>setEditData({...editData,code:e.target.value})}/></Field>
-                              <Field label="Marca"><Input value={editData.brand} onChange={(e)=>setEditData({...editData,brand:e.target.value})}/></Field>
-                              <Field label="Modelo"><Input value={editData.model} onChange={(e)=>setEditData({...editData,model:e.target.value})}/></Field>
-                              <Field label="N° Serie"><Input value={editData.serial_number} onChange={(e)=>setEditData({...editData,serial_number:e.target.value})}/></Field>
-                              <Field label="Potencia (kW)"><Input type="number" value={editData.power} onChange={(e)=>setEditData({...editData,power:e.target.value})}/></Field>
-                              <Field label="Voltaje (V)"><Input type="number" value={editData.voltage} onChange={(e)=>setEditData({...editData,voltage:e.target.value})}/></Field>
-                              <Field label="RPM"><Input type="number" value={editData.rpm} onChange={(e)=>setEditData({...editData,rpm:e.target.value})}/></Field>
-                              <Field label="Ubicacion"><Input value={editData.location} onChange={(e)=>setEditData({...editData,location:e.target.value})}/></Field>
-                              <Field label="Instalacion"><Input type="date" value={editData.installed_at} onChange={(e)=>setEditData({...editData,installed_at:e.target.value})}/></Field>
-                              <Field label="Estado"><Select value={editData.status} onChange={(e)=>setEditData({...editData,status:e.target.value})}>{STATUS_OPTIONS.map(s=><option key={s}>{s}</option>)}</Select></Field>
-                              <Field label="Notas"><Textarea value={editData.notes} onChange={(e)=>setEditData({...editData,notes:e.target.value})}/></Field>
+                              <Field label="Codigo"><Input disabled={formDisabled} value={editData.code} onChange={(e)=>setEditData({...editData,code:e.target.value})}/></Field>
+                              <Field label="Marca"><Input disabled={formDisabled} value={editData.brand} onChange={(e)=>setEditData({...editData,brand:e.target.value})}/></Field>
+                              <Field label="Modelo"><Input disabled={formDisabled} value={editData.model} onChange={(e)=>setEditData({...editData,model:e.target.value})}/></Field>
+                              <Field label="N° Serie"><Input disabled={formDisabled} value={editData.serial_number} onChange={(e)=>setEditData({...editData,serial_number:e.target.value})}/></Field>
+                              <Field label="Potencia (kW)"><Input disabled={formDisabled} type="number" value={editData.power} onChange={(e)=>setEditData({...editData,power:e.target.value})}/></Field>
+                              <Field label="Voltaje (V)"><Input disabled={formDisabled} type="number" value={editData.voltage} onChange={(e)=>setEditData({...editData,voltage:e.target.value})}/></Field>
+                              <Field label="RPM"><Input disabled={formDisabled} type="number" value={editData.rpm} onChange={(e)=>setEditData({...editData,rpm:e.target.value})}/></Field>
+                              <Field label="Ubicacion"><Input disabled={formDisabled} value={editData.location} onChange={(e)=>setEditData({...editData,location:e.target.value})}/></Field>
+                              <Field label="Instalacion"><Input disabled={formDisabled} type="date" value={editData.installed_at} onChange={(e)=>setEditData({...editData,installed_at:e.target.value})}/></Field>
+                              <Field label="Estado"><Select disabled={formDisabled} value={editData.status} onChange={(e)=>setEditData({...editData,status:e.target.value})}>{STATUS_OPTIONS.map(s=><option key={s}>{s}</option>)}</Select></Field>
+                              <Field label="Notas"><Textarea disabled={formDisabled} value={editData.notes} onChange={(e)=>setEditData({...editData,notes:e.target.value})}/></Field>
                               <Field label="Foto" className="col-span-2">
-                                <PhotoInput value={editData.photo} onChange={v=>setEditData({...editData,photo:v})}/>
+                                <PhotoInput disabled={formDisabled} value={editData.photo} onChange={v=>setEditData({...editData,photo:v})}/>
                               </Field>
                             </div>
                             <div className="flex gap-2 mt-2">
-                              <Button size="sm" onClick={handleUpdate} disabled={!dbWritable} title={dbTitle}><Check size={13} className="mr-1"/>Guardar</Button>
+                              <Button size="sm" onClick={handleUpdate} disabled={formDisabled} title={mutBlockTitle}><Check size={13} className="mr-1"/>Guardar</Button>
                               <Button size="sm" variant="secondary" onClick={()=>setEditId(null)}><X size={13} className="mr-1"/>Cancelar</Button>
                             </div>
                           </Td>

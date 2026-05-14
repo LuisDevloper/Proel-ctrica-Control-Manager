@@ -26,6 +26,7 @@ import { exportMaintenancesPDF } from "../lib/pdfReport";
 import { CurrencyInput } from "../components/ui/CurrencyInput";
 import { Plus, Pencil, Trash2, X, Check, FileText, CheckCircle2 } from "lucide-react";
 import { useDbHealth } from "../context/DbHealthContext";
+import { canMutateRecords, READ_ONLY_ROLE_TITLE } from "../lib/permissions";
 
 const filterFn = (item, query, status) => {
   const hay = `${item.motor_code||""} ${item.technician_name||""}`.toLowerCase();
@@ -62,6 +63,9 @@ export function Mantenimientos({ user }) {
   const { run }                   = useAsync();
   const { dbWritable }            = useDbHealth();
   const dbTitle                   = !dbWritable ? "Sin conexion a la base de datos." : undefined;
+  const canMutate                 = canMutateRecords(user?.role);
+  const mutBlockTitle             = !dbWritable ? dbTitle : (!canMutate ? READ_ONLY_ROLE_TITLE : undefined);
+  const formDisabled              = !dbWritable || !canMutate;
   const filters = useFilters(items, { filterFn, defaultSortField:"maintenance_date", perPage:10, dateField:"maintenance_date" });
 
   const load = useCallback(async () => {
@@ -107,32 +111,38 @@ export function Mantenimientos({ user }) {
     <div className="flex flex-col gap-4">
       <h2 className="text-xl font-bold text-[#eaf2fb]">Mantenimientos</h2>
 
+      {!canMutate && (
+        <p className="text-sm text-[#9ab0c7] bg-[#2f8dff]/5 border border-[#2f8dff]/20 rounded-xl px-4 py-2">
+          Modulo en modo solo lectura: consulta e informes permitidos; no registrar ni modificar mantenimientos.
+        </p>
+      )}
+
       <Card>
         <CardHeader><CardTitle className="flex items-center gap-2"><Plus size={15}/> Registrar mantenimiento</CardTitle></CardHeader>
         <CardContent>
           <div className="grid grid-cols-2 gap-3">
             <Field label="Motor*">
-              <Select value={form.motorId} onChange={(e)=>setForm({...form,motorId:e.target.value})}>
+              <Select disabled={formDisabled} value={form.motorId} onChange={(e)=>setForm({...form,motorId:e.target.value})}>
                 <option value="">Seleccionar motor</option>
                 {motors.map(m=><option key={m.id} value={m.id}>{m.code}</option>)}
               </Select>
             </Field>
             <Field label="Tecnico">
-              <Select value={form.technicianId} onChange={(e)=>setForm({...form,technicianId:e.target.value})}>
+              <Select disabled={formDisabled} value={form.technicianId} onChange={(e)=>setForm({...form,technicianId:e.target.value})}>
                 <option value="">Sin asignar</option>
                 {technicians.map(t=><option key={t.id} value={t.id}>{t.full_name}</option>)}
               </Select>
             </Field>
             <Field label="Tipo">
-              <Select value={form.maintenanceType} onChange={(e)=>setForm({...form,maintenanceType:e.target.value})}>
+              <Select disabled={formDisabled} value={form.maintenanceType} onChange={(e)=>setForm({...form,maintenanceType:e.target.value})}>
                 <option>Preventivo</option><option>Correctivo</option>
               </Select>
             </Field>
-            <Field label="Fecha*"><Input type="date" value={form.maintenanceDate} onChange={(e)=>setForm({...form,maintenanceDate:e.target.value})}/></Field>
-            <Field label="Costo"><CurrencyInput value={form.cost} onChange={(v)=>setForm({...form,cost:v})}/></Field>
-            <Field label="Descripcion"><Textarea placeholder="Descripcion del trabajo" value={form.description} onChange={(e)=>setForm({...form,description:e.target.value})}/></Field>
+            <Field label="Fecha*"><Input disabled={formDisabled} type="date" value={form.maintenanceDate} onChange={(e)=>setForm({...form,maintenanceDate:e.target.value})}/></Field>
+            <Field label="Costo"><CurrencyInput disabled={formDisabled} value={form.cost} onChange={(v)=>setForm({...form,cost:v})}/></Field>
+            <Field label="Descripcion"><Textarea disabled={formDisabled} placeholder="Descripcion del trabajo" value={form.description} onChange={(e)=>setForm({...form,description:e.target.value})}/></Field>
           </div>
-          <Button className="mt-2" onClick={handleSave} disabled={!dbWritable} title={dbTitle}>Guardar mantenimiento</Button>
+          <Button className="mt-2" onClick={handleSave} disabled={formDisabled} title={mutBlockTitle}>Guardar mantenimiento</Button>
         </CardContent>
       </Card>
 
@@ -176,12 +186,12 @@ export function Mantenimientos({ user }) {
                         <Td>
                           <div className="flex gap-2">
                             {item.status !== "Completado" && (
-                              <Button variant="ghost" size="icon" className="hover:text-[#29a16a]" title={dbTitle || "Marcar como completado"} onClick={()=>handleComplete(item)} disabled={!dbWritable}>
+                              <Button variant="ghost" size="icon" className="hover:text-[#29a16a]" title={mutBlockTitle || "Marcar como completado"} onClick={()=>handleComplete(item)} disabled={formDisabled}>
                                 <CheckCircle2 size={14}/>
                               </Button>
                             )}
-                            <Button variant="ghost" size="icon" onClick={()=>{setEditId(item.id);setEditData({maintenanceType:item.maintenance_type,maintenanceDate:item.maintenance_date||"",description:item.description||"",cost:item.cost||0,status:item.status||"Pendiente",motorId:motors.find(m=>m.code===item.motor_code)?.id||"",technicianId:technicians.find(t=>t.full_name===item.technician_name)?.id||""})}} disabled={!dbWritable} title={dbTitle}><Pencil size={13}/></Button>
-                            <Button variant="ghost" size="icon" className="hover:text-[#e07070]" onClick={()=>setDeleteId(item.id)} disabled={!dbWritable} title={dbTitle}><Trash2 size={13}/></Button>
+                            <Button variant="ghost" size="icon" onClick={()=>{setEditId(item.id);setEditData({maintenanceType:item.maintenance_type,maintenanceDate:item.maintenance_date||"",description:item.description||"",cost:item.cost||0,status:item.status||"Pendiente",motorId:motors.find(m=>m.code===item.motor_code)?.id||"",technicianId:technicians.find(t=>t.full_name===item.technician_name)?.id||""})}} disabled={formDisabled} title={mutBlockTitle}><Pencil size={13}/></Button>
+                            <Button variant="ghost" size="icon" className="hover:text-[#e07070]" onClick={()=>setDeleteId(item.id)} disabled={formDisabled} title={mutBlockTitle}><Trash2 size={13}/></Button>
                           </div>
                         </Td>
                       </Tr>
@@ -189,20 +199,20 @@ export function Mantenimientos({ user }) {
                         <Tr className="bg-[#0d1e30]">
                           <Td colSpan={7}>
                             <div className="grid grid-cols-2 gap-3 py-1">
-                              <Field label="Tipo"><Select value={editData.maintenanceType} onChange={(e)=>setEditData({...editData,maintenanceType:e.target.value})}><option>Preventivo</option><option>Correctivo</option></Select></Field>
-                              <Field label="Fecha"><Input type="date" value={editData.maintenanceDate} onChange={(e)=>setEditData({...editData,maintenanceDate:e.target.value})}/></Field>
-                              <Field label="Costo"><CurrencyInput value={editData.cost} onChange={(v)=>setEditData({...editData,cost:v})}/></Field>
+                              <Field label="Tipo"><Select disabled={formDisabled} value={editData.maintenanceType} onChange={(e)=>setEditData({...editData,maintenanceType:e.target.value})}><option>Preventivo</option><option>Correctivo</option></Select></Field>
+                              <Field label="Fecha"><Input disabled={formDisabled} type="date" value={editData.maintenanceDate} onChange={(e)=>setEditData({...editData,maintenanceDate:e.target.value})}/></Field>
+                              <Field label="Costo"><CurrencyInput disabled={formDisabled} value={editData.cost} onChange={(v)=>setEditData({...editData,cost:v})}/></Field>
                               <Field label="Estado">
-                                <Select value={editData.status} onChange={(e)=>setEditData({...editData,status:e.target.value})}>
+                                <Select disabled={formDisabled} value={editData.status} onChange={(e)=>setEditData({...editData,status:e.target.value})}>
                                   <option>Pendiente</option>
                                   <option>En progreso</option>
                                   <option>Completado</option>
                                 </Select>
                               </Field>
-                              <Field label="Descripcion" className="col-span-2"><Textarea value={editData.description} onChange={(e)=>setEditData({...editData,description:e.target.value})}/></Field>
+                              <Field label="Descripcion" className="col-span-2"><Textarea disabled={formDisabled} value={editData.description} onChange={(e)=>setEditData({...editData,description:e.target.value})}/></Field>
                             </div>
                             <div className="flex gap-2 mt-2">
-                              <Button size="sm" onClick={handleUpdate} disabled={!dbWritable} title={dbTitle}><Check size={13} className="mr-1"/>Guardar</Button>
+                              <Button size="sm" onClick={handleUpdate} disabled={formDisabled} title={mutBlockTitle}><Check size={13} className="mr-1"/>Guardar</Button>
                               <Button size="sm" variant="secondary" onClick={()=>setEditId(null)}><X size={13} className="mr-1"/>Cancelar</Button>
                             </div>
                           </Td>

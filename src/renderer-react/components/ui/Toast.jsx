@@ -1,25 +1,48 @@
-import React, { createContext, useContext, useState, useCallback } from "react";
+import React, { createContext, useContext, useState, useCallback, useRef, useEffect } from "react";
 import { cn } from "../../lib/utils";
-import { CheckCircle, AlertTriangle, Info, X } from "lucide-react";
+import { AlertTriangle, Info } from "lucide-react";
+import { SuccessCelebration } from "./SuccessCelebration";
 
 const ToastContext = createContext(null);
 
+const CELEBRATION_MS = 2200;
+
 const icons = {
-  success: <CheckCircle size={16} className="text-[#39d48f]" />,
   warning: <AlertTriangle size={16} className="text-[#e0a91f]" />,
   info:    <Info size={16} className="text-[#5fb3ff]" />,
 };
 
 const borders = {
-  success: "border-[#29a16a]",
   warning: "border-[#e0a91f]",
   info:    "border-[#2f8dff]",
 };
 
 export function ToastProvider({ children }) {
   const [toasts, setToasts] = useState([]);
+  const [celebration, setCelebration] = useState(null);
+  const celebrationTimerRef = useRef(null);
+
+  useEffect(() => () => {
+    if (celebrationTimerRef.current) {
+      clearTimeout(celebrationTimerRef.current);
+    }
+  }, []);
 
   const showToast = useCallback((message, type = "info") => {
+    if (type === "success") {
+      if (celebrationTimerRef.current) {
+        clearTimeout(celebrationTimerRef.current);
+        celebrationTimerRef.current = null;
+      }
+      const id = Date.now();
+      setCelebration({ message, id });
+      celebrationTimerRef.current = window.setTimeout(() => {
+        setCelebration((c) => (c?.id === id ? null : c));
+        celebrationTimerRef.current = null;
+      }, CELEBRATION_MS);
+      return;
+    }
+
     const id = Date.now();
     setToasts((prev) => [...prev, { id, message, type }]);
     setTimeout(() => {
@@ -30,6 +53,13 @@ export function ToastProvider({ children }) {
   return (
     <ToastContext.Provider value={{ showToast }}>
       {children}
+      {celebration ? (
+        <div
+          className="fixed inset-0 z-[10000] flex items-center justify-center p-4 pointer-events-auto bg-black/45 animate-celebrationBackdrop"
+        >
+          <SuccessCelebration message={celebration.message} />
+        </div>
+      ) : null}
       <div className="fixed bottom-5 right-5 flex flex-col gap-2 z-[9999] pointer-events-none">
         {toasts.map((toast) => (
           <div

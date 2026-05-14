@@ -23,13 +23,14 @@ import { useToast } from "../components/ui/Toast";
 import { useAsync } from "../hooks/useAsync";
 import { Pencil, Trash2, Plus, X, Check } from "lucide-react";
 import { useDbHealth } from "../context/DbHealthContext";
+import { canMutateRecords, READ_ONLY_ROLE_TITLE } from "../lib/permissions";
 
 const filterFn = (item, query) => {
   const hay = `${item.part_name||""} ${item.sku||""} ${item.location||""}`.toLowerCase();
   return !query || hay.includes(query.toLowerCase());
 };
 
-export function Inventario() {
+export function Inventario({ user }) {
   const [items, setItems]       = useState([]);
   const [editId, setEditId]     = useState(null);
   const [editData, setEditData] = useState({});
@@ -39,6 +40,9 @@ export function Inventario() {
   const { run }                 = useAsync();
   const { dbWritable }          = useDbHealth();
   const dbTitle                 = !dbWritable ? "Sin conexion a la base de datos." : undefined;
+  const canMutate               = canMutateRecords(user?.role);
+  const mutBlockTitle           = !dbWritable ? dbTitle : (!canMutate ? READ_ONLY_ROLE_TITLE : undefined);
+  const formDisabled            = !dbWritable || !canMutate;
 
   const filters = useFilters(items, { filterFn, defaultSortField:"part_name", perPage:10 });
 
@@ -68,17 +72,23 @@ export function Inventario() {
     <div className="flex flex-col gap-4">
       <h2 className="text-xl font-bold text-[#eaf2fb]">Inventario</h2>
 
+      {!canMutate && (
+        <p className="text-sm text-[#9ab0c7] bg-[#2f8dff]/5 border border-[#2f8dff]/20 rounded-xl px-4 py-2">
+          Modulo en modo solo lectura: consulta y exportacion permitidas; no altas ni ediciones de stock.
+        </p>
+      )}
+
       <Card>
         <CardHeader><CardTitle className="flex items-center gap-2"><Plus size={15}/> Registrar repuesto</CardTitle></CardHeader>
         <CardContent>
           <div className="grid grid-cols-3 gap-3">
-            <Field label="Nombre*"><Input placeholder="Nombre del repuesto" value={form.partName} onChange={(e)=>setForm({...form,partName:e.target.value})}/></Field>
-            <Field label="SKU"><Input placeholder="SKU/Codigo" value={form.sku} onChange={(e)=>setForm({...form,sku:e.target.value})}/></Field>
-            <Field label="Ubicacion"><Input placeholder="Ubicacion" value={form.location} onChange={(e)=>setForm({...form,location:e.target.value})}/></Field>
-            <Field label="Cantidad"><Input type="number" placeholder="0" value={form.quantity} onChange={(e)=>setForm({...form,quantity:e.target.value})}/></Field>
-            <Field label="Stock minimo"><Input type="number" placeholder="0" value={form.minStock} onChange={(e)=>setForm({...form,minStock:e.target.value})}/></Field>
+            <Field label="Nombre*"><Input disabled={formDisabled} placeholder="Nombre del repuesto" value={form.partName} onChange={(e)=>setForm({...form,partName:e.target.value})}/></Field>
+            <Field label="SKU"><Input disabled={formDisabled} placeholder="SKU/Codigo" value={form.sku} onChange={(e)=>setForm({...form,sku:e.target.value})}/></Field>
+            <Field label="Ubicacion"><Input disabled={formDisabled} placeholder="Ubicacion" value={form.location} onChange={(e)=>setForm({...form,location:e.target.value})}/></Field>
+            <Field label="Cantidad"><Input disabled={formDisabled} type="number" placeholder="0" value={form.quantity} onChange={(e)=>setForm({...form,quantity:e.target.value})}/></Field>
+            <Field label="Stock minimo"><Input disabled={formDisabled} type="number" placeholder="0" value={form.minStock} onChange={(e)=>setForm({...form,minStock:e.target.value})}/></Field>
           </div>
-          <Button className="mt-2" onClick={handleSave} disabled={!dbWritable} title={dbTitle}>Guardar repuesto</Button>
+          <Button className="mt-2" onClick={handleSave} disabled={formDisabled} title={mutBlockTitle}>Guardar repuesto</Button>
         </CardContent>
       </Card>
 
@@ -116,10 +126,10 @@ export function Inventario() {
                         </Td>
                         <Td>
                           <div className="flex gap-2">
-                            <Button variant="ghost" size="icon" onClick={()=>{ setEditId(item.id); setEditData({partName:item.part_name,sku:item.sku||"",quantity:item.quantity,minStock:item.min_stock,location:item.location||""}); }} disabled={!dbWritable} title={dbTitle}>
+                            <Button variant="ghost" size="icon" onClick={()=>{ setEditId(item.id); setEditData({partName:item.part_name,sku:item.sku||"",quantity:item.quantity,minStock:item.min_stock,location:item.location||""}); }} disabled={formDisabled} title={mutBlockTitle}>
                               <Pencil size={13}/>
                             </Button>
-                            <Button variant="ghost" size="icon" className="hover:text-[#e07070]" onClick={()=>setDeleteId(item.id)} disabled={!dbWritable} title={dbTitle}>
+                            <Button variant="ghost" size="icon" className="hover:text-[#e07070]" onClick={()=>setDeleteId(item.id)} disabled={formDisabled} title={mutBlockTitle}>
                               <Trash2 size={13}/>
                             </Button>
                           </div>
@@ -129,14 +139,14 @@ export function Inventario() {
                         <Tr className="bg-[#0d1e30]">
                           <Td colSpan={7}>
                             <div className="grid grid-cols-3 gap-3 py-1">
-                              <Field label="Nombre"><Input value={editData.partName} onChange={(e)=>setEditData({...editData,partName:e.target.value})}/></Field>
-                              <Field label="SKU"><Input value={editData.sku} onChange={(e)=>setEditData({...editData,sku:e.target.value})}/></Field>
-                              <Field label="Ubicacion"><Input value={editData.location} onChange={(e)=>setEditData({...editData,location:e.target.value})}/></Field>
-                              <Field label="Cantidad"><Input type="number" value={editData.quantity} onChange={(e)=>setEditData({...editData,quantity:e.target.value})}/></Field>
-                              <Field label="Stock minimo"><Input type="number" value={editData.minStock} onChange={(e)=>setEditData({...editData,minStock:e.target.value})}/></Field>
+                              <Field label="Nombre"><Input disabled={formDisabled} value={editData.partName} onChange={(e)=>setEditData({...editData,partName:e.target.value})}/></Field>
+                              <Field label="SKU"><Input disabled={formDisabled} value={editData.sku} onChange={(e)=>setEditData({...editData,sku:e.target.value})}/></Field>
+                              <Field label="Ubicacion"><Input disabled={formDisabled} value={editData.location} onChange={(e)=>setEditData({...editData,location:e.target.value})}/></Field>
+                              <Field label="Cantidad"><Input disabled={formDisabled} type="number" value={editData.quantity} onChange={(e)=>setEditData({...editData,quantity:e.target.value})}/></Field>
+                              <Field label="Stock minimo"><Input disabled={formDisabled} type="number" value={editData.minStock} onChange={(e)=>setEditData({...editData,minStock:e.target.value})}/></Field>
                             </div>
                             <div className="flex gap-2 mt-2">
-                              <Button size="sm" onClick={handleUpdate} disabled={!dbWritable} title={dbTitle}><Check size={13} className="mr-1"/>Guardar</Button>
+                              <Button size="sm" onClick={handleUpdate} disabled={formDisabled} title={mutBlockTitle}><Check size={13} className="mr-1"/>Guardar</Button>
                               <Button size="sm" variant="secondary" onClick={()=>setEditId(null)}><X size={13} className="mr-1"/>Cancelar</Button>
                             </div>
                           </Td>

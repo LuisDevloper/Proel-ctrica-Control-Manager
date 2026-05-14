@@ -61,7 +61,12 @@ export default function App() {
 
   function handleLogout() {
     setFadingOut(true);
-    setTimeout(() => {
+    setTimeout(async () => {
+      try {
+        await window.proelectricaApi?.logout?.();
+      } catch {
+        /* ignore */
+      }
       setUser(null);
       setView("dashboard");
       setFadingOut(false);
