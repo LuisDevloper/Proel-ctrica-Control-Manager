@@ -61,10 +61,22 @@ function canonicalMotorStatus(raw) {
   return { status: "Operativo", adjusted: true };
 }
 
+/** Fecha de celda Excel → YYYY-MM-DD en hora local (evita "Thu May 14 2026 19:00:00"). */
+function formatExcelDateLocal(d) {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+
 /** Valor de celda Excel como string. */
 function excelCellStr(v) {
   if (v === null || v === undefined) return "";
-  return String(v?.result ?? v?.text ?? v).trim();
+  const core = v?.result ?? v?.text ?? v;
+  if (core instanceof Date && !Number.isNaN(core.getTime())) {
+    return formatExcelDateLocal(core);
+  }
+  return String(core).trim();
 }
 
 function normImportHeader(s) {
