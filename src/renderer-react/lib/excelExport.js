@@ -1,5 +1,27 @@
 import ExcelJS from "exceljs";
 
+/**
+ * Convierte valores de fecha guardados como "YYYY-MM-DD" (o prefijo ISO) a un Date
+ * en calendario local. Evita el desfase de un día que produce parsear "YYYY-MM-DD"
+ * como UTC medianoche y dejar que Excel/ExcelJS derive el día en la zona horaria del usuario.
+ */
+function toExcelCalendarDate(raw) {
+  if (raw == null || raw === "") return null;
+  if (raw instanceof Date) {
+    return new Date(raw.getFullYear(), raw.getMonth(), raw.getDate());
+  }
+  if (typeof raw === "string") {
+    const m = raw.trim().match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if (m) {
+      const y = parseInt(m[1], 10);
+      const mo = parseInt(m[2], 10);
+      const d = parseInt(m[3], 10);
+      return new Date(y, mo - 1, d);
+    }
+  }
+  return null;
+}
+
 // Paleta corporativa Proéléctrica
 const COLORS = {
   headerBg:    "0D1825",   // Azul oscuro
@@ -69,7 +91,14 @@ export async function xlsxExport(fileName, sheetTitle, columns, rows) {
   // ── Filas de datos ────────────────────────────────────────────────────────
   rows.forEach((row, rowIdx) => {
     const isAlt = rowIdx % 2 === 1;
-    const exRow = ws.addRow(columns.map(col => row[col.key] ?? ""));
+    const exRow = ws.addRow(
+      columns.map((col) => {
+        const raw = row[col.key];
+        const dateVal = toExcelCalendarDate(raw);
+        if (dateVal) return dateVal;
+        return raw ?? "";
+      })
+    );
     exRow.height = 18;
 
     exRow.eachCell({ includeEmpty: true }, (cell, colNumber) => {
@@ -85,9 +114,12 @@ export async function xlsxExport(fileName, sheetTitle, columns, rows) {
         left:   { style: "hair", color: { argb: COLORS.border } },
         right:  { style: "hair", color: { argb: COLORS.border } },
       };
-      // Alinear números a la derecha
-      const v = row[columns[colNumber - 1]?.key];
-      if (typeof v === "number") cell.alignment.horizontal = "right";
+      const colDef = columns[colNumber - 1];
+      const v = colDef ? row[colDef.key] : undefined;
+      if (toExcelCalendarDate(v)) {
+        cell.numFmt = "dd/mm/yyyy";
+        cell.alignment.horizontal = "right";
+      } else if (typeof v === "number") cell.alignment.horizontal = "right";
     });
   });
 

@@ -61,12 +61,28 @@ function canonicalMotorStatus(raw) {
   return { status: "Operativo", adjusted: true };
 }
 
-/** Fecha de celda Excel → YYYY-MM-DD en hora local (evita "Thu May 14 2026 19:00:00"). */
-function formatExcelDateLocal(d) {
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, "0");
-  const day = String(d.getDate()).padStart(2, "0");
+/** Día de calendario de una celda con fecha de Excel/ExcelJS → YYYY-MM-DD.
+ *  ExcelJS suele devolver medianoche UTC del día guardado en la hoja; si aquí se usan
+ *  getDate()/getFullYear() locales, en zonas UTC− se muestra el día anterior (p. ej. 15 → 14). */
+function excelDateToIsoDay(d) {
+  const y = d.getUTCFullYear();
+  const m = String(d.getUTCMonth() + 1).padStart(2, "0");
+  const day = String(d.getUTCDate()).padStart(2, "0");
   return `${y}-${m}-${day}`;
+}
+
+/** dd/mm/aaaa o dd-mm-aaaa (calendario típico es-*) → YYYY-MM-DD; null si no aplica. */
+function parseLocaleDayMonthYearToIso(s) {
+  const t = String(s).trim();
+  const m = t.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/);
+  if (!m) return null;
+  const d = parseInt(m[1], 10);
+  const mo = parseInt(m[2], 10);
+  const y = parseInt(m[3], 10);
+  if (mo < 1 || mo > 12 || d < 1 || d > 31) return null;
+  const dt = new Date(y, mo - 1, d);
+  if (dt.getFullYear() !== y || dt.getMonth() !== mo - 1 || dt.getDate() !== d) return null;
+  return `${y}-${String(mo).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
 }
 
 /** Valor de celda Excel como string. */
@@ -74,9 +90,14 @@ function excelCellStr(v) {
   if (v === null || v === undefined) return "";
   const core = v?.result ?? v?.text ?? v;
   if (core instanceof Date && !Number.isNaN(core.getTime())) {
-    return formatExcelDateLocal(core);
+    return excelDateToIsoDay(core);
   }
-  return String(core).trim();
+  const str = String(core).trim();
+  const ymd = str.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (ymd) return `${ymd[1]}-${ymd[2]}-${ymd[3]}`;
+  const locale = parseLocaleDayMonthYearToIso(str);
+  if (locale) return locale;
+  return str;
 }
 
 function normImportHeader(s) {
@@ -319,14 +340,39 @@ function registerIpcHandlers() {
     }
   });
 
-  // Info de la app
-  ipcMain.handle("app:info", () => ({
-    version: app.getVersion(),
-    name: app.getName(),
-    platform: process.platform,
-    electronVersion: process.versions.electron,
-    nodeVersion: process.versions.node
-  }));
+  // Info de la app (datos utiles para el usuario final, sin versiones de motor Electron/Node)
+  ipcMain.handle("app:info", () => {
+    let productName = app.getName();
+    try {
+      const pkgPath = path.join(__dirname, "../../package.json");
+      const pkg = JSON.parse(fs.readFileSync(pkgPath, "utf8"));
+      if (pkg.build && typeof pkg.build.productName === "string" && pkg.build.productName.trim()) {
+        productName = pkg.build.productName.trim();
+      }
+    } catch (_) {
+      /* nombre por defecto de app.getName() */
+    }
+
+    const plat = process.platform;
+    const osName =
+      plat === "win32" ? "Windows" :
+      plat === "darwin" ? "macOS" :
+      plat === "linux" ? "Linux" :
+      plat;
+
+    let archLabel = process.arch;
+    if (process.arch === "x64") archLabel = "64 bits (x64)";
+    else if (process.arch === "arm64") archLabel = "64 bits (ARM)";
+
+    return {
+      productName,
+      version: app.getVersion(),
+      osName,
+      arch: archLabel,
+      packaged: app.isPackaged,
+      userDataPath: app.getPath("userData"),
+    };
+  });
 
   // Cambiar contrasena
   ipcMain.handle("auth:changePassword", async (_event, { userId, currentPassword, newPassword }) => {

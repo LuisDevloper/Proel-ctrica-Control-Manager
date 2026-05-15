@@ -185,8 +185,9 @@ if (gotTheLock) {
           const result = await packagedAutoUpdater.checkForUpdates();
           const updateAvailable =
             result != null &&
-            Object.prototype.hasOwnProperty.call(result, "downloadPromise") &&
-            result.downloadPromise != null;
+            (result.isUpdateAvailable === true ||
+              (Object.prototype.hasOwnProperty.call(result, "downloadPromise") &&
+                result.downloadPromise != null));
           return { ok: true, updateAvailable };
         } catch (e) {
           logError("updater.check_manual", e);

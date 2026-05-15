@@ -95,6 +95,17 @@ export function ImportModal({ open, entity, user, onClose, onSuccess }) {
     setLoading(false);
     setResult(res);
     setStep("done");
+    if (res.ok && typeof res.skipped === "number" && res.skipped > 0) {
+      const skipMsg =
+        entity === "motors"
+          ? res.skipped === 1
+            ? "Importación de Excel: 1 fila omitida (codigo duplicado o ya registrado)."
+            : `Importación de Excel: ${res.skipped} filas omitidas (codigos duplicados o ya registrados).`
+          : res.skipped === 1
+            ? "Importación de Excel: 1 fila omitida (nombre duplicado o ya registrado)."
+            : `Importación de Excel: ${res.skipped} filas omitidas (nombres duplicados o ya registrados).`;
+      showToast(skipMsg, "warning");
+    }
     if (res.ok) onSuccess?.();
   }
 
@@ -305,10 +316,40 @@ export function ImportModal({ open, entity, user, onClose, onSuccess }) {
           {/* Paso: done */}
           {step === "done" && result && (
             <div className="flex flex-col items-center gap-4 py-4">
-              <div className="w-16 h-16 rounded-full bg-[#29a16a]/10 border border-[#29a16a]/30 flex items-center justify-center">
-                <CheckCircle2 size={32} className="text-[#29a16a]" />
+              <div className={`w-16 h-16 rounded-full flex items-center justify-center border ${
+                result.inserted === 0 && result.skipped > 0
+                  ? "bg-[#e0a91f]/10 border-[#e0a91f]/35"
+                  : "bg-[#29a16a]/10 border-[#29a16a]/30"
+              }`}>
+                {result.inserted === 0 && result.skipped > 0 ? (
+                  <AlertTriangle size={32} className="text-[#e0a91f]" />
+                ) : (
+                  <CheckCircle2 size={32} className="text-[#29a16a]" />
+                )}
               </div>
-              <h4 className="text-base font-bold text-[#eaf2fb]">Importación completada</h4>
+              <h4 className="text-base font-bold text-[#eaf2fb]">
+                {result.inserted === 0 && result.skipped > 0
+                  ? "Ningún registro nuevo"
+                  : "Importación completada"}
+              </h4>
+              {typeof result.skipped === "number" && result.skipped > 0 && (
+                <div className="flex items-start gap-2 w-full bg-[#e0a91f]/12 border border-[#e0a91f]/35 rounded-xl px-3 py-2.5">
+                  <AlertTriangle size={16} className="text-[#e0a91f] shrink-0 mt-0.5" />
+                  <p className="text-xs text-[#eaf2fb] leading-snug">
+                    {entity === "motors" ? (
+                      result.skipped === 1 ? (
+                        <>Se omitió <strong>1 fila</strong>: el codigo ya existe en la base de datos o la fila no pudo insertarse.</>
+                      ) : (
+                        <>Se omitieron <strong>{result.skipped} filas</strong>: codigos duplicados respecto a motores ya registrados (o no aplicables por la base de datos).</>
+                      )
+                    ) : result.skipped === 1 ? (
+                      <>Se omitió <strong>1 fila</strong>: el nombre ya existe en técnicos o la fila no pudo insertarse.</>
+                    ) : (
+                      <>Se omitieron <strong>{result.skipped} filas</strong>: nombres duplicados respecto a técnicos ya registrados.</>
+                    )}
+                  </p>
+                </div>
+              )}
               <div className="grid grid-cols-2 gap-4 w-full">
                 <div className="bg-[#29a16a]/10 border border-[#29a16a]/30 rounded-xl p-4 text-center">
                   <p className="text-2xl font-bold text-[#29a16a]">{result.inserted}</p>

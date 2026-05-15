@@ -10,6 +10,44 @@ import { useAccessibility } from "../context/AccessibilityContext";
 import { canMutateRecords, READ_ONLY_ROLE_TITLE } from "../lib/permissions";
 import { KeyRound, Info, Database, Monitor, Download, Upload, AlertTriangle, RefreshCw, Type } from "lucide-react";
 
+/** Compat: respuesta antigua del proceso principal (solo `platform`) o renderer recargado sin reiniciar Electron. */
+function platformToOsName(platform) {
+  if (!platform) return null;
+  if (platform === "win32") return "Windows";
+  if (platform === "darwin") return "macOS";
+  if (platform === "linux") return "Linux";
+  return platform;
+}
+
+function guessArchFromUserAgent() {
+  if (typeof navigator === "undefined") return null;
+  const ua = navigator.userAgent || "";
+  if (/Win64|x86_64|WOW64/i.test(ua)) return "64 bits (x64)";
+  if (/aarch64|ARM64|arm64/i.test(ua)) return "64 bits (ARM)";
+  return null;
+}
+
+function productDisplayName(info) {
+  if (!info) return "—";
+  const v = info.productName ?? info.name;
+  return v || "—";
+}
+
+function systemOperatingSummary(info) {
+  if (!info) return "—";
+  const os = info.osName || platformToOsName(info.platform) || "—";
+  const arch = info.arch || guessArchFromUserAgent() || "—";
+  return `${os}, ${arch}`;
+}
+
+function installModeLabel(info) {
+  if (!info) return "—";
+  if (info.packaged === true) return "Aplicacion instalada";
+  if (info.packaged === false) return "Modo desarrollo";
+  if (typeof import.meta !== "undefined" && import.meta.env?.DEV) return "Modo desarrollo";
+  return "Aplicacion instalada";
+}
+
 export function Configuracion({ user }) {
   const [appInfo, setAppInfo]         = useState(null);
   const [currentPwd, setCurrentPwd]   = useState("");
@@ -57,7 +95,7 @@ export function Configuracion({ user }) {
     const msgUltimaVersion = "No hay actualizaciones nuevas, Tienes la ultima version.";
     const r = await window.proelectricaApi.checkForUpdates();
     if (r?.reason === "dev") {
-      showToast(msgUltimaVersion, "info");
+      showToast("La busqueda de actualizaciones solo funciona en la aplicacion instalada (no en modo desarrollo).", "info");
       return;
     }
     if (r?.reason === "no_updater") {
@@ -87,11 +125,15 @@ export function Configuracion({ user }) {
         <CardContent>
           {appInfo ? (
             <div className="grid grid-cols-2 gap-x-6 gap-y-2 text-sm">
-              <InfoRow label="Aplicacion"  value={appInfo.name} />
-              <InfoRow label="Version"     value={`v${appInfo.version}`} />
-              <InfoRow label="Electron"    value={appInfo.electronVersion} />
-              <InfoRow label="Node.js"     value={appInfo.nodeVersion} />
-              <InfoRow label="Plataforma"  value={appInfo.platform} />
+              <InfoRow label="Producto" value={productDisplayName(appInfo)} />
+              <InfoRow label="Version" value={appInfo.version != null ? `v${appInfo.version}` : "—"} />
+              <InfoRow label="Sistema operativo" value={systemOperatingSummary(appInfo)} />
+              <InfoRow label="Instalacion" value={installModeLabel(appInfo)} />
+              <InfoRow
+                label="Datos de la app"
+                value={appInfo.userDataPath}
+                valueClassName="break-all text-xs font-normal leading-snug"
+              />
             </div>
           ) : (
             <p className="text-sm text-[#9ab0c7]">Cargando...</p>
@@ -246,11 +288,11 @@ export function Configuracion({ user }) {
   );
 }
 
-function InfoRow({ label, value }) {
+function InfoRow({ label, value, valueClassName }) {
   return (
     <>
       <span className="text-[#9ab0c7]">{label}</span>
-      <span className="text-[#eaf2fb] font-medium">{value || "—"}</span>
+      <span className={valueClassName ? `text-[#eaf2fb] font-medium ${valueClassName}` : "text-[#eaf2fb] font-medium"}>{value || "—"}</span>
     </>
   );
 }
