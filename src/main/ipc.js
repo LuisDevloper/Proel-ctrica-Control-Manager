@@ -39,6 +39,28 @@ function logActivity(db, username, action, entity, entityId, details) {
   }
 }
 
+/** Estados permitidos para motores (misma lista que en la UI React). */
+const MOTOR_ALLOWED_STATUSES = ["Operativo", "En mantenimiento", "Fuera de servicio"];
+
+function normMotorStatusStr(s) {
+  return String(s ?? "")
+    .trim()
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "");
+}
+
+/** Convierte el texto de Excel/formulario a un estado válido; si no coincide, Operativo y adjusted true (solo si había texto inválido). */
+function canonicalMotorStatus(raw) {
+  const rawStr = String(raw ?? "").trim();
+  if (!rawStr) return { status: "Operativo", adjusted: false };
+  const n = normMotorStatusStr(rawStr);
+  for (const allowed of MOTOR_ALLOWED_STATUSES) {
+    if (normMotorStatusStr(allowed) === n) return { status: allowed, adjusted: false };
+  }
+  return { status: "Operativo", adjusted: true };
+}
+
 /** Valor de celda Excel como string. */
 function excelCellStr(v) {
   if (v === null || v === undefined) return "";
@@ -378,7 +400,7 @@ function registerIpcHandlers() {
       motor.power || null,
       motor.rpm || null,
       motor.location || "",
-      motor.status || "Operativo",
+      canonicalMotorStatus(motor.status).status,
       motor.installed_at || null,
       motor.notes || "",
       motor.photo || null,
@@ -408,7 +430,7 @@ function registerIpcHandlers() {
       motor.voltage || null,
       motor.rpm || null,
       motor.location || "",
-      motor.status || "Operativo",
+      canonicalMotorStatus(motor.status).status,
       motor.installed_at || null,
       motor.notes || "",
       motor.photo !== undefined ? motor.photo : null,
@@ -687,7 +709,7 @@ function registerIpcHandlers() {
     const denied = denyIfVisor();
     if (denied) return denied;
     const db = getDatabase();
-    let inserted = 0, skipped = 0;
+    let inserted = 0, skipped = 0, statusAdjusted = 0;
     const stmt = db.prepare(`
       INSERT OR IGNORE INTO motors
         (code, brand, model, serial_number, power, voltage, rpm, location, status, installed_at, notes, created_at)
@@ -698,6 +720,9 @@ function registerIpcHandlers() {
         const code = r["Codigo"] || r["codigo"] || r["CODIGO"] || r["Code"] || "";
         const brand = r["Marca"] || r["marca"] || r["MARCA"] || r["Brand"] || "";
         if (!code || !brand) { skipped++; continue; }
+        const estadoRaw = r["Estado"] || r["estado"] || r["ESTADO"] || "";
+        const { status: statusVal, adjusted } = canonicalMotorStatus(estadoRaw);
+        if (adjusted) statusAdjusted++;
         const info = stmt.run(
           code, brand,
           r["Modelo"] || r["modelo"] || "",
@@ -706,7 +731,7 @@ function registerIpcHandlers() {
           r["Voltaje (V)"] || r["Voltaje"] || r["voltaje"] || "",
           r["RPM"] || r["rpm"] || "",
           r["Ubicacion"] || r["ubicacion"] || "",
-          r["Estado"] || r["estado"] || "Operativo",
+          statusVal,
           r["Fecha instalacion"] || r["Fecha instalación"] || r["installed_at"] || null,
           r["Observaciones"] || r["notas"] || "",
           new Date().toISOString()
@@ -717,7 +742,7 @@ function registerIpcHandlers() {
     });
     insertMany(rows);
     logActivity(db, username, "IMPORT", "motors", null, `${inserted} motores importados, ${skipped} omitidos`);
-    return { ok: true, inserted, skipped };
+    return { ok: true, inserted, skipped, statusAdjusted };
   });
 
   ipcMain.handle("import:save-technicians", async (_event, { rows, username }) => {

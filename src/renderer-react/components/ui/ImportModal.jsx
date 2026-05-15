@@ -195,7 +195,8 @@ export function ImportModal({ open, entity, user, onClose, onSuccess }) {
                   • Si usa la plantilla de la app, los encabezados están en la fila bajo las instrucciones (columna A = Codigo).<br/>
                   • En archivos simples, la primera fila puede ser solo encabezados: Codigo, Marca, …<br/>
                   • El campo <strong className="text-[#9ab0c7]">{entity === "motors" ? "Codigo + Marca" : "Nombre"}</strong> es obligatorio.<br/>
-                  • Registros con codigo duplicado serán omitidos.
+                  • Registros con codigo duplicado serán omitidos.<br/>
+                  • Estados válidos en columna Estado: <strong className="text-[#9ab0c7]">Operativo</strong>, <strong className="text-[#9ab0c7]">En mantenimiento</strong>, <strong className="text-[#9ab0c7]">Fuera de servicio</strong>. Cualquier otro texto se guardará como Operativo y se avisará al finalizar.
                 </p>
               </div>
 
@@ -283,6 +284,13 @@ export function ImportModal({ open, entity, user, onClose, onSuccess }) {
                   <p className="text-xs text-[#9ab0c7]">Omitidos (duplicados o incompletos)</p>
                 </div>
               </div>
+              {typeof result.statusAdjusted === "number" && result.statusAdjusted > 0 && (
+                <p className="text-xs text-center text-[#e0a91f] bg-[#e0a91f]/10 border border-[#e0a91f]/25 rounded-xl px-3 py-2 w-full">
+                  {result.statusAdjusted === 1
+                    ? "1 fila tenía un estado no reconocido; se guardó como Operativo (solo se permiten: Operativo, En mantenimiento, Fuera de servicio)."
+                    : `${result.statusAdjusted} filas tenían un estado no reconocido; se guardaron como Operativo.`}
+                </p>
+              )}
               <Button onClick={handleClose} className="w-full mt-2">Cerrar</Button>
             </div>
           )}
