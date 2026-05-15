@@ -39,6 +39,129 @@ function logActivity(db, username, action, entity, entityId, details) {
   }
 }
 
+/** Valor de celda Excel como string. */
+function excelCellStr(v) {
+  if (v === null || v === undefined) return "";
+  return String(v?.result ?? v?.text ?? v).trim();
+}
+
+function normImportHeader(s) {
+  return excelCellStr(s)
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+const MOTOR_IMPORT_HEADER_TO_KEY = {
+  codigo: "Codigo",
+  marca: "Marca",
+  modelo: "Modelo",
+  "n serie": "N° Serie",
+  "n° serie": "N° Serie",
+  "potencia (kw)": "Potencia (kW)",
+  potencia: "Potencia (kW)",
+  "voltaje (v)": "Voltaje (V)",
+  voltaje: "Voltaje (V)",
+  rpm: "RPM",
+  ubicacion: "Ubicacion",
+  "fecha instalacion": "Fecha instalacion",
+  estado: "Estado",
+  observaciones: "Observaciones",
+};
+
+const TECH_IMPORT_HEADER_TO_KEY = {
+  nombre: "Nombre",
+  telefono: "Telefono",
+  email: "Email",
+  correo: "Email",
+  especialidad: "Especialidad",
+};
+
+function mapImportHeaderCell(entity, headerCell) {
+  const n = normImportHeader(headerCell);
+  if (!n) return null;
+  if (entity === "motors") return MOTOR_IMPORT_HEADER_TO_KEY[n] || null;
+  if (entity === "technicians") return TECH_IMPORT_HEADER_TO_KEY[n] || null;
+  return null;
+}
+
+/**
+ * Lee la primera hoja: localiza la fila cuya primera columna es Codigo/Nombre (plantilla con título arriba).
+ * Devuelve headers para vista previa y filas con claves canónicas (Codigo, Marca, …).
+ */
+function parseExcelSheetForImport(ws, entity) {
+  const raw = [];
+  ws.eachRow((row) => {
+    raw.push(row.values.slice(1).map(excelCellStr));
+  });
+
+  let headerIdx = -1;
+  for (let i = 0; i < raw.length; i++) {
+    const vals = raw[i];
+    if (!vals.length || vals.every((c) => !c)) continue;
+    const c0 = normImportHeader(vals[0]);
+    if (entity === "motors" && c0 === "codigo") {
+      headerIdx = i;
+      break;
+    }
+    if (entity === "technicians" && c0 === "nombre") {
+      headerIdx = i;
+      break;
+    }
+  }
+
+  if (headerIdx < 0) {
+    return {
+      ok: false,
+      message:
+        entity === "motors"
+          ? "No se encontro la fila de encabezados (primera columna debe ser «Codigo»). Descargue la plantilla desde la app: los titulos van en las filas superiores, los encabezados en la fila correcta."
+          : "No se encontro la fila de encabezados (primera columna debe ser «Nombre»). Use la plantilla descargada desde la app.",
+    };
+  }
+
+  const hdrVals = raw[headerIdx];
+  const canon = hdrVals.map((h) => mapImportHeaderCell(entity, h));
+
+  if (entity === "motors") {
+    if (!canon.includes("Codigo") || !canon.includes("Marca")) {
+      return { ok: false, message: "Faltan columnas obligatorias Codigo y Marca en la fila de encabezados." };
+    }
+  } else if (!canon.includes("Nombre")) {
+    return { ok: false, message: "Falta la columna obligatoria Nombre en la fila de encabezados." };
+  }
+
+  const displayHeaders = canon.map((c, i) => c || hdrVals[i] || `Col${i + 1}`);
+  const rows = [];
+  for (let i = headerIdx + 1; i < raw.length; i++) {
+    const vals = raw[i];
+    if (!vals.length || vals.every((c) => !c)) continue;
+
+    const obj = {};
+    canon.forEach((key, j) => {
+      if (!key) return;
+      obj[key] = vals[j] || "";
+    });
+
+    if (entity === "motors") {
+      const code = normImportHeader(obj.Codigo);
+      if (code === "codigo") continue;
+      if (!(obj.Codigo || "").trim() && !(obj.Marca || "").trim()) continue;
+    } else {
+      const name = normImportHeader(obj.Nombre);
+      if (name === "nombre") continue;
+      if (!(obj.Nombre || "").trim()) continue;
+    }
+
+    rows.push(obj);
+    if (rows.length >= 200) break;
+  }
+
+  return { ok: true, headers: displayHeaders, rows };
+}
+
 /** Primer y último día del mes (month 1–12) en ISO YYYY-MM-DD para filtros SQLite. */
 function calendarMonthIsoRange(year, month) {
   const y = Math.trunc(Number(year));
@@ -549,19 +672,12 @@ function registerIpcHandlers() {
       const ws = wb.worksheets[0];
       if (!ws) return { ok: false, message: "El archivo no tiene hojas." };
 
-      const rows = [];
-      let headers = [];
-      ws.eachRow((row, idx) => {
-        const vals = row.values.slice(1).map(v =>
-          v === null || v === undefined ? "" : String(v?.result ?? v?.text ?? v).trim()
-        );
-        if (idx === 1) { headers = vals; return; }
-        if (vals.every(v => !v)) return; // fila vacía
-        const obj = {};
-        headers.forEach((h, i) => { obj[h] = vals[i] || ""; });
-        rows.push(obj);
-      });
-      return { ok: true, headers, rows: rows.slice(0, 200) }; // máx 200 filas preview
+      const parsed = parseExcelSheetForImport(ws, entity);
+      if (!parsed.ok) return parsed;
+      if (!parsed.rows.length) {
+        return { ok: false, message: "No hay filas de datos debajo de los encabezados." };
+      }
+      return { ok: true, headers: parsed.headers, rows: parsed.rows };
     } catch (e) {
       return { ok: false, message: "No se pudo leer el archivo: " + e.message };
     }
@@ -579,8 +695,8 @@ function registerIpcHandlers() {
     `);
     const insertMany = db.transaction((items) => {
       for (const r of items) {
-        const code = r["Codigo"] || r["codigo"] || r["Code"] || "";
-        const brand = r["Marca"] || r["marca"] || r["Brand"] || "";
+        const code = r["Codigo"] || r["codigo"] || r["CODIGO"] || r["Code"] || "";
+        const brand = r["Marca"] || r["marca"] || r["MARCA"] || r["Brand"] || "";
         if (!code || !brand) { skipped++; continue; }
         const info = stmt.run(
           code, brand,
@@ -615,7 +731,7 @@ function registerIpcHandlers() {
     `);
     const insertMany = db.transaction((items) => {
       for (const r of items) {
-        const name = r["Nombre"] || r["nombre"] || r["full_name"] || "";
+        const name = r["Nombre"] || r["nombre"] || r["NOMBRE"] || r["full_name"] || "";
         if (!name) { skipped++; continue; }
         const info = stmt.run(
           name,

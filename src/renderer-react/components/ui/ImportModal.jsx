@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useDbHealth } from "../../context/DbHealthContext";
+import { canMutateRecords, READ_ONLY_ROLE_TITLE } from "../../lib/permissions";
 import { Button } from "./Button";
 import { X, Upload, CheckCircle2, AlertTriangle, FileSpreadsheet, Download } from "lucide-react";
 
@@ -24,6 +25,9 @@ export function ImportModal({ open, entity, user, onClose, onSuccess }) {
   const [error, setError]       = useState("");
   const { dbWritable }          = useDbHealth();
   const dbTitle                 = !dbWritable ? "Sin conexion a la base de datos." : undefined;
+  const canImport               = canMutateRecords(user?.role);
+  const importBlockTitle        = !dbWritable ? dbTitle : (!canImport ? READ_ONLY_ROLE_TITLE : undefined);
+  const importDisabled          = !dbWritable || !canImport;
 
   const tmpl = TEMPLATES[entity] || TEMPLATES.motors;
 
@@ -187,7 +191,12 @@ export function ImportModal({ open, entity, user, onClose, onSuccess }) {
                     <span key={c} className="text-xs bg-[#1a2d44] text-[#2f8dff] border border-[#2f8dff33] px-2 py-1 rounded-lg">{c}</span>
                   ))}
                 </div>
-                <p className="text-xs text-[#4a6a8a] mt-3">• La primera fila debe ser el encabezado.<br/>• El campo <strong className="text-[#9ab0c7]">{entity === "motors" ? "Codigo + Marca" : "Nombre"}</strong> es obligatorio.<br/>• Registros con código duplicado serán omitidos.</p>
+                <p className="text-xs text-[#4a6a8a] mt-3">
+                  • Si usa la plantilla de la app, los encabezados están en la fila bajo las instrucciones (columna A = Codigo).<br/>
+                  • En archivos simples, la primera fila puede ser solo encabezados: Codigo, Marca, …<br/>
+                  • El campo <strong className="text-[#9ab0c7]">{entity === "motors" ? "Codigo + Marca" : "Nombre"}</strong> es obligatorio.<br/>
+                  • Registros con codigo duplicado serán omitidos.
+                </p>
               </div>
 
               {error && (
@@ -197,11 +206,18 @@ export function ImportModal({ open, entity, user, onClose, onSuccess }) {
                 </div>
               )}
 
+              {!canImport && (
+                <div className="flex items-center gap-2 bg-[#2f8dff]/10 border border-[#2f8dff]/25 rounded-xl px-3 py-2">
+                  <AlertTriangle size={13} className="text-[#5fb3ff] shrink-0" />
+                  <p className="text-xs text-[#9ab0c7]">Tu rol no permite importar datos. Solo administradores y operadores pueden usar esta función.</p>
+                </div>
+              )}
+
               <div className="flex gap-3">
                 <Button variant="ghost" size="sm" className="border border-[#2a3d57] text-[#9ab0c7]" onClick={handleDownloadTemplate}>
                   <Download size={13} className="mr-1.5" /> Descargar plantilla
                 </Button>
-                <Button onClick={handleSelectFile} disabled={loading || !dbWritable} title={dbTitle} className="flex-1">
+                <Button onClick={handleSelectFile} disabled={loading || importDisabled} title={importBlockTitle} className="flex-1">
                   <Upload size={13} className="mr-1.5" /> {loading ? "Leyendo..." : "Seleccionar archivo .xlsx"}
                 </Button>
               </div>
@@ -243,7 +259,7 @@ export function ImportModal({ open, entity, user, onClose, onSuccess }) {
 
               <div className="flex gap-3">
                 <Button variant="secondary" onClick={() => { setStep("idle"); setParsed(null); }}>Cancelar</Button>
-                <Button onClick={handleImport} disabled={loading || !dbWritable} title={dbTitle} className="flex-1 bg-[#29a16a] hover:bg-[#34c47e]">
+                <Button onClick={handleImport} disabled={loading || importDisabled} title={importBlockTitle} className="flex-1 bg-[#29a16a] hover:bg-[#34c47e]">
                   {loading ? "Importando..." : `Importar ${parsed.rows.length} registros`}
                 </Button>
               </div>
