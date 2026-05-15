@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { useDbHealth } from "../../context/DbHealthContext";
 import { canMutateRecords, READ_ONLY_ROLE_TITLE } from "../../lib/permissions";
 import { Button } from "./Button";
+import { useToast } from "./Toast";
 import { X, Upload, CheckCircle2, AlertTriangle, FileSpreadsheet, Download } from "lucide-react";
 
 const TEMPLATES = {
@@ -17,12 +18,24 @@ const TEMPLATES = {
   },
 };
 
+/** Fila que la IPC aceptará (Codigo+Marca o Nombre). */
+function rowIsImportable(entity, r) {
+  if (entity === "motors") {
+    const code = String(r.Codigo ?? r.codigo ?? r.CODIGO ?? "").trim();
+    const brand = String(r.Marca ?? r.marca ?? r.MARCA ?? "").trim();
+    return !!(code && brand);
+  }
+  const name = String(r.Nombre ?? r.nombre ?? r.NOMBRE ?? "").trim();
+  return !!name;
+}
+
 export function ImportModal({ open, entity, user, onClose, onSuccess }) {
   const [step, setStep]         = useState("idle"); // idle | preview | done
   const [parsed, setParsed]     = useState(null);
   const [result, setResult]     = useState(null);
   const [loading, setLoading]   = useState(false);
   const [error, setError]       = useState("");
+  const { showToast }           = useToast();
   const { dbWritable }          = useDbHealth();
   const dbTitle                 = !dbWritable ? "Sin conexion a la base de datos." : undefined;
   const canImport               = canMutateRecords(user?.role);
@@ -64,11 +77,21 @@ export function ImportModal({ open, entity, user, onClose, onSuccess }) {
   }
 
   async function handleImport() {
+    const rowsToSend = parsed.rows.filter((r) => rowIsImportable(entity, r));
+    if (!rowsToSend.length) {
+      showToast(
+        entity === "motors"
+          ? "Ninguna fila tiene Codigo y Marca obligatorios. Completa el Excel o quita filas vacías."
+          : "Ninguna fila tiene Nombre obligatorio.",
+        "warning"
+      );
+      return;
+    }
     setLoading(true);
     const fn = entity === "motors"
       ? window.proelectricaApi.importMotors
       : window.proelectricaApi.importTechnicians;
-    const res = await fn({ rows: parsed.rows, username: user?.username });
+    const res = await fn({ rows: rowsToSend, username: user?.username });
     setLoading(false);
     setResult(res);
     setStep("done");
@@ -226,11 +249,19 @@ export function ImportModal({ open, entity, user, onClose, onSuccess }) {
           )}
 
           {/* Paso: preview */}
-          {step === "preview" && parsed && (
+          {step === "preview" && parsed && (() => {
+            const totalRows = parsed.rows.length;
+            const importable = parsed.rows.filter((r) => rowIsImportable(entity, r)).length;
+            const incomplete = totalRows - importable;
+            return (
             <>
               <div className="flex items-center gap-2 text-sm text-[#29a16a] bg-[#29a16a]/10 border border-[#29a16a]/30 rounded-xl px-3 py-2">
                 <CheckCircle2 size={14} className="shrink-0" />
-                <span>{parsed.rows.length} registros encontrados. Revisa antes de importar.</span>
+                <span>
+                  {importable === totalRows
+                    ? `${importable} registro(s) listo(s) para importar (${entity === "motors" ? "Codigo y Marca" : "Nombre"} completo).`
+                    : `${importable} registro(s) listo(s) para importar de ${totalRows} fila(s) en el archivo.${incomplete > 0 ? ` ${incomplete} fila(s) sin datos obligatorios no se importarán.` : ""}`}
+                </span>
               </div>
 
               {/* Preview tabla */}
@@ -238,16 +269,16 @@ export function ImportModal({ open, entity, user, onClose, onSuccess }) {
                 <table className="w-full text-xs">
                   <thead>
                     <tr>
-                      {parsed.headers.map(h => (
-                        <th key={h} className="text-left px-3 py-2 text-[#9ab0c7] bg-[#0d1825] whitespace-nowrap border-b border-[#2a3d57]">{h}</th>
+                      {parsed.headers.map((h, hi) => (
+                        <th key={`h-${hi}`} className="text-left px-3 py-2 text-[#9ab0c7] bg-[#0d1825] whitespace-nowrap border-b border-[#2a3d57]">{h}</th>
                       ))}
                     </tr>
                   </thead>
                   <tbody>
-                    {parsed.rows.slice(0, 10).map((row, i) => (
-                      <tr key={i} className={i % 2 === 0 ? "bg-[#111d2c]" : "bg-[#0d1825]"}>
-                        {parsed.headers.map(h => (
-                          <td key={h} className="px-3 py-1.5 text-[#eaf2fb] whitespace-nowrap max-w-[160px] truncate">{row[h] || "—"}</td>
+                    {parsed.rows.slice(0, 10).map((row, ri) => (
+                      <tr key={`r-${ri}`} className={ri % 2 === 0 ? "bg-[#111d2c]" : "bg-[#0d1825]"}>
+                        {parsed.headers.map((h, hi) => (
+                          <td key={`r-${ri}-c-${hi}`} className="px-3 py-1.5 text-[#eaf2fb] whitespace-nowrap max-w-[160px] truncate">{row[h] || "—"}</td>
                         ))}
                       </tr>
                     ))}
@@ -256,16 +287,20 @@ export function ImportModal({ open, entity, user, onClose, onSuccess }) {
                 {parsed.rows.length > 10 && (
                   <p className="text-center text-xs text-[#4a6a8a] py-2">...y {parsed.rows.length - 10} registros más</p>
                 )}
+                <p className="text-center text-xs text-[#5a7a9a] py-2 border-t border-[#1e2f44]">
+                  Vista previa: {Math.min(parsed.rows.length, 10)} de {totalRows} fila(s){importable < totalRows ? ` · Solo ${importable} cumplen requisitos para importar` : ""}
+                </p>
               </div>
 
               <div className="flex gap-3">
                 <Button variant="secondary" onClick={() => { setStep("idle"); setParsed(null); }}>Cancelar</Button>
-                <Button onClick={handleImport} disabled={loading || importDisabled} title={importBlockTitle} className="flex-1 bg-[#29a16a] hover:bg-[#34c47e]">
-                  {loading ? "Importando..." : `Importar ${parsed.rows.length} registros`}
+                <Button onClick={handleImport} disabled={loading || importDisabled || importable === 0} title={importBlockTitle || (importable === 0 ? "No hay filas con los campos obligatorios." : undefined)} className="flex-1 bg-[#29a16a] hover:bg-[#34c47e]">
+                  {loading ? "Importando..." : importable === 0 ? "Sin filas válidas" : `Importar ${importable} registro(s)`}
                 </Button>
               </div>
             </>
-          )}
+            );
+          })()}
 
           {/* Paso: done */}
           {step === "done" && result && (
