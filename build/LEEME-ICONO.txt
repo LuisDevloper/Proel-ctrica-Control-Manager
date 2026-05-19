@@ -1,0 +1,20 @@
+ICONO Y LOGO — Donde va cada archivo
+====================================
+
+1) Logo en la aplicacion (login, menu, splash)
+   Archivo: src/renderer-react/public/logo.png
+   Formato: PNG con transparencia (sin fondo).
+   Tras cambiarlo: npm run build:renderer  (o npm run dev para ver al instante)
+
+2) Icono de Windows (.exe, acceso directo, barra de tareas)
+   Fuente:  build/app-icon-src.png  (mismo diseno o variante cuadrada)
+   Salida:  build/icon.ico  (generado automaticamente)
+   Comando: npm run build:icon
+   El script anade fondo oscuro y esquinas redondeadas para que se vea bien en Windows.
+
+3) Manual PDF
+   Copie tambien logo.png a: docs/manual-usuario/img/logo.png
+
+Flujo completo antes de entregar al cliente:
+   npm run build:icon
+   npm run build

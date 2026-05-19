@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Manual de usuario — Proélectrica Control Manager</title>
+  <style>
+    :root {
+      --ink: #1a2332;
+      --muted: #4a5d75;
+      --accent: #1a4a8a;
+      --line: #c5d5e8;
+      --bg: #f7fafc;
+    }
+    * { box-sizing: border-box; }
+    body {
+      font-family: "Segoe UI", system-ui, sans-serif;
+      font-size: 11pt;
+      line-height: 1.45;
+      color: var(--ink);
+      max-width: 210mm;
+      margin: 0 auto;
+      padding: 12mm 16mm;
+      background: #fff;
+    }
+    h1 {
+      font-size: 22pt;
+      color: var(--accent);
+      border-bottom: 3px solid var(--accent);
+      padding-bottom: 8px;
+      margin-top: 0;
+    }
+    h2 {
+      font-size: 14pt;
+      color: var(--accent);
+      margin-top: 1.4em;
+      page-break-after: avoid;
+    }
+    h3 { font-size: 12pt; margin-top: 1.1em; page-break-after: avoid; }
+    p { margin: 0.5em 0; }
+    ul, ol { margin: 0.4em 0; padding-left: 1.35em; }
+    li { margin: 0.25em 0; }
+    .meta {
+      color: var(--muted);
+      font-size: 10pt;
+      margin-bottom: 2em;
+    }
+    .note {
+      background: var(--bg);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 10px 14px;
+      margin: 12px 0;
+      font-size: 10.5pt;
+    }
+    .toc { background: var(--bg); padding: 14px 18px; border-radius: 8px; border: 1px solid var(--line); }
+    .toc ol { margin: 0; padding-left: 1.2em; }
+    code, .kbd {
+      font-family: Consolas, monospace;
+      font-size: 10pt;
+      background: #eef2f7;
+      padding: 1px 6px;
+      border-radius: 4px;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 10pt;
+      margin: 10px 0;
+    }
+    th, td { border: 1px solid var(--line); padding: 8px 10px; text-align: left; }
+    th { background: var(--accent); color: #fff; }
+    @page {
+      size: A4;
+      margin: 18mm;
+    }
+    @media print {
+      body { padding: 0; max-width: none; }
+      h2 { page-break-before: auto; }
+      .page-break { page-break-before: always; }
+    }
+    footer.doc-foot {
+      margin-top: 2em;
+      padding-top: 12px;
+      border-top: 1px solid var(--line);
+      font-size: 9pt;
+      color: var(--muted);
+    }
+  </style>
+</head>
+<body>
+
+  <h1>Manual de usuario</h1>
+  <p class="meta"><strong>Proélectrica Control Manager</strong><br />
+  Aplicación de escritorio para registro de motores, mantenimientos, fallas, técnicos e inventario.<br />
+  Documento orientado al usuario final. Revise la versión instalada en <strong>Configuración → Información del sistema</strong>.</p>
+
+  <div class="toc">
+    <strong>Contenido</strong>
+    <ol>
+      <li>Introducción y requisitos</li>
+      <li>Inicio de sesión y cierre de sesión</li>
+      <li>Roles de usuario</li>
+      <li>Menú principal (módulos)</li>
+      <li>Dashboard</li>
+      <li>Motores</li>
+      <li>Mantenimientos</li>
+      <li>Fallas</li>
+      <li>Técnicos</li>
+      <li>Inventario</li>
+      <li>Calendario</li>
+      <li>Notificaciones (campana)</li>
+      <li>Configuración</li>
+      <li>Usuarios y registro de actividad (solo administrador)</li>
+      <li>Respaldo de datos y buenas prácticas</li>
+    </ol>
+  </div>
+
+  <h2>1. Introducción y requisitos</h2>
+  <p>La aplicación funciona en <strong>Windows</strong> (equipos de escritorio o portátiles). Los datos se guardan en el equipo en una base <strong>SQLite</strong> local; no requiere servidor propio para funcionar.</p>
+  <p>Se recomienda realizar <strong>copias de seguridad periódicas</strong> (manual o automáticas en carpeta de la aplicación) y guardar copias en otro medio (nube, USB o servidor interno).</p>
+
+  <h2>2. Inicio de sesión y cierre de sesión</h2>
+  <p>Al abrir la aplicación, introduzca su <strong>usuario</strong> y <strong>contraseña</strong> asignados por el administrador.</p>
+  <div class="note">En una instalación nueva, el administrador inicial suele configurarse según la política de su organización. Cambie la contraseña por defecto en <strong>Configuración</strong> la primera vez que entre.</div>
+  <p>Para salir, use el botón de <strong>cerrar sesión</strong> en el menú lateral y confirme. Así se evita que otra persona acceda a sus datos con la sesión abierta.</p>
+
+  <h2>3. Roles de usuario</h2>
+  <table>
+    <thead><tr><th>Rol</th><th>Permisos</th></tr></thead>
+    <tbody>
+      <tr><td><strong>Administrador</strong></td><td>Acceso completo: módulos operativos, gestión de usuarios y consulta del registro de actividad.</td></tr>
+      <tr><td><strong>Operador</strong></td><td>Puede crear, editar y eliminar registros en motores, mantenimientos, fallas, técnicos e inventario según las pantallas disponibles.</td></tr>
+      <tr><td><strong>Solo lectura (Visor)</strong></td><td>Puede consultar información y exportar; no puede crear ni modificar datos operativos ni ciertas operaciones de administración.</td></tr>
+    </tbody>
+  </table>
+
+  <h2>4. Menú principal (módulos)</h2>
+  <p>El menú lateral permite cambiar de vista. Según su rol, algunas opciones pueden no aparecer.</p>
+  <ul>
+    <li><strong>Dashboard</strong> — Resumen y gráficos</li>
+    <li><strong>Motores</strong> — Registro de equipos</li>
+    <li><strong>Mantenimientos</strong> — Intervenciones programadas o realizadas</li>
+    <li><strong>Fallas</strong> — Incidencias y seguimiento</li>
+    <li><strong>Técnicos</strong> — Personal técnico</li>
+    <li><strong>Inventario</strong> — Repuestos y stock</li>
+    <li><strong>Calendario</strong> — Vista mensual de mantenimientos</li>
+    <li><strong>Configuración</strong> — Datos de la app, copias, actualizaciones, contraseña</li>
+    <li><strong>Usuarios / Actividad</strong> — Solo administrador</li>
+  </ul>
+  <p>Puede usar el <strong>tema claro/oscuro</strong> y ajustar el <strong>tamaño de texto</strong> desde Configuración y atajos indicados en pantalla.</p>
+
+  <div class="page-break"></div>
+  <h2>5. Dashboard</h2>
+  <p>Muestra indicadores resumidos: cantidad de motores, mantenimientos, fallas pendientes, repuestos bajo stock mínimo, y gráficas por estado de motores, tendencias por mes y costes destacados. Sirve para una lectura rápida del estado operativo.</p>
+
+  <h2>6. Motores</h2>
+  <p>Registro central de cada motor o equipo: código, marca, modelo, datos técnicos, ubicación, estado, fecha de instalación, observaciones y opcionalmente fotografía.</p>
+  <ul>
+    <li>Use la <strong>búsqueda</strong> y los <strong>filtros</strong> para localizar registros.</li>
+    <li><strong>Ver detalle</strong> abre el historial de mantenimientos y fallas asociados al motor.</li>
+    <li><strong>Exportar</strong> permite descargar información a Excel o PDF según los botones disponibles.</li>
+    <li><strong>Importar desde Excel</strong> utiliza la <strong>plantilla</strong> descargable desde el propio asistente; respete la fila de encabezados. Si hay filas omitidas (códigos duplicados, etc.), la aplicación lo advertirá.</li>
+  </ul>
+
+  <h2>7. Mantenimientos</h2>
+  <p>Registre intervenciones vinculadas a un motor y, si aplica, a un técnico: tipo, fecha, coste, estado, descripción y notas. Puede filtrar, ordenar, paginar y exportar a Excel o PDF.</p>
+
+  <h2>8. Fallas</h2>
+  <p>Registro de incidencias: motor, tipo, prioridad, estado, fechas, técnico, solución y notas. Permite dar seguimiento hasta resolución. Incluye exportación y filtros similares a otros listados.</p>
+
+  <h2>9. Técnicos</h2>
+  <p>Catálogo de técnicos con nombre, contacto y especialidad. Puede importarse desde Excel con plantilla o exportarse.</p>
+
+  <h2>10. Inventario</h2>
+  <p>Control de repuestos: nombre, SKU opcional, cantidad, stock mínimo y ubicación. El sistema puede alertar cuando la cantidad está en o por debajo del mínimo (por ejemplo en el Dashboard o en notificaciones).</p>
+
+  <h2>11. Calendario</h2>
+  <p>Vista mensual de mantenimientos; al seleccionar un día puede ver los eventos programados de ese período.</p>
+
+  <h2>12. Notificaciones (campana)</h2>
+  <p>El icono de campana agrupa alertas tales como mantenimientos próximos, fallas no resueltas y artículos con stock bajo. Se actualiza de forma periódica mientras la aplicación está abierta.</p>
+
+  <div class="page-break"></div>
+  <h2>13. Configuración</h2>
+  <ul>
+    <li><strong>Información del sistema:</strong> nombre del producto, versión, sistema operativo, si es instalación oficial o modo desarrollo, y ruta donde la aplicación guarda sus datos.</li>
+    <li><strong>Lectura en pantalla:</strong> tamaño de texto accesible.</li>
+    <li><strong>Base de datos:</strong> comprobar que la conexión responde correctamente.</li>
+    <li><strong>Actualizaciones:</strong> buscar versiones nuevas publicadas por su proveedor (requiere instalación empaquetada y canal de actualización configurado).</li>
+    <li><strong>Copia de seguridad:</strong> guardar un archivo de respaldo de la base de datos en una ubicación elegida.</li>
+    <li><strong>Restauración:</strong> recuperar datos desde una copia anterior. Es una operación delicada; siga las indicaciones en pantalla y considere hacer una copia antes de restaurar.</li>
+    <li><strong>Cambio de contraseña:</strong> solo para el usuario que ha iniciado sesión.</li>
+  </ul>
+
+  <h2>14. Usuarios y registro de actividad (solo administrador)</h2>
+  <p>El administrador puede crear usuarios, asignar roles y, según las opciones del sistema, restablecer contraseñas o eliminar usuarios (respetando reglas de seguridad, por ejemplo no eliminar el último administrador).</p>
+  <p>El <strong>registro de actividad</strong> permite auditar acciones relevantes realizadas en el sistema.</p>
+
+  <h2>15. Respaldo de datos y buenas prácticas</h2>
+  <ul>
+    <li>Programe una rutina de <strong>copias manuales</strong> desde Configuración y conserve archivos en un lugar seguro.</li>
+    <li>La aplicación puede mantener <strong>copias automáticas</strong> en su carpeta de datos; no sustituyan por sí solas un plan de contingencia: guarde copias también fuera del equipo.</li>
+    <li>Antes de actualizar Windows o sustituir el PC, exporte o copie la base según las indicaciones de su proveedor.</li>
+    <li>Si varias personas usan el mismo equipo, cierre siempre la sesión al terminar.</li>
+  </ul>
+
+  <footer class="doc-foot">
+    Proélectrica Control Manager — Manual de usuario. Contenido genérico: adapte credenciales, políticas de backup y contacto de soporte según su organización.
+  </footer>
+
+</body>
+</html>

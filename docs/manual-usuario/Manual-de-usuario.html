@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <title>Manual de usuario — Proélectrica Control Manager</title>
+  <style>
+    @page { size: A4; margin: 14mm; }
+    * { box-sizing: border-box; }
+    body {
+      font-family: "Segoe UI", system-ui, sans-serif;
+      font-size: 10.8pt;
+      line-height: 1.42;
+      color: #1a2332;
+      max-width: 190mm;
+      margin: 0 auto;
+      padding: 8mm 12mm 16mm;
+    }
+    .cover { text-align: center; margin-bottom: 8mm; padding-bottom: 8mm; border-bottom: 2px solid #1a4a8a; }
+    .cover img.logo { max-height: 56px; margin-bottom: 6px; }
+    h1 { font-size: 20pt; color: #1a4a8a; margin: 0 0 4px; }
+    .subtitle { color: #4a5d75; font-size: 11pt; margin: 0; }
+    h2 {
+      font-size: 13pt;
+      color: #1a4a8a;
+      margin: 1.35em 0 0.4em;
+      padding-bottom: 3px;
+      border-bottom: 1px solid #c5d5e8;
+      page-break-after: avoid;
+    }
+    h3 { font-size: 11pt; margin: 1em 0 0.35em; page-break-after: avoid; }
+    p, li { margin: 0.35em 0; }
+    ul, ol { padding-left: 1.25em; }
+    .note {
+      background: #f0f5fa;
+      border: 1px solid #c5d5e8;
+      border-radius: 6px;
+      padding: 8px 12px;
+      font-size: 10pt;
+      margin: 8px 0;
+    }
+    .steps { counter-reset: s; list-style: none; padding-left: 0; }
+    .steps li { counter-increment: s; position: relative; padding-left: 2em; margin: 0.5em 0; }
+    .steps li::before {
+      content: counter(s) ".";
+      position: absolute;
+      left: 0;
+      font-weight: bold;
+      color: #1a4a8a;
+    }
+    figure.shot {
+      margin: 10px 0 14px;
+      page-break-inside: avoid;
+    }
+    figure.shot img {
+      width: 100%;
+      max-height: 220mm;
+      object-fit: contain;
+      border: 1px solid #c5d5e8;
+      border-radius: 8px;
+      background: #eef2f7;
+      display: block;
+    }
+    figcaption {
+      font-size: 9.5pt;
+      color: #4a5d75;
+      margin-top: 6px;
+      font-style: italic;
+    }
+    table { width: 100%; border-collapse: collapse; font-size: 9.8pt; margin: 8px 0; }
+    th, td { border: 1px solid #c5d5e8; padding: 6px 8px; text-align: left; vertical-align: top; }
+    th { background: #1a4a8a; color: #fff; }
+    .page-break { page-break-before: always; }
+    .toc ol { line-height: 1.5; }
+    footer { margin-top: 14px; padding-top: 10px; border-top: 1px solid #c5d5e8; font-size: 9pt; color: #64748b; }
+    @media print {
+      body { padding: 0; max-width: none; }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="cover">
+    <img class="logo" src="img/logo.png" alt="Logo" />
+    <h1>Manual de usuario</h1>
+    <p class="subtitle"><strong>Proélectrica Control Manager</strong><br />Guía ilustrada paso a paso</p>
+  </div>
+
+  <p><strong>Dirigido al usuario final.</strong> Para más información, consulte al soporte técnico de Proélectrica.</p>
+
+  <div class="toc">
+    <h2 style="margin-top:0;border:none;">Contenido</h2>
+    <ol>
+      <li>Introducción</li>
+      <li>Iniciar sesión</li>
+      <li>Navegar por la aplicación</li>
+      <li>Dashboard</li>
+      <li>Motores (lista, alta, detalle, importar, exportar)</li>
+      <li>Mantenimientos</li>
+      <li>Fallas</li>
+      <li>Técnicos</li>
+      <li>Inventario</li>
+      <li>Calendario</li>
+      <li>Notificaciones</li>
+      <li>Configuración</li>
+      <li>Usuarios y actividad (administrador)</li>
+      <li>Respaldo y buenas prácticas</li>
+    </ol>
+  </div>
+
+  <div class="page-break"></div>
+  <h2>1. Introducción</h2>
+  <p>Esta aplicación de escritorio permite registrar <strong>motores</strong>, <strong>mantenimientos</strong>, <strong>fallas</strong>, <strong>técnicos</strong> e <strong>inventario de repuestos</strong>. Los datos se guardan en su equipo. No necesita un servidor para trabajar día a día.</p>
+  <div class="note">Los permisos dependen de su <strong>rol</strong> (administrador, operador o solo lectura). Si no ve un botón o un menú, puede ser normal según su usuario.</div>
+
+  <h2>2. Iniciar sesión</h2>
+  <ol class="steps">
+    <li>Abra <strong>Proélectrica Control Manager</strong> desde el escritorio o el menú Inicio.</li>
+    <li>Escriba su <strong>usuario</strong> y <strong>contraseña</strong> (los proporciona su administrador).</li>
+    <li>Pulse el botón para <strong>entrar</strong> o confirmar.</li>
+  </ol>
+  <figure class="shot">
+    <img src="img/01-login.png" alt="Inicio de sesión" />
+    <figcaption>Figura 1. Pantalla de inicio de sesión: usuario, contraseña y acceso a la aplicación.</figcaption>
+  </figure>
+
+  <h2>3. Navegar por la aplicación</h2>
+  <p>Use el <strong>menú lateral</strong> para cambiar de módulo: Dashboard, Motores, Mantenimientos, etc.</p>
+  <ul>
+    <li>Puede <strong>reducir o expandir</strong> el menú con el botón correspondiente.</li>
+    <li>El indicador de <strong>base de datos</strong> muestra si el programa tiene conexión con los datos locales.</li>
+    <li>Activar <strong>tema claro u oscuro</strong> y el botón de <strong>cerrar sesión</strong> suelen estar en la misma zona del menú.</li>
+  </ul>
+  <figure class="shot">
+    <img src="img/03-sidebar.png" alt="Menú lateral" />
+    <figcaption>Figura 2. Menú lateral: acceso a cada módulo de la aplicación.</figcaption>
+  </figure>
+
+  <div class="page-break"></div>
+  <h2>4. Dashboard</h2>
+  <p>El <strong>Dashboard</strong> es el resumen del estado operativo: cantidad de <strong>motores</strong>, <strong>mantenimientos</strong>, <strong>fallas pendientes</strong>, avisos de <strong>stock mínimo</strong>, y gráficas por estado y por tiempo.</p>
+  <ol class="steps">
+    <li>En el menú, pulse <strong>Dashboard</strong>.</li>
+    <li>Revise las tarjetas superiores y las gráficas inferiores.</li>
+    <li>Si hay <strong>alertas</strong>, aparecerán listadas en la parte inferior de la vista.</li>
+  </ol>
+  <figure class="shot">
+    <img src="img/02-dashboard.png" alt="Dashboard" />
+    <figcaption>Figura 3. Vista Dashboard con indicadores y gráficas.</figcaption>
+  </figure>
+
+  <h2>5. Motores</h2>
+
+  <h3>5.1 Lista y búsqueda</h3>
+  <ol class="steps">
+    <li>Pulse <strong>Motores</strong> en el menú.</li>
+    <li>Use la <strong>barra de búsqueda</strong> y los <strong>filtros</strong> (estado, orden, filas por página) para localizar un equipo.</li>
+    <li>Pase páginas con los controles de paginación si la lista es larga.</li>
+  </ol>
+  <figure class="shot">
+    <img src="img/04-motores-lista.png" alt="Lista de motores" />
+    <figcaption>Figura 4. Listado de motores con búsqueda y filtros.</figcaption>
+  </figure>
+
+  <h3>5.2 Crear un motor</h3>
+  <ol class="steps">
+    <li>En Motores, pulse <strong>Nuevo</strong> o equivalente para abrir el formulario.</li>
+    <li>Complete al menos los campos obligatorios (por ejemplo <strong>código</strong> y <strong>marca</strong>).</li>
+    <li>Opcional: fecha de instalación, ubicación, estado, observaciones o <strong>foto</strong>.</li>
+    <li>Guarde el registro.</li>
+  </ol>
+  <figure class="shot">
+    <img src="img/05-motores-nuevo.png" alt="Alta de motor" />
+    <figcaption>Figura 5. Formulario para dar de alta un motor.</figcaption>
+  </figure>
+
+  <div class="page-break"></div>
+  <h3>5.3 Ver detalle de un motor</h3>
+  <ol class="steps">
+    <li>En la lista, pulse el icono de <strong>ver detalle</strong> (ojo) del motor deseado.</li>
+    <li>Se mostrará la ficha y los <strong>historiales</strong> de mantenimientos y fallas vinculados.</li>
+    <li>Desde el detalle suele poder exportar un <strong>informe PDF</strong> del motor, si la opción está visible.</li>
+  </ol>
+  <figure class="shot">
+    <img src="img/06-motores-detalle.png" alt="Detalle motor" />
+    <figcaption>Figura 6. Vista detalle de un motor con su historial.</figcaption>
+  </figure>
+
+  <h3>5.4 Importar motores desde Excel</h3>
+  <ol class="steps">
+    <li>Pulse <strong>Importar</strong> (o similar) en el módulo Motores.</li>
+    <li>Descargue la <strong>plantilla</strong> si aún no la tiene; no altere la fila de encabezados requerida.</li>
+    <li>Rellene el Excel y, en el asistente, elija <strong>Seleccionar archivo</strong> (.xlsx).</li>
+    <li>Revise la vista previa y confirme la importación. Si hay filas omitidas, leerá un <strong>aviso</strong>.</li>
+  </ol>
+  <figure class="shot">
+    <img src="img/07-motores-importar.png" alt="Importar Excel" />
+    <figcaption>Figura 7. Asistente de importación desde Excel (plantilla y vista previa).</figcaption>
+  </figure>
+
+  <h3>5.5 Exportar a Excel o PDF</h3>
+  <ol class="steps">
+    <li>Aplique filtros si solo desea exportar un subconjunto.</li>
+    <li>Pulse <strong>Exportar</strong> en la barra de filtros y elija <strong>Excel</strong> o <strong>PDF</strong> según el botón disponible.</li>
+    <li>Guarde el archivo en la carpeta que indique el sistema.</li>
+  </ol>
+  <figure class="shot">
+    <img src="img/08-motores-exportar.png" alt="Exportar motores" />
+    <figcaption>Figura 8. Exportación desde la barra de filtros (Excel/PDF).</figcaption>
+  </figure>
+
+  <h3>5.6 Editar o eliminar</h3>
+  <p>En la fila del motor, use el lápiz para <strong>editar</strong> (si su rol lo permite) y el icono de papelera para <strong>eliminar</strong>, confirmando cuando el programa lo pida.</p>
+
+  <div class="page-break"></div>
+  <h2>6. Mantenimientos</h2>
+  <ol class="steps">
+    <li>Abra <strong>Mantenimientos</strong> en el menú.</li>
+                      <li>Pulse <strong>Nuevo</strong>, seleccione <strong>motor</strong>, <strong>fecha</strong> y tipo de mantenimiento; complete coste, estado y descripción si aplica.</li>
+    <li>Guarde. Use filtros y exportación de forma análoga a Motores.</li>
+  </ol>
+  <figure class="shot">
+    <img src="img/09-mantenimientos.png" alt="Mantenimientos" />
+    <figcaption>Figura 9. Registro o listado de mantenimientos.</figcaption>
+  </figure>
+
+  <h2>7. Fallas</h2>
+  <ol class="steps">
+    <li>Abra <strong>Fallas</strong>.</li>
+    <li>Cree un registro con motor, tipo, prioridad, fecha de reporte y estado.</li>
+    <li>Actualice <strong>solución</strong> y estado cuando la falla quede resuelta.</li>
+  </ol>
+  <figure class="shot">
+    <img src="img/10-fallas.png" alt="Fallas" />
+    <figcaption>Figura 10. Módulo de fallas.</figcaption>
+  </figure>
+
+  <h2>8. Técnicos</h2>
+  <p>Registre el <strong>personal técnico</strong>. Puede importar o exportar desde Excel según los botones del módulo.</p>
+  <figure class="shot">
+    <img src="img/11-tecnicos.png" alt="Técnicos" />
+    <figcaption>Figura 11. Gestión de técnicos.</figcaption>
+  </figure>
+
+  <h2>9. Inventario</h2>
+  <p>Administre <strong>repuestos</strong>, cantidades y <strong>stock mínimo</strong>. El sistema puede advertir cuando un artículo está bajo mínimo.</p>
+  <figure class="shot">
+    <img src="img/12-inventario.png" alt="Inventario" />
+    <figcaption>Figura 12. Inventario de repuestos.</figcaption>
+  </figure>
+
+  <div class="page-break"></div>
+  <h2>10. Calendario</h2>
+  <p>Vista <strong>mensual</strong> de mantenimientos; seleccione días o eventos para ver el detalle según la pantalla.</p>
+  <figure class="shot">
+    <img src="img/13-calendario.png" alt="Calendario" />
+    <figcaption>Figura 13. Calendario de mantenimientos.</figcaption>
+  </figure>
+
+  <h2>11. Notificaciones</h2>
+  <p>Pulse el icono de <strong>campana</strong> (arriba) para ver resúmenes: mantenimientos próximos, fallas pendientes y stock bajo. Las alertas se actualizan periódicamente.</p>
+  <figure class="shot">
+    <img src="img/14-notificaciones.png" alt="Notificaciones" />
+    <figcaption>Figura 14. Panel de notificaciones.</figcaption>
+  </figure>
+
+  <h2>12. Configuración</h2>
+  <ol class="steps">
+    <li>Abra <strong>Configuración</strong> en el menú.</li>
+    <li>Revise <strong>información del sistema</strong> (versión, sistema operativo, carpeta de datos).</li>
+    <li><strong>Copia de seguridad:</strong> guarde un respaldo de la base cuando lo indique su política.</li>
+    <li><strong>Restaurar:</strong> solo con precaución y copia previa; siga los mensajes en pantalla.</li>
+    <li><strong>Buscar actualizaciones:</strong> si su instalador lo permite, comprobará versiones nuevas.</li>
+    <li><strong>Cambiar contraseña:</strong> actualice su clave de acceso.</li>
+  </ol>
+  <figure class="shot">
+    <img src="img/15-configuracion.png" alt="Configuración" />
+    <figcaption>Figura 15. Pantalla de configuración.</figcaption>
+  </figure>
+
+  <div class="page-break"></div>
+  <h2>13. Usuarios y actividad (solo administrador)</h2>
+  <table>
+    <thead><tr><th>Módulo</th><th>Acciones típicas</th></tr></thead>
+    <tbody>
+      <tr><td><strong>Usuarios</strong></td><td>Crear usuario, asignar rol, restablecer contraseña, eliminar (respetando reglas de seguridad).</td></tr>
+      <tr><td><strong>Actividad</strong></td><td>Consultar registro de acciones relevantes en el sistema.</td></tr>
+    </tbody>
+  </table>
+  <figure class="shot">
+    <img src="img/16-usuarios.png" alt="Usuarios" />
+    <figcaption>Figura 16. Gestión de usuarios (administrador).</figcaption>
+  </figure>
+  <figure class="shot">
+    <img src="img/17-actividad.png" alt="Actividad" />
+    <figcaption>Figura 17. Registro de actividad (administrador).</figcaption>
+  </figure>
+
+  <h2>14. Cerrar sesión</h2>
+  <p>Pulse <strong>Cerrar sesión</strong> en el menú lateral y confirme. Así se protege el acceso si otra persona usa el mismo equipo.</p>
+
+  <h2>15. Respaldo y buenas prácticas</h2>
+  <ul>
+    <li>Realice <strong>copias periódicas</strong> desde Configuración y guárdelas fuera del equipo (nube, USB, servidor).</li>
+    <li>No comparta contraseñas; cada operador debe tener su usuario.</li>
+    <li>Antes de cambiar de PC o reinstalar, consulte con su proveedor cómo trasladar el archivo de base de datos.</li>
+  </ul>
+
+  <footer>
+    Manual de usuario · Proélectrica Control Manager · Para más información, consulte al soporte técnico de Proélectrica. © Proélectrica 2026.
+  </footer>
+
+</body>
+</html>

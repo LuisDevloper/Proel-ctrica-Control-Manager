@@ -1,0 +1,18 @@
+MANUAL DE USUARIO — Cómo generar el PDF para el cliente
+=======================================================
+
+1) Añada las capturas de pantalla en la carpeta "img" siguiendo README-CAPTURAS.md
+   (los nombres de archivo deben coincidir para que aparezcan en el manual).
+
+2) Abra el archivo "Manual-de-usuario.html" con Microsoft Edge o Google Chrome
+   (doble clic o Arrastrar al navegador).
+
+3) Pulse Ctrl+P (Imprimir).
+
+4) Elija "Guardar como PDF" / "Microsoft Print to PDF".
+
+5) En "Más opciones" puede activar "Gráficos de fondo" para que se vean los colores.
+
+6) Guarde el PDF y envíelo al cliente.
+
+Nota: Si abre el HTML directamente (file://), las rutas img/ funcionan si las imágenes están en la misma carpeta relativa.
