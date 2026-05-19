@@ -39,13 +39,21 @@ export function Modal({ open, onClose, title, children, className }) {
   );
 }
 
-export function ConfirmModal({ open, onClose, onConfirm, message, confirmText = "Eliminar" }) {
+export function ConfirmModal({
+  open,
+  onClose,
+  onConfirm,
+  message,
+  title = "Confirmar accion",
+  confirmText = "Eliminar",
+  confirmVariant = "danger",
+}) {
   return (
-    <Modal open={open} onClose={onClose} title="Confirmar accion">
+    <Modal open={open} onClose={onClose} title={title}>
       <p className="text-sm text-[#9ab0c7] mb-5">{message}</p>
       <div className="flex justify-end gap-2">
         <Button variant="secondary" size="sm" onClick={onClose}>Cancelar</Button>
-        <Button variant="danger" size="sm" onClick={onConfirm}>{confirmText}</Button>
+        <Button variant={confirmVariant} size="sm" onClick={onConfirm}>{confirmText}</Button>
       </div>
     </Modal>
   );

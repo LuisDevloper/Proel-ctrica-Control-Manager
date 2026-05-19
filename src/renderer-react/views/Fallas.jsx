@@ -17,17 +17,20 @@ const EXCEL_COLS = [
   { key: "reported_at",   header: "Fecha Reporte",   width: 16 },
   { key: "priority",      header: "Prioridad",       width: 12 },
   { key: "status",        header: "Estado",          width: 16 },
-  { key: "technician_name", header: "Tecnico",       width: 22 },
-  { key: "resolved_at",   header: "Fecha Resolucion",width: 18 },
-  { key: "description",   header: "Descripcion",     width: 36 },
+  { key: "technician_name", header: "Tecnico",         width: 22 },
+  { key: "solution",        header: "Solucion",        width: 36 },
+  { key: "notes",           header: "Notas",           width: 28 },
 ];
 import { useToast } from "../components/ui/Toast";
 import { useAsync } from "../hooks/useAsync";
 import { exportFailuresPDF } from "../lib/pdfReport";
-import { Plus, Pencil, Trash2, X, Check, FileText, CheckCircle2 } from "lucide-react";
+import { Plus, Pencil, Trash2, X, Check, FileText, CheckCircle2, AlertTriangle } from "lucide-react";
 import { Input as InputComp, Field as FieldComp } from "../components/ui/Input";
 import { useDbHealth } from "../context/DbHealthContext";
 import { canMutateRecords, READ_ONLY_ROLE_TITLE } from "../lib/permissions";
+import { PageHeader } from "../components/ui/PageHeader";
+import { ReadOnlyBanner } from "../components/ui/ReadOnlyBanner";
+import { EmptyState } from "../components/ui/EmptyState";
 
 const filterFn = (item, query, status) => {
   const hay = `${item.failure_type||""} ${item.motor_code||""}`.toLowerCase();
@@ -196,12 +199,10 @@ export function Fallas({ user }) {
 
   return (
     <div className="flex flex-col gap-4">
-      <h2 className="text-xl font-bold text-[#eaf2fb]">Fallas</h2>
+      <PageHeader title="Fallas" description="Registro, seguimiento y resolucion de incidencias" icon={AlertTriangle} />
 
       {!canMutate && (
-        <p className="text-sm text-[#9ab0c7] bg-[#2f8dff]/5 border border-[#2f8dff]/20 rounded-xl px-4 py-2">
-          Modulo en modo solo lectura: consulta e informes permitidos; no registrar ni resolver fallas desde aqui.
-        </p>
+        <ReadOnlyBanner message="Estas viendo este modulo en modo solo lectura. Puedes consultar datos y exportar, pero no crear ni editar registros." />
       )}
 
       <Card>
@@ -244,7 +245,7 @@ export function Fallas({ user }) {
             onClear={filters.reset}
           />
           {filters.paged.length === 0
-            ? <p className="text-sm text-[#9ab0c7]">No hay fallas para mostrar.</p>
+            ? <EmptyState message="No hay fallas para mostrar. Ajusta los filtros o registra una nueva." />
             : <Table>
                 <Thead><tr><Th>Tipo</Th><Th>Motor</Th><Th>Prioridad</Th><Th>Estado</Th><Th>Fecha</Th><Th>Tecnico</Th><Th>Acciones</Th></tr></Thead>
                 <Tbody>

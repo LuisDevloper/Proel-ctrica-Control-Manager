@@ -4,6 +4,7 @@ import { Cpu, Wrench, AlertTriangle, Package, TrendingUp } from "lucide-react";
 import { Badge } from "../components/ui/Badge";
 import { useToast } from "../components/ui/Toast";
 import { SkeletonStatCards, SkeletonCard } from "../components/ui/Skeleton";
+import { PageHeader } from "../components/ui/PageHeader";
 
 const DashboardCharts = lazy(() =>
   import("./DashboardCharts.jsx").then((m) => ({ default: m.DashboardCharts }))
@@ -59,10 +60,11 @@ export function Dashboard() {
 
   return (
     <div className="flex flex-col gap-5">
-      <div>
-        <h2 className="text-xl font-bold text-[#eaf2fb] mb-1">Dashboard</h2>
-        <p className="text-sm text-[#9ab0c7]">Resumen operativo del sistema</p>
-      </div>
+      <PageHeader
+        title="Dashboard"
+        description="Resumen operativo del sistema"
+        className="mb-1"
+      />
 
       <div className="grid grid-cols-2 xl:grid-cols-4 gap-3">
         <StatCard icon={Cpu}           label="Motores"           value={stats?.totalMotors}       color="text-[#2f8dff]" />

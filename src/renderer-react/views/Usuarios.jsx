@@ -7,7 +7,9 @@ import { ConfirmModal } from "../components/ui/Modal";
 import { useToast } from "../components/ui/Toast";
 import { useAsync } from "../hooks/useAsync";
 import { useDbHealth } from "../context/DbHealthContext";
-import { Plus, Trash2, KeyRound, ShieldCheck, Shield, Eye } from "lucide-react";
+import { Plus, Trash2, KeyRound, ShieldCheck, Shield, Eye, Users } from "lucide-react";
+import { PageHeader } from "../components/ui/PageHeader";
+import { EmptyState } from "../components/ui/EmptyState";
 
 const ROLES = ["ADMIN", "OPERADOR", "VISOR"];
 
@@ -84,7 +86,11 @@ export function Usuarios({ user: currentUser }) {
 
   return (
     <div className="flex flex-col gap-4 max-w-3xl">
-      <h2 className="text-xl font-bold text-[#eaf2fb]">Gestion de usuarios</h2>
+      <PageHeader
+        title="Gestion de usuarios"
+        description="Cuentas, roles y permisos del sistema"
+        icon={Users}
+      />
 
       {/* Roles info */}
       <div className="grid grid-cols-3 gap-3">
@@ -135,7 +141,7 @@ export function Usuarios({ user: currentUser }) {
         <CardHeader><CardTitle>Usuarios registrados ({users.length})</CardTitle></CardHeader>
         <CardContent>
           {users.length === 0
-            ? <p className="text-sm text-[#9ab0c7]">No hay usuarios.</p>
+            ? <EmptyState message="No hay usuarios registrados. Crea el primero con el formulario superior." />
             : <Table>
                 <Thead><tr><Th>Usuario</Th><Th>Rol</Th><Th>Acciones</Th></tr></Thead>
                 <Tbody>

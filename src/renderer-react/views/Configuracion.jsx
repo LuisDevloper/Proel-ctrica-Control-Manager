@@ -8,7 +8,8 @@ import { useAsync } from "../hooks/useAsync";
 import { useDbHealth } from "../context/DbHealthContext";
 import { useAccessibility } from "../context/AccessibilityContext";
 import { canMutateRecords, READ_ONLY_ROLE_TITLE } from "../lib/permissions";
-import { KeyRound, Info, Database, Monitor, Download, Upload, AlertTriangle, RefreshCw, Type } from "lucide-react";
+import { KeyRound, Info, Database, Monitor, Download, Upload, AlertTriangle, RefreshCw, Type, Settings } from "lucide-react";
+import { PageHeader } from "../components/ui/PageHeader";
 
 /** Compat: respuesta antigua del proceso principal (solo `platform`) o renderer recargado sin reiniciar Electron. */
 function platformToOsName(platform) {
@@ -113,7 +114,11 @@ export function Configuracion({ user }) {
 
   return (
     <div className="flex flex-col gap-4 max-w-2xl">
-      <h2 className="text-xl font-bold text-[#eaf2fb]">Configuracion</h2>
+      <PageHeader
+        title="Configuracion"
+        description="Sistema, accesibilidad, contrasena y copias de seguridad"
+        icon={Settings}
+      />
 
       {/* Info de la app */}
       <Card>
@@ -150,8 +155,8 @@ export function Configuracion({ user }) {
         </CardHeader>
         <CardContent>
           <p className="text-sm text-[#9ab0c7] mb-3">
-            Tamano de texto en toda la aplicacion. Atajes de teclado: Alt + + / Alt + - / Alt + 0 (restablecer).
-            En el menu lateral: Alt + 1 a 9 para ir al modulo correspondiente (segun tu rol).
+            Tamano de texto en toda la aplicacion. Atajes: Alt + + / Alt + - / Alt + 0 (restablecer tamano);
+            Alt + Enter (pantalla completa); en el menu lateral Alt + 1 a 9 para ir al modulo (segun su rol).
           </p>
           <div className="flex flex-wrap gap-2">
             <Button type="button" variant={fontPercent === 100 ? "secondary" : "ghost"} size="sm" onClick={() => setFontPercent(100)}>Normal</Button>

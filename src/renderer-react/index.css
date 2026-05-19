@@ -185,6 +185,27 @@
   ::-webkit-scrollbar-track  { background: transparent; }
   ::-webkit-scrollbar-thumb  { background: var(--scrollbar); border-radius: 3px; }
 
+  ::selection {
+    background: color-mix(in srgb, var(--primary) 35%, transparent);
+    color: var(--text);
+  }
+
+  .pcm-toolbar {
+    padding: 0.625rem 0.75rem;
+    border-radius: 0.875rem;
+    border: 1px solid var(--border);
+    background: color-mix(in srgb, var(--panel) 78%, transparent);
+    backdrop-filter: blur(8px);
+  }
+
+  .pcm-readonly-banner {
+    color: var(--muted);
+    background: color-mix(in srgb, var(--primary) 10%, transparent);
+    border: 1px solid color-mix(in srgb, var(--primary) 24%, transparent);
+    border-radius: 0.75rem;
+    padding: 0.5rem 1rem;
+  }
+
   /* ══ OVERRIDES MODO CLARO ══ */
 
   /* Fondos */

@@ -28,6 +28,15 @@ export function UpdateBanner() {
           });
           return;
         }
+        const isCert = /ERR_CERT|CERT_AUTHORITY|certificate|SSL|TLS/i.test(msg);
+        if (isCert) {
+          setState({
+            event: "error",
+            message:
+              "No se pudo verificar el certificado HTTPS al conectar con GitHub (red corporativa, antivirus o fecha/hora del equipo incorrecta). Actualice manualmente con el instalador .exe o pida a informática que confíe en las descargas de github.com.",
+          });
+          return;
+        }
       }
       setState(data);
     });

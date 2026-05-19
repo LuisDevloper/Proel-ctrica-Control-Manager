@@ -6,6 +6,7 @@ import { Modal } from "../components/ui/Modal";
 import { ChevronLeft, ChevronRight, Calendar } from "lucide-react";
 import { cn } from "../lib/utils";
 import { useToast } from "../components/ui/Toast";
+import { PageHeader } from "../components/ui/PageHeader";
 
 const DAYS   = ["Dom","Lun","Mar","Mie","Jue","Vie","Sab"];
 const MONTHS = ["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
@@ -62,7 +63,11 @@ export function Calendario() {
 
   return (
     <div className="flex flex-col gap-4">
-      <h2 className="text-xl font-bold text-[#eaf2fb]">Calendario de mantenimientos</h2>
+      <PageHeader
+        title="Calendario de mantenimientos"
+        description="Vista mensual de trabajos programados por motor"
+        icon={Calendar}
+      />
 
       <Card>
         <CardHeader>

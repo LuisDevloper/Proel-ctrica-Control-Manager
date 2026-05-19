@@ -46,6 +46,9 @@ export function AccessibilityProvider({ children }) {
       } else if (e.key === "0") {
         e.preventDefault();
         setFontPercentState(100);
+      } else if (e.key === "Enter") {
+        e.preventDefault();
+        window.proelectricaApi?.toggleFullscreen?.();
       }
     }
     window.addEventListener("keydown", onKey);

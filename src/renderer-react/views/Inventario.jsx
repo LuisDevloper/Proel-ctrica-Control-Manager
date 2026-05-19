@@ -21,9 +21,12 @@ const EXCEL_COLS = [
 ];
 import { useToast } from "../components/ui/Toast";
 import { useAsync } from "../hooks/useAsync";
-import { Pencil, Trash2, Plus, X, Check } from "lucide-react";
+import { Pencil, Trash2, Plus, X, Check, Package } from "lucide-react";
 import { useDbHealth } from "../context/DbHealthContext";
 import { canMutateRecords, READ_ONLY_ROLE_TITLE } from "../lib/permissions";
+import { PageHeader } from "../components/ui/PageHeader";
+import { ReadOnlyBanner } from "../components/ui/ReadOnlyBanner";
+import { EmptyState } from "../components/ui/EmptyState";
 
 const filterFn = (item, query) => {
   const hay = `${item.part_name||""} ${item.sku||""} ${item.location||""}`.toLowerCase();
@@ -70,12 +73,10 @@ export function Inventario({ user }) {
 
   return (
     <div className="flex flex-col gap-4">
-      <h2 className="text-xl font-bold text-[#eaf2fb]">Inventario</h2>
+      <PageHeader title="Inventario" description="Repuestos, stock minimo y ubicaciones" icon={Package} />
 
       {!canMutate && (
-        <p className="text-sm text-[#9ab0c7] bg-[#2f8dff]/5 border border-[#2f8dff]/20 rounded-xl px-4 py-2">
-          Modulo en modo solo lectura: consulta y exportacion permitidas; no altas ni ediciones de stock.
-        </p>
+        <ReadOnlyBanner message="Estas viendo este modulo en modo solo lectura. Puedes consultar datos y exportar, pero no crear ni editar registros." />
       )}
 
       <Card>
@@ -105,7 +106,7 @@ export function Inventario({ user }) {
             onClear={filters.reset}
           />
           {filters.paged.length === 0
-            ? <p className="text-sm text-[#9ab0c7]">No hay repuestos para mostrar.</p>
+            ? <EmptyState message="No hay repuestos para mostrar. Ajusta los filtros o registra uno nuevo." />
             : <Table>
                 <Thead>
                   <tr><Th>Repuesto</Th><Th>SKU</Th><Th>Cantidad</Th><Th>Minimo</Th><Th>Ubicacion</Th><Th>Estado stock</Th><Th>Acciones</Th></tr>

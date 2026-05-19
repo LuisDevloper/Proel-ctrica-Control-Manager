@@ -1,4 +1,4 @@
-const { ipcMain, dialog, app } = require("electron");
+const { ipcMain, dialog, app, BrowserWindow } = require("electron");
 const bcrypt = require("bcryptjs");
 const fs = require("fs");
 const path = require("path");
@@ -142,6 +142,31 @@ function mapImportHeaderCell(entity, headerCell) {
   return null;
 }
 
+/** Máximo de filas de datos que se leen por archivo Excel (importación). */
+const IMPORT_MAX_ROWS = 200;
+
+function buildImportRowFromVals(vals, canon, entity) {
+  if (!vals.length || vals.every((c) => !c)) return null;
+
+  const obj = {};
+  canon.forEach((key, j) => {
+    if (!key) return;
+    obj[key] = vals[j] || "";
+  });
+
+  if (entity === "motors") {
+    const code = normImportHeader(obj.Codigo);
+    if (code === "codigo") return null;
+    if (!(obj.Codigo || "").trim() && !(obj.Marca || "").trim()) return null;
+  } else {
+    const name = normImportHeader(obj.Nombre);
+    if (name === "nombre") return null;
+    if (!(obj.Nombre || "").trim()) return null;
+  }
+
+  return obj;
+}
+
 /**
  * Lee la primera hoja: localiza la fila cuya primera columna es Codigo/Nombre (plantilla con título arriba).
  * Devuelve headers para vista previa y filas con claves canónicas (Codigo, Marca, …).
@@ -190,31 +215,27 @@ function parseExcelSheetForImport(ws, entity) {
 
   const displayHeaders = canon.map((c, i) => c || hdrVals[i] || `Col${i + 1}`);
   const rows = [];
+  let extraRowsInFile = 0;
+
   for (let i = headerIdx + 1; i < raw.length; i++) {
-    const vals = raw[i];
-    if (!vals.length || vals.every((c) => !c)) continue;
-
-    const obj = {};
-    canon.forEach((key, j) => {
-      if (!key) return;
-      obj[key] = vals[j] || "";
-    });
-
-    if (entity === "motors") {
-      const code = normImportHeader(obj.Codigo);
-      if (code === "codigo") continue;
-      if (!(obj.Codigo || "").trim() && !(obj.Marca || "").trim()) continue;
+    const row = buildImportRowFromVals(raw[i], canon, entity);
+    if (!row) continue;
+    if (rows.length < IMPORT_MAX_ROWS) {
+      rows.push(row);
     } else {
-      const name = normImportHeader(obj.Nombre);
-      if (name === "nombre") continue;
-      if (!(obj.Nombre || "").trim()) continue;
+      extraRowsInFile++;
     }
-
-    rows.push(obj);
-    if (rows.length >= 200) break;
   }
 
-  return { ok: true, headers: displayHeaders, rows };
+  const rowLimitReached = extraRowsInFile > 0;
+  return {
+    ok: true,
+    headers: displayHeaders,
+    rows,
+    rowLimitReached,
+    extraRowsInFile,
+    importMaxRows: IMPORT_MAX_ROWS,
+  };
 }
 
 /** Primer y último día del mes (month 1–12) en ISO YYYY-MM-DD para filtros SQLite. */
@@ -327,6 +348,19 @@ function registerIpcHandlers() {
       WHERE m.maintenance_date BETWEEN ? AND ?
       ORDER BY m.maintenance_date
     `).all(from, to);
+  });
+
+  ipcMain.handle("window:toggleFullscreen", (event) => {
+    const win = BrowserWindow.fromWebContents(event.sender);
+    if (!win) return { ok: false };
+    const next = !win.isFullScreen();
+    win.setFullScreen(next);
+    return { ok: true, fullScreen: next };
+  });
+
+  ipcMain.handle("window:isFullscreen", (event) => {
+    const win = BrowserWindow.fromWebContents(event.sender);
+    return { ok: !!win, fullScreen: win ? win.isFullScreen() : false };
   });
 
   // Ping de base de datos
@@ -634,6 +668,7 @@ function registerIpcHandlers() {
         f.status,
         f.reported_at,
         f.solution,
+        f.notes,
         mo.code AS motor_code,
         t.full_name AS technician_name
       FROM failures f
@@ -757,7 +792,14 @@ function registerIpcHandlers() {
       if (!parsed.rows.length) {
         return { ok: false, message: "No hay filas de datos debajo de los encabezados." };
       }
-      return { ok: true, headers: parsed.headers, rows: parsed.rows };
+      return {
+        ok: true,
+        headers: parsed.headers,
+        rows: parsed.rows,
+        rowLimitReached: parsed.rowLimitReached === true,
+        extraRowsInFile: parsed.extraRowsInFile || 0,
+        importMaxRows: parsed.importMaxRows || IMPORT_MAX_ROWS,
+      };
     } catch (e) {
       return { ok: false, message: "No se pudo leer el archivo: " + e.message };
     }

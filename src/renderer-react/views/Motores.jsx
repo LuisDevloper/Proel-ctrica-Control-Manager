@@ -28,16 +28,25 @@ import { useAsync } from "../hooks/useAsync";
 import { SkeletonTable } from "../components/ui/Skeleton";
 import { MotorDetail } from "./MotorDetail";
 import { useDbHealth } from "../context/DbHealthContext";
-import { Pencil, Trash2, Plus, X, Check, Eye, Camera, ImageOff, FileText, FileSpreadsheet } from "lucide-react";
+import { Pencil, Trash2, Plus, X, Check, Eye, Camera, ImageOff, FileText, FileSpreadsheet, Cpu } from "lucide-react";
 import { exportMotoresPDF } from "../lib/pdfReport";
 import { ImportModal } from "../components/ui/ImportModal";
 import { canMutateRecords, READ_ONLY_ROLE_TITLE } from "../lib/permissions";
+import { PageHeader } from "../components/ui/PageHeader";
+import { ReadOnlyBanner } from "../components/ui/ReadOnlyBanner";
+import { EmptyState } from "../components/ui/EmptyState";
 
 function PhotoInput({ value, onChange, disabled }) {
+  const { showToast } = useToast();
+
   function handleFile(e) {
     const file = e.target.files?.[0];
     if (!file) return;
-    if (file.size > 2 * 1024 * 1024) { alert("La imagen no debe superar 2 MB."); return; }
+    if (file.size > 2 * 1024 * 1024) {
+      showToast("La imagen no debe superar 2 MB.", "warning");
+      e.target.value = "";
+      return;
+    }
     const reader = new FileReader();
     reader.onload = (ev) => onChange(ev.target.result);
     reader.readAsDataURL(file);
@@ -125,12 +134,10 @@ export function Motores({ user }) {
 
   return (
     <div className="flex flex-col gap-4">
-      <h2 className="text-xl font-bold text-[#eaf2fb]">Motores</h2>
+      <PageHeader title="Motores" description="Registro y seguimiento de equipos electricos" icon={Cpu} />
 
       {!canMutate && (
-        <p className="text-sm text-[#9ab0c7] bg-[#2f8dff]/5 border border-[#2f8dff]/20 rounded-xl px-4 py-2">
-          Estas viendo este modulo en modo solo lectura. Puedes consultar datos y exportar, pero no crear ni editar registros.
-        </p>
+        <ReadOnlyBanner message="Estas viendo este modulo en modo solo lectura. Puedes consultar datos y exportar, pero no crear ni editar registros." />
       )}
 
       <Card>
@@ -191,7 +198,7 @@ export function Motores({ user }) {
           {loadingData
             ? <SkeletonTable rows={5} cols={5} />
             : filters.paged.length === 0
-            ? <p className="text-sm text-[#9ab0c7]">No hay motores para mostrar.</p>
+            ? <EmptyState message="No hay motores para mostrar. Ajusta los filtros o registra uno nuevo." />
             : <Table>
                 <Thead>
                   <tr>

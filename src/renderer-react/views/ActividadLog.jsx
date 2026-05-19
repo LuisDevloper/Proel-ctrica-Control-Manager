@@ -6,6 +6,8 @@ import { useFilters } from "../hooks/useFilters";
 import { FilterBar } from "../components/layout/FilterBar";
 import { Pager } from "../components/layout/Pager";
 import { Activity, User, Edit, Trash2, Plus, Upload, RotateCcw, RefreshCw } from "lucide-react";
+import { PageHeader } from "../components/ui/PageHeader";
+import { EmptyState } from "../components/ui/EmptyState";
 
 const ACTION_ICONS = {
   CREATE:   { icon: Plus,        color: "text-[#29a16a]", bg: "bg-[#29a16a]/10 border-[#29a16a]/30" },
@@ -79,14 +81,16 @@ export function ActividadLog() {
 
   return (
     <div className="flex flex-col gap-4 animate-pageFadeIn">
-      <div className="flex items-center justify-between">
-        <h2 className="text-xl font-bold text-[#eaf2fb] flex items-center gap-2">
-          <Activity size={18} className="text-[#2f8dff]" /> Registro de actividad
-        </h2>
-        <Button variant="ghost" size="sm" className="border border-[#2a3d57] text-[#9ab0c7]" onClick={load}>
-          <RefreshCw size={13} className="mr-1" /> Actualizar
-        </Button>
-      </div>
+      <PageHeader
+        title="Registro de actividad"
+        description="Auditoria de acciones realizadas en el sistema"
+        icon={Activity}
+        actions={
+          <Button variant="ghost" size="sm" className="border border-[var(--border)] text-[var(--muted)]" onClick={load}>
+            <RefreshCw size={13} className="mr-1" /> Actualizar
+          </Button>
+        }
+      />
 
       {/* Stats */}
       <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
@@ -138,7 +142,7 @@ export function ActividadLog() {
           {loading ? (
             <p className="text-center text-[#9ab0c7] py-8">Cargando...</p>
           ) : filters.paged.length === 0 ? (
-            <p className="text-center text-[#9ab0c7] py-8">No hay registros de actividad.</p>
+            <EmptyState message="No hay registros de actividad con los filtros actuales." />
           ) : (
             <div className="overflow-x-auto rounded-xl border border-[#2a3d57] mt-3">
               <Table>

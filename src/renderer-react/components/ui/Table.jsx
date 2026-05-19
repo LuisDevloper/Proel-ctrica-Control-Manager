@@ -3,7 +3,7 @@ import { cn } from "../../lib/utils";
 
 export function Table({ children, className }) {
   return (
-    <div className="overflow-x-auto rounded-xl border border-[#2a3d57]">
+    <div className="overflow-x-auto rounded-xl border border-[var(--border)] bg-[var(--panel-deep)]/40">
       <table className={cn("w-full border-collapse text-sm", className)}>
         {children}
       </table>
@@ -13,7 +13,7 @@ export function Table({ children, className }) {
 
 export function Thead({ children }) {
   return (
-    <thead className="bg-[#0e1826] text-[#9ab0c7] text-xs uppercase tracking-wide">
+    <thead className="sticky top-0 z-[1] bg-[var(--panel-deep)] text-[var(--muted)] text-xs uppercase tracking-wide shadow-[0_1px_0_var(--border)]">
       {children}
     </thead>
   );
@@ -21,19 +21,26 @@ export function Thead({ children }) {
 
 export function Th({ children, className }) {
   return (
-    <th className={cn("px-4 py-3 text-left font-medium whitespace-nowrap", className)}>
+    <th className={cn("px-4 py-3 text-left font-semibold whitespace-nowrap", className)}>
       {children}
     </th>
   );
 }
 
 export function Tbody({ children }) {
-  return <tbody className="divide-y divide-[#1e2f44]">{children}</tbody>;
+  return <tbody className="divide-y divide-[var(--border-soft)]">{children}</tbody>;
 }
 
 export function Tr({ children, className }) {
   return (
-    <tr className={cn("hover:bg-[#0f1e30] transition-colors duration-100", className)}>
+    <tr
+      className={cn(
+        "transition-colors duration-100",
+        "hover:bg-[var(--hover)]",
+        "even:bg-[color-mix(in_srgb,var(--panel-soft)_35%,transparent)]",
+        className
+      )}
+    >
       {children}
     </tr>
   );
@@ -41,7 +48,7 @@ export function Tr({ children, className }) {
 
 export function Td({ children, className }) {
   return (
-    <td className={cn("px-4 py-3 text-[#eaf2fb]", className)}>
+    <td className={cn("px-4 py-3 text-[var(--text)] align-middle", className)}>
       {children}
     </td>
   );

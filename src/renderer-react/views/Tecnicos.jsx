@@ -24,6 +24,9 @@ import { useAsync } from "../hooks/useAsync";
 import { Plus, Pencil, Trash2, X, Check } from "lucide-react";
 import { useDbHealth } from "../context/DbHealthContext";
 import { canMutateRecords, READ_ONLY_ROLE_TITLE } from "../lib/permissions";
+import { PageHeader } from "../components/ui/PageHeader";
+import { ReadOnlyBanner } from "../components/ui/ReadOnlyBanner";
+import { EmptyState } from "../components/ui/EmptyState";
 
 const filterFn = (item, query) => {
   const hay = `${item.full_name||""} ${item.specialty||""} ${item.phone||""}`.toLowerCase();
@@ -72,12 +75,10 @@ export function Tecnicos({ user }) {
     <div className="flex flex-col gap-4">
       <ImportModal open={showImport} entity="technicians" user={user} onClose={() => setShowImport(false)} onSuccess={() => { setShowImport(false); load(); }} />
 
-      <h2 className="text-xl font-bold text-[#eaf2fb]">Tecnicos</h2>
+      <PageHeader title="Tecnicos" description="Personal tecnico y especialidades" />
 
       {!canMutate && (
-        <p className="text-sm text-[#9ab0c7] bg-[#2f8dff]/5 border border-[#2f8dff]/20 rounded-xl px-4 py-2">
-          Modulo en modo solo lectura: puedes consultar y exportar, no registrar ni editar tecnicos.
-        </p>
+        <ReadOnlyBanner message="Estas viendo este modulo en modo solo lectura. Puedes consultar datos y exportar, pero no crear ni editar registros." />
       )}
 
       <Card>
@@ -113,7 +114,7 @@ export function Tecnicos({ user }) {
             onClear={filters.reset}
           />
           {filters.paged.length === 0
-            ? <p className="text-sm text-[#9ab0c7]">No hay tecnicos para mostrar.</p>
+            ? <EmptyState message="No hay tecnicos para mostrar. Ajusta los filtros o registra uno nuevo." />
             : <Table>
                 <Thead><tr><Th>Nombre</Th><Th>Especialidad</Th><Th>Telefono</Th><Th>Email</Th><Th>Acciones</Th></tr></Thead>
                 <Tbody>

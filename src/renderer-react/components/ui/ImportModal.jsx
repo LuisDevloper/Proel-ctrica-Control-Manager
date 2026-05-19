@@ -5,6 +5,8 @@ import { Button } from "./Button";
 import { useToast } from "./Toast";
 import { X, Upload, CheckCircle2, AlertTriangle, FileSpreadsheet, Download } from "lucide-react";
 
+const IMPORT_MAX_ROWS = 200;
+
 const TEMPLATES = {
   motors: {
     label: "Motores",
@@ -73,6 +75,15 @@ export function ImportModal({ open, entity, user, onClose, onSuccess }) {
     if (!res.ok) { setError(res.message || "Error al leer el archivo."); return; }
     if (!res.rows.length) { setError("El archivo no tiene datos o el formato no coincide."); return; }
     setParsed(res);
+    if (res.rowLimitReached) {
+      const max = res.importMaxRows || IMPORT_MAX_ROWS;
+      const extra = res.extraRowsInFile || 0;
+      const total = res.rows.length + extra;
+      showToast(
+        `El Excel tiene ${total} filas con datos; solo se cargaron las primeras ${max}. Las restantes no se importarán.`,
+        "warning"
+      );
+    }
     setStep("preview");
   }
 
@@ -230,6 +241,7 @@ export function ImportModal({ open, entity, user, onClose, onSuccess }) {
                   • En archivos simples, la primera fila puede ser solo encabezados: Codigo, Marca, …<br/>
                   • El campo <strong className="text-[#9ab0c7]">{entity === "motors" ? "Codigo + Marca" : "Nombre"}</strong> es obligatorio.<br/>
                   • Registros con codigo duplicado serán omitidos.<br/>
+                  • Máximo <strong className="text-[#9ab0c7]">{IMPORT_MAX_ROWS}</strong> filas de datos por archivo; si el Excel tiene más, solo se procesan las primeras {IMPORT_MAX_ROWS}.<br/>
                   • Estados válidos en columna Estado: <strong className="text-[#9ab0c7]">Operativo</strong>, <strong className="text-[#9ab0c7]">En mantenimiento</strong>, <strong className="text-[#9ab0c7]">Fuera de servicio</strong>. Cualquier otro texto se guardará como Operativo y se avisará al finalizar.
                 </p>
               </div>
@@ -264,8 +276,21 @@ export function ImportModal({ open, entity, user, onClose, onSuccess }) {
             const totalRows = parsed.rows.length;
             const importable = parsed.rows.filter((r) => rowIsImportable(entity, r)).length;
             const incomplete = totalRows - importable;
+            const maxRows = parsed.importMaxRows || IMPORT_MAX_ROWS;
+            const extraInFile = parsed.extraRowsInFile || 0;
+            const totalInFile = parsed.rowLimitReached ? totalRows + extraInFile : totalRows;
             return (
             <>
+              {parsed.rowLimitReached && (
+                <div className="flex items-start gap-2 bg-[#e0a91f]/12 border border-[#e0a91f]/35 rounded-xl px-3 py-2.5">
+                  <AlertTriangle size={14} className="text-[#e0a91f] shrink-0 mt-0.5" />
+                  <p className="text-xs text-[#eaf2fb] leading-snug">
+                    El archivo tiene <strong>{totalInFile}</strong> filas con datos; solo se cargaron las primeras{" "}
+                    <strong>{maxRows}</strong>. Las <strong>{extraInFile}</strong> filas restantes no aparecen en la vista previa ni se importarán.
+                    Divida el Excel en varios archivos si necesita importar todo.
+                  </p>
+                </div>
+              )}
               <div className="flex items-center gap-2 text-sm text-[#29a16a] bg-[#29a16a]/10 border border-[#29a16a]/30 rounded-xl px-3 py-2">
                 <CheckCircle2 size={14} className="shrink-0" />
                 <span>

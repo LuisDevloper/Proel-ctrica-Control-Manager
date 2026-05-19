@@ -7,6 +7,8 @@ import { SkeletonTable } from "../components/ui/Skeleton";
 import { exportMotorDetailPDF } from "../lib/pdfReport";
 import { ArrowLeft, FileText, Cpu, Wrench, AlertTriangle, DollarSign, Activity } from "lucide-react";
 import { useToast } from "../components/ui/Toast";
+import { PageHeader } from "../components/ui/PageHeader";
+import { EmptyState } from "../components/ui/EmptyState";
 
 const fmtCost = (v) => "$" + Number(v || 0).toLocaleString("es-CO");
 const fmtDate = (d) => d || "—";
@@ -57,7 +59,7 @@ export function MotorDetail({ motorId, onBack }) {
         <Button variant="ghost" size="sm" onClick={onBack} className="self-start">
           <ArrowLeft size={14} className="mr-1" /> Volver
         </Button>
-        <p className="text-sm text-[#9ab0c7]">No hay datos para mostrar.</p>
+        <EmptyState message="Motor no encontrado o sin datos disponibles." />
       </div>
     );
   }
@@ -82,20 +84,22 @@ export function MotorDetail({ motorId, onBack }) {
 
   return (
     <div className="flex flex-col gap-4">
-      {/* Encabezado */}
-      <div className="flex items-center gap-3 flex-wrap">
-        <Button variant="ghost" size="sm" onClick={onBack}>
-          <ArrowLeft size={14} className="mr-1" /> Volver
-        </Button>
-        <div className="flex-1 min-w-0">
-          <h2 className="text-xl font-bold text-[#eaf2fb]">Motor: {motor.code}</h2>
-          <p className="text-xs text-[#9ab0c7]">{motor.brand} {motor.model || ""} — {motor.location || "Sin ubicacion"}</p>
-        </div>
-        <Badge variant={statusBadgeVariant(motor.status)}>{motor.status}</Badge>
-        <Button variant="secondary" size="sm" onClick={() => exportMotorDetailPDF(motor, maintenances, failures)}>
-          <FileText size={13} className="mr-1" /> PDF
-        </Button>
-      </div>
+      <Button variant="ghost" size="sm" onClick={onBack} className="self-start -mb-1">
+        <ArrowLeft size={14} className="mr-1" /> Volver
+      </Button>
+      <PageHeader
+        title={`Motor ${motor.code}`}
+        description={`${motor.brand} ${motor.model || ""} · ${motor.location || "Sin ubicacion"}`}
+        icon={Cpu}
+        actions={
+          <>
+            <Badge variant={statusBadgeVariant(motor.status)}>{motor.status}</Badge>
+            <Button variant="secondary" size="sm" onClick={() => exportMotorDetailPDF(motor, maintenances, failures)}>
+              <FileText size={13} className="mr-1" /> PDF
+            </Button>
+          </>
+        }
+      />
 
       {/* Estadísticas rápidas */}
       <div className="grid grid-cols-4 gap-3">
@@ -178,7 +182,7 @@ export function MotorDetail({ motorId, onBack }) {
         </CardHeader>
         <CardContent>
           {maintenances.length === 0
-            ? <p className="text-sm text-[#9ab0c7]">Sin mantenimientos registrados.</p>
+            ? <EmptyState message="Sin mantenimientos registrados para este motor." className="py-8" />
             : <Table>
                 <Thead>
                   <tr>
@@ -220,7 +224,7 @@ export function MotorDetail({ motorId, onBack }) {
         </CardHeader>
         <CardContent>
           {failures.length === 0
-            ? <p className="text-sm text-[#9ab0c7]">Sin fallas registradas.</p>
+            ? <EmptyState message="Sin fallas registradas para este motor." className="py-8" />
             : <Table>
                 <Thead>
                   <tr>

@@ -1,17 +1,14 @@
 import React from "react";
 import { cn } from "../../lib/utils";
 
+const fieldBase =
+  "w-full rounded-xl border border-[var(--border)] bg-[var(--panel-soft)] text-[var(--text)] px-3 py-2 text-sm outline-none transition-all duration-150 placeholder:text-[var(--faint)] focus:border-[var(--primary)] focus:ring-2 focus:ring-[color-mix(in_srgb,var(--primary)_28%,transparent)] disabled:opacity-50 disabled:cursor-not-allowed";
+
 export function Input({ className, type = "text", ...props }) {
   return (
     <input
       type={type}
-      className={cn(
-        "w-full rounded-xl border border-[#355071] bg-[#1a2534] text-[#eaf2fb] px-3 py-2 text-sm outline-none transition-all",
-        "placeholder:text-[#9ab0c7]",
-        "focus:border-[#2f8dff] focus:ring-2 focus:ring-[#2f8dff33]",
-        "disabled:opacity-50 disabled:cursor-not-allowed",
-        className
-      )}
+      className={cn(fieldBase, className)}
       {...props}
     />
   );
@@ -20,12 +17,7 @@ export function Input({ className, type = "text", ...props }) {
 export function Select({ className, children, ...props }) {
   return (
     <select
-      className={cn(
-        "w-full rounded-xl border border-[#355071] bg-[#1a2534] text-[#eaf2fb] px-3 py-2 text-sm outline-none transition-all",
-        "focus:border-[#2f8dff] focus:ring-2 focus:ring-[#2f8dff33]",
-        "disabled:opacity-50 disabled:cursor-not-allowed",
-        className
-      )}
+      className={cn(fieldBase, "cursor-pointer", className)}
       {...props}
     >
       {children}
@@ -36,12 +28,7 @@ export function Select({ className, children, ...props }) {
 export function Textarea({ className, ...props }) {
   return (
     <textarea
-      className={cn(
-        "w-full rounded-xl border border-[#355071] bg-[#1a2534] text-[#eaf2fb] px-3 py-2 text-sm outline-none transition-all resize-none",
-        "placeholder:text-[#9ab0c7]",
-        "focus:border-[#2f8dff] focus:ring-2 focus:ring-[#2f8dff33]",
-        className
-      )}
+      className={cn(fieldBase, "resize-none min-h-[4.5rem]", className)}
       rows={3}
       {...props}
     />
@@ -50,7 +37,7 @@ export function Textarea({ className, ...props }) {
 
 export function Label({ className, children, ...props }) {
   return (
-    <label className={cn("block text-xs font-medium text-[#9ab0c7] mb-1", className)} {...props}>
+    <label className={cn("block text-xs font-medium text-[var(--muted)] mb-1", className)} {...props}>
       {children}
     </label>
   );

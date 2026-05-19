@@ -30,6 +30,8 @@ contextBridge.exposeInMainWorld("proelectricaApi", {
   getMaintenancesCalendar: (params) => ipcRenderer.invoke("maintenances:calendar", params),
   dbPing: () => ipcRenderer.invoke("db:ping"),
   getAppInfo: () => ipcRenderer.invoke("app:info"),
+  toggleFullscreen: () => ipcRenderer.invoke("window:toggleFullscreen"),
+  isFullscreen: () => ipcRenderer.invoke("window:isFullscreen"),
   changePassword: (data) => ipcRenderer.invoke("auth:changePassword", data),
   // Importar desde Excel
   parseExcel:       (opts)  => ipcRenderer.invoke("import:parse-excel", opts),

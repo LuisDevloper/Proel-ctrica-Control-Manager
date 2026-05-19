@@ -24,9 +24,12 @@ import { useToast } from "../components/ui/Toast";
 import { useAsync } from "../hooks/useAsync";
 import { exportMaintenancesPDF } from "../lib/pdfReport";
 import { CurrencyInput } from "../components/ui/CurrencyInput";
-import { Plus, Pencil, Trash2, X, Check, FileText, CheckCircle2 } from "lucide-react";
+import { Plus, Pencil, Trash2, X, Check, FileText, CheckCircle2, Wrench } from "lucide-react";
 import { useDbHealth } from "../context/DbHealthContext";
 import { canMutateRecords, READ_ONLY_ROLE_TITLE } from "../lib/permissions";
+import { PageHeader } from "../components/ui/PageHeader";
+import { ReadOnlyBanner } from "../components/ui/ReadOnlyBanner";
+import { EmptyState } from "../components/ui/EmptyState";
 
 const filterFn = (item, query, status) => {
   const hay = `${item.motor_code||""} ${item.technician_name||""}`.toLowerCase();
@@ -109,12 +112,10 @@ export function Mantenimientos({ user }) {
 
   return (
     <div className="flex flex-col gap-4">
-      <h2 className="text-xl font-bold text-[#eaf2fb]">Mantenimientos</h2>
+      <PageHeader title="Mantenimientos" description="Preventivos y correctivos por motor" icon={Wrench} />
 
       {!canMutate && (
-        <p className="text-sm text-[#9ab0c7] bg-[#2f8dff]/5 border border-[#2f8dff]/20 rounded-xl px-4 py-2">
-          Modulo en modo solo lectura: consulta e informes permitidos; no registrar ni modificar mantenimientos.
-        </p>
+        <ReadOnlyBanner message="Estas viendo este modulo en modo solo lectura. Puedes consultar datos y exportar, pero no crear ni editar registros." />
       )}
 
       <Card>
@@ -170,7 +171,7 @@ export function Mantenimientos({ user }) {
             onClear={filters.reset}
           />
           {filters.paged.length === 0
-            ? <p className="text-sm text-[#9ab0c7]">No hay mantenimientos para mostrar.</p>
+            ? <EmptyState message="No hay mantenimientos para mostrar. Ajusta los filtros o registra uno nuevo." />
             : <Table>
                 <Thead><tr><Th>Tipo</Th><Th>Motor</Th><Th>Tecnico</Th><Th>Fecha</Th><Th>Costo</Th><Th>Estado</Th><Th>Acciones</Th></tr></Thead>
                 <Tbody>
