@@ -1,6 +1,9 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { Badge } from "../ui/Badge";
-import { getChangelogSorted, formatReleaseDate, isVersionNewer } from "../../data/changelog";
+import { getChangelogEntry, getChangelogSorted, formatReleaseDate, isVersionNewer } from "../../data/changelog";
+import { fetchRemoteChangelogEntry } from "../../lib/changelogRemote";
+
+const RELEASES_URL = "https://github.com/LuisDevloper/Proel-ctrica-Control-Manager/releases";
 
 export function VersionHistory({ currentVersion, highlightVersion, onlyVersion, compact = false }) {
   const normalizedOnly = onlyVersion ? String(onlyVersion).replace(/^v/i, "") : null;
@@ -33,14 +36,18 @@ export function VersionHistory({ currentVersion, highlightVersion, onlyVersion, 
           >
             <div className="flex flex-wrap items-center gap-2 mb-1.5">
               <span className="text-sm font-semibold text-[var(--text)]">v{entry.version}</span>
-              <span className="text-xs text-[var(--muted)]">{formatReleaseDate(entry.date)}</span>
+              {entry.date ? (
+                <span className="text-xs text-[var(--muted)]">{formatReleaseDate(entry.date)}</span>
+              ) : null}
               {isCurrent && <Badge variant="success">Actual</Badge>}
               {isHighlighted && !isCurrent && <Badge variant="default">Nueva</Badge>}
               {isFuture && !isHighlighted && <Badge variant="default">Proxima</Badge>}
             </div>
-            <p className="text-sm font-medium text-[var(--text)] mb-2">{entry.title}</p>
+            {entry.title ? (
+              <p className="text-sm font-medium text-[var(--text)] mb-2">{entry.title}</p>
+            ) : null}
             <ul className="list-disc list-inside flex flex-col gap-1 text-xs text-[var(--muted)] leading-relaxed">
-              {entry.highlights.map((line) => (
+              {(entry.highlights || []).map((line) => (
                 <li key={line}>{line}</li>
               ))}
             </ul>
@@ -51,24 +58,102 @@ export function VersionHistory({ currentVersion, highlightVersion, onlyVersion, 
   );
 }
 
-export function VersionReleaseNotes({ version, currentVersion }) {
-  const normalized = String(version || "").replace(/^v/i, "");
-  const entry = getChangelogSorted().find((e) => e.version === normalized);
+function normalizeVersion(version) {
+  return String(version || "").replace(/^v/i, "").trim();
+}
 
-  if (!entry) {
+function entryFromUpdaterNotes(version, data) {
+  if (!data?.highlights?.length) return null;
+  return {
+    version: normalizeVersion(version),
+    date: "",
+    title: data.title || `Version ${normalizeVersion(version)}`,
+    highlights: data.highlights,
+  };
+}
+
+export function VersionReleaseNotes({ version, currentVersion }) {
+  const normalized = normalizeVersion(version);
+  const [entry, setEntry] = useState(() => getChangelogEntry(normalized));
+  const [loading, setLoading] = useState(!entry);
+  const [failed, setFailed] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function load() {
+      const local = getChangelogEntry(normalized);
+      if (local) {
+        setEntry(local);
+        setLoading(false);
+        setFailed(false);
+        return;
+      }
+
+      setLoading(true);
+      setFailed(false);
+
+      try {
+        const updaterNotes = await window.proelectricaApi?.getUpdaterReleaseNotes?.(normalized);
+        if (cancelled) return;
+        const fromUpdater = entryFromUpdaterNotes(normalized, updaterNotes);
+        if (fromUpdater) {
+          setEntry(fromUpdater);
+          setLoading(false);
+          return;
+        }
+
+        const remote = await fetchRemoteChangelogEntry(normalized);
+        if (cancelled) return;
+        if (remote) {
+          setEntry(remote);
+          setLoading(false);
+          return;
+        }
+      } catch {
+        if (cancelled) return;
+      }
+
+      setEntry(null);
+      setFailed(true);
+      setLoading(false);
+    }
+
+    load();
+    return () => { cancelled = true; };
+  }, [normalized]);
+
+  if (loading) {
+    return <p className="text-sm text-[var(--muted)]">Cargando novedades…</p>;
+  }
+
+  if (entry) {
     return (
-      <p className="text-sm text-[var(--muted)]">
-        No hay notas de la version {version} en esta instalacion. Consulte el release en GitHub.
+      <VersionHistory
+        currentVersion={currentVersion}
+        highlightVersion={entry.version}
+        onlyVersion={entry.version}
+        compact
+      />
+    );
+  }
+
+  if (failed) {
+    return (
+      <p className="text-sm text-[var(--muted)] leading-relaxed">
+        No se pudieron cargar las notas de la version {version} desde esta instalacion.
+        {" "}
+        <a
+          href={`${RELEASES_URL}/tag/v${normalized}`}
+          target="_blank"
+          rel="noreferrer"
+          className="text-[#7ab8ff] hover:underline"
+        >
+          Ver release en GitHub
+        </a>
       </p>
     );
   }
 
-  return (
-    <VersionHistory
-      currentVersion={currentVersion}
-      highlightVersion={entry.version}
-      onlyVersion={entry.version}
-      compact
-    />
-  );
+  return null;
 }

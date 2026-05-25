@@ -12,7 +12,7 @@
   "scripts": {
     "vite": "vite",
     "dev": "concurrently -k \"npm run vite\" \"wait-on http://localhost:5173 && electron .\"",
-    "build:renderer": "vite build",
+    "build:renderer": "node scripts/export-changelog-manifest.mjs && vite build",
     "build:icon": "node scripts/sync-logo-assets.mjs && node scripts/make-icon.mjs",
     "build:installer-assets": "node scripts/sync-logo-assets.mjs && node scripts/make-installer-assets.mjs",
     "build": "npm run build:icon && npm run build:installer-assets && npm run build:renderer && electron-builder",

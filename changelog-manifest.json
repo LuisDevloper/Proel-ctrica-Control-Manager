@@ -1,0 +1,85 @@
+{
+  "generatedAt": "2026-05-25T21:03:07.247Z",
+  "entries": [
+    {
+      "version": "1.4.3",
+      "date": "2026-05-21",
+      "title": "Dashboard, marca e interfaz refinada",
+      "highlights": [
+        "Estado de equipos en dashboard: cuenta mantenimientos abiertos, ubicacion operativa y estado del motor",
+        "Al registrar un mantenimiento, el motor pasa a En mantenimiento automaticamente",
+        "Logo Proélectrica unificado en app, icono .exe, instalador NSIS y exportaciones Excel",
+        "Interfaz liquid glass en tarjetas, sidebar, modales y botones",
+        "Alertas y toasts unificados; aviso al cerrar sesion",
+        "Dashboard reorganizado: estado de equipos a ancho completo y recarga al volver a la vista",
+        "Accesibilidad: texto grande (125%) sin cortes en sidebar ni tarjetas del dashboard"
+      ]
+    },
+    {
+      "version": "1.4.2",
+      "date": "2026-05-21",
+      "title": "Edicion mas clara y login refinado",
+      "highlights": [
+        "No guardar registros sin cambios en motores, fallas, mantenimientos, inventario, turbinas, taller externo, tecnicos y roles",
+        "Login con mostrar/ocultar contrasena, aviso de Bloq Mayus y animaciones mas ligeras",
+        "Banner de actualizaciones flotante en login (no mueve el formulario)",
+        "Instalador Windows con sidebar e iconos personalizados Proélectrica"
+      ]
+    },
+    {
+      "version": "1.4.1",
+      "date": "2026-05-21",
+      "title": "Login, marca y pantalla de inicio",
+      "highlights": [
+        "Tipografia corporativa Proélectrica / Control Manager (Plus Jakarta Sans)",
+        "Fondo de login a pantalla completa sin cuadricula visible arriba",
+        "Banner de comprobacion de actualizaciones visible en el login",
+        "Marca unificada en splash, login y barra lateral"
+      ]
+    },
+    {
+      "version": "1.4.0",
+      "date": "2026-05-21",
+      "title": "Auditoria, reportes y mejoras operativas",
+      "highlights": [
+        "Auditoria segura: el registro de actividad usa la sesion real del usuario",
+        "Detalle de cambios (antes -> despues) en ediciones y acciones del sistema",
+        "Dashboard exportable a PDF con reporte ejecutivo para gerencia",
+        "Adjuntar PDF firmado al registrar envio a taller externo",
+        "Filtros de busqueda en documentacion tecnica",
+        "Grafico de estado de equipos incluye motores y turbinas",
+        "Interfaz SIGEMT alineada en login y titulo de ventana"
+      ]
+    },
+    {
+      "version": "1.3.0",
+      "date": "2026-05-21",
+      "title": "Turbinas, taller externo e inventario avanzado",
+      "highlights": [
+        "Modulo Equipos con pestanas: Motores, Turbinas y Taller externo",
+        "Registro de turbinas (GG, PT, rodamientos, motor vinculado)",
+        "Control logistico de envios a taller externo con estados",
+        "Generacion y adjunto de PDF de permiso de salida y entrada",
+        "Inventario con movimientos de entrada, salida y historial",
+        "Documentos adjuntos en mantenimientos y equipos",
+        "Ubicacion operativa en motores y turbinas",
+        "Actualizaciones automaticas desde GitHub Releases",
+        "Menu personalizado en espanol"
+      ]
+    },
+    {
+      "version": "1.2.4",
+      "date": "2026-05-20",
+      "title": "Base operativa y exportaciones",
+      "highlights": [
+        "Gestion de motores, mantenimientos, fallas, tecnicos e inventario",
+        "Roles ADMIN, OPERADOR y VISOR",
+        "Importacion y exportacion Excel con plantillas",
+        "Exportacion PDF de listados e informes",
+        "Dashboard con KPIs y graficas",
+        "Copias de seguridad y restauracion de base de datos",
+        "Tema claro / oscuro y accesibilidad de texto"
+      ]
+    }
+  ]
+}

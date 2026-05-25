@@ -107,6 +107,31 @@ function createMainWindow() {
 }
 
 // ── Auto-updater ──────────────────────────────────────────────────────────────
+/** Convierte releaseNotes de electron-updater a lista de lineas. */
+function parseUpdaterReleaseNotes(raw) {
+  if (!raw) return [];
+  if (typeof raw === "string") {
+    return raw.split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
+  }
+  if (Array.isArray(raw)) {
+    return raw
+      .map((item) => (typeof item === "string" ? item : item?.note))
+      .map((line) => String(line || "").trim())
+      .filter(Boolean);
+  }
+  return [];
+}
+
+function storePendingRelease(version, releaseNotes) {
+  if (!version) return;
+  const highlights = parseUpdaterReleaseNotes(releaseNotes);
+  updaterStateStore.set("pendingRelease", {
+    version: String(version),
+    title: highlights.length ? null : `Version ${version}`,
+    highlights,
+  });
+}
+
 function setupAutoUpdater() {
   // En desarrollo no verificamos actualizaciones
   if (isDev) return;
@@ -142,10 +167,14 @@ function setupAutoUpdater() {
 
   autoUpdater.on("checking-for-update",  ()     => sendStatus("checking"));
   autoUpdater.on("update-not-available", ()     => sendStatus("up-to-date"));
-  autoUpdater.on("update-available",     (info) => sendStatus("available",   { version: info.version }));
+  autoUpdater.on("update-available",     (info) => {
+    storePendingRelease(info.version, info.releaseNotes);
+    sendStatus("available",   { version: info.version });
+  });
   autoUpdater.on("download-progress",    (prog) => sendStatus("downloading", { percent: Math.round(prog.percent) }));
   autoUpdater.on("update-downloaded",    (info) => {
     try {
+      storePendingRelease(info.version, info.releaseNotes);
       updaterStateStore.set("pendingVersion", info.version);
     } catch (e) {
       logError("updater.pending_store", e);
@@ -217,6 +246,14 @@ if (gotTheLock) {
           return null;
         }
         return { version: pending };
+      });
+
+      ipcMain.handle("updater:getReleaseNotes", (_event, version) => {
+        if (isDev || !app.isPackaged) return null;
+        const normalized = String(version || "").replace(/^v/i, "").trim();
+        const stored = updaterStateStore.get("pendingRelease");
+        if (!stored || String(stored.version).replace(/^v/i, "") !== normalized) return null;
+        return stored;
       });
 
       logInfo("app.ready");
