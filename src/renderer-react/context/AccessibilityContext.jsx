@@ -23,6 +23,7 @@ export function AccessibilityProvider({ children }) {
 
   useEffect(() => {
     document.documentElement.style.fontSize = `${fontPercent}%`;
+    document.documentElement.setAttribute("data-font-scale", String(fontPercent));
     try {
       localStorage.setItem(STORAGE_KEY, String(fontPercent));
     } catch {

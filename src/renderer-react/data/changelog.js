@@ -6,6 +6,20 @@ import semver from "semver";
  */
 export const CHANGELOG = [
   {
+    version: "1.4.3",
+    date: "2026-05-21",
+    title: "Dashboard, marca e interfaz refinada",
+    highlights: [
+      "Estado de equipos en dashboard: cuenta mantenimientos abiertos, ubicacion operativa y estado del motor",
+      "Al registrar un mantenimiento, el motor pasa a En mantenimiento automaticamente",
+      "Logo Proélectrica unificado en app, icono .exe, instalador NSIS y exportaciones Excel",
+      "Interfaz liquid glass en tarjetas, sidebar, modales y botones",
+      "Alertas y toasts unificados; aviso al cerrar sesion",
+      "Dashboard reorganizado: estado de equipos a ancho completo y recarga al volver a la vista",
+      "Accesibilidad: texto grande (125%) sin cortes en sidebar ni tarjetas del dashboard",
+    ],
+  },
+  {
     version: "1.4.2",
     date: "2026-05-21",
     title: "Edicion mas clara y login refinado",

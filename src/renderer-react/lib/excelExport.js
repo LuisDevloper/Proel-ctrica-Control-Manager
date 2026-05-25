@@ -33,6 +33,35 @@ const COLORS = {
   accent:      "2F8DFF",
 };
 
+async function loadLogoBuffer() {
+  try {
+    const res = await fetch("./logo.png");
+    if (!res.ok) return null;
+    return await res.arrayBuffer();
+  } catch {
+    return null;
+  }
+}
+
+let logoBufferPromise = null;
+
+function getLogoBuffer() {
+  if (!logoBufferPromise) logoBufferPromise = loadLogoBuffer();
+  return logoBufferPromise;
+}
+
+function addSheetLogo(wb, ws, logoBuffer) {
+  if (!logoBuffer) return;
+  const imageId = wb.addImage({
+    buffer: logoBuffer,
+    extension: "png",
+  });
+  ws.addImage(imageId, {
+    tl: { col: 0.2, row: 0.05 },
+    ext: { width: 96, height: 46 },
+  });
+}
+
 /**
  * Exporta datos a un archivo .xlsx con formato profesional
  * @param {string} fileName - nombre del archivo sin extensión
@@ -41,6 +70,7 @@ const COLORS = {
  * @param {Array<Object>} rows - datos a exportar
  */
 export async function xlsxExport(fileName, sheetTitle, columns, rows) {
+  const logoBuffer = await getLogoBuffer();
   const wb = new ExcelJS.Workbook();
   wb.creator  = "Proélectrica Control Manager";
   wb.created  = new Date();
@@ -60,7 +90,8 @@ export async function xlsxExport(fileName, sheetTitle, columns, rows) {
   titleCell.font  = { name: "Calibri", size: 14, bold: true, color: { argb: COLORS.titleText } };
   titleCell.fill  = { type: "pattern", pattern: "solid", fgColor: { argb: COLORS.titleBg } };
   titleCell.alignment = { horizontal: "center", vertical: "middle" };
-  ws.getRow(1).height = 28;
+  ws.getRow(1).height = 32;
+  addSheetLogo(wb, ws, logoBuffer);
 
   // ── Fila 2: Fecha de exportación ─────────────────────────────────────────
   ws.mergeCells(2, 1, 2, colCount);

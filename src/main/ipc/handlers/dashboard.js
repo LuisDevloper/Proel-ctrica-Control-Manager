@@ -1,17 +1,33 @@
 function registerDashboardHandlers({ ipcMain, getDatabase, guards, equipment }) {
   const { denyIfNotAuthenticated, secureHandler } = guards;
-  const { canonicalMotorStatus } = equipment;
-  const { MOTOR_ALLOWED_STATUSES } = require("../../../modules/equipment/constants");
+  const { countEquipmentByEffectiveStatus, countInMaintenance } = require("../../../modules/equipment/status");
   const { parseDashboardYear, parseDashboardMonth, buildYearMonthKey, formatDashboardPeriod, getAvailableYears, fillYearMonths } = require("../../../modules/dashboard/years");
 
-  function equipmentStatusCounts(db, table) {
-    const rows = db.prepare(`SELECT status FROM ${table}`).all();
-    const map = Object.fromEntries(MOTOR_ALLOWED_STATUSES.map((status) => [status, 0]));
-    for (const row of rows) {
-      const { status } = canonicalMotorStatus(row.status);
-      map[status] = (map[status] || 0) + 1;
+  function equipmentStatusRows(db, table) {
+    if (table === "motors") {
+      return db.prepare(`
+        SELECT
+          m.status,
+          m.operational_location AS operationalLocation,
+          EXISTS(
+            SELECT 1 FROM maintenances mt
+            WHERE mt.motor_id = m.id AND mt.status != 'Completado'
+          ) AS hasOpenMaintenance
+        FROM motors m
+      `).all().map((row) => ({
+        status: row.status,
+        operationalLocation: row.operationalLocation,
+        hasOpenMaintenance: Boolean(row.hasOpenMaintenance),
+      }));
     }
-    return MOTOR_ALLOWED_STATUSES.map((status) => ({ status, count: map[status] }));
+    return db.prepare(`
+      SELECT status, operational_location AS operationalLocation
+      FROM turbinas
+    `).all();
+  }
+
+  function equipmentStatusCounts(db, table) {
+    return countEquipmentByEffectiveStatus(equipmentStatusRows(db, table));
   }
 
   ipcMain.handle(
@@ -138,21 +154,32 @@ function registerDashboardHandlers({ ipcMain, getDatabase, guards, equipment }) 
     "dashboard:stats",
     secureHandler(denyIfNotAuthenticated, () => {
       const db = getDatabase();
-      return db.prepare(`
-      SELECT
-        (SELECT COUNT(*) FROM motors) AS totalMotors,
-        (SELECT COUNT(*) FROM turbinas) AS totalTurbinas,
-        (SELECT COUNT(*) FROM motors WHERE status = 'En mantenimiento') +
-        (SELECT COUNT(*) FROM turbinas WHERE status = 'En mantenimiento') AS inMaintenance,
-        (SELECT COUNT(*) FROM motors WHERE status = 'Fuera de servicio') +
-        (SELECT COUNT(*) FROM turbinas WHERE status = 'Fuera de servicio') AS outOfService,
-        (SELECT COUNT(*) FROM maintenances) AS totalMaintenances,
-        (SELECT COUNT(*) FROM failures WHERE status <> 'Resuelta') AS pendingFailures,
-        (SELECT COUNT(*) FROM technicians) AS totalTechnicians,
-        (SELECT COUNT(*) FROM inventory_items WHERE quantity <= min_stock) AS lowStockItems,
-        (SELECT COUNT(*) FROM maintenances WHERE maintenance_date >= date('now') AND maintenance_date <= date('now', '+7 day') AND status != 'Completado') AS upcomingMaintenances,
-        (SELECT COUNT(*) FROM external_workshop_shipments WHERE logistics_status NOT IN ('Entrada registrada', 'Equipo entregado')) AS pendingShipments
-    `).get();
+      const motorRows = equipmentStatusRows(db, "motors");
+      const turbinaRows = equipmentStatusRows(db, "turbinas");
+      const inMaintenance = countInMaintenance(motorRows) + countInMaintenance(turbinaRows);
+
+      return {
+        totalMotors: db.prepare("SELECT COUNT(*) AS c FROM motors").get().c,
+        totalTurbinas: db.prepare("SELECT COUNT(*) AS c FROM turbinas").get().c,
+        inMaintenance,
+        outOfService:
+          db.prepare("SELECT COUNT(*) AS c FROM motors WHERE status = 'Fuera de servicio'").get().c +
+          db.prepare("SELECT COUNT(*) AS c FROM turbinas WHERE status = 'Fuera de servicio'").get().c,
+        totalMaintenances: db.prepare("SELECT COUNT(*) AS c FROM maintenances").get().c,
+        pendingFailures: db.prepare("SELECT COUNT(*) AS c FROM failures WHERE status <> 'Resuelta'").get().c,
+        totalTechnicians: db.prepare("SELECT COUNT(*) AS c FROM technicians").get().c,
+        lowStockItems: db.prepare("SELECT COUNT(*) AS c FROM inventory_items WHERE quantity <= min_stock").get().c,
+        upcomingMaintenances: db.prepare(`
+          SELECT COUNT(*) AS c FROM maintenances
+          WHERE maintenance_date >= date('now')
+            AND maintenance_date <= date('now', '+7 day')
+            AND status != 'Completado'
+        `).get().c,
+        pendingShipments: db.prepare(`
+          SELECT COUNT(*) AS c FROM external_workshop_shipments
+          WHERE logistics_status NOT IN ('Entrada registrada', 'Equipo entregado')
+        `).get().c,
+      };
     })
   );
 }

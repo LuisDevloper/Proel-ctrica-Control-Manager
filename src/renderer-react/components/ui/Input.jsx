@@ -2,7 +2,7 @@ import React from "react";
 import { cn } from "../../lib/utils";
 
 const fieldBase =
-  "w-full rounded-xl border border-[var(--border)] bg-[var(--panel-soft)] text-[var(--text)] px-3 py-2 text-sm outline-none transition-all duration-150 placeholder:text-[var(--faint)] focus:border-[var(--primary)] focus:ring-2 focus:ring-[color-mix(in_srgb,var(--primary)_28%,transparent)] disabled:opacity-50 disabled:cursor-not-allowed";
+  "pcm-glass-field w-full rounded-xl text-[var(--text)] px-3 py-2 text-sm outline-none transition-all duration-150 placeholder:text-[var(--faint)] disabled:opacity-50 disabled:cursor-not-allowed";
 
 export function Input({ className, type = "text", ...props }) {
   return (

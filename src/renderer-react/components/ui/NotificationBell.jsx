@@ -48,7 +48,7 @@ export function NotificationBell() {
         className={cn(
           "relative flex items-center justify-center w-9 h-9 rounded-xl transition-all cursor-pointer border-none",
           open
-            ? "bg-[#1a2d47] text-white"
+            ? "pcm-glass-subtle text-white"
             : "text-[#9ab0c7] hover:text-[#eaf2fb] hover:bg-white/8"
         )}
       >
@@ -63,10 +63,8 @@ export function NotificationBell() {
       {/* Panel desplegable */}
       {open && (
         <div className="absolute right-0 top-full mt-2 z-50 w-[340px]">
-          <div className="rounded-2xl border border-[#2a3d57] bg-[#0d1825] shadow-2xl overflow-hidden">
-
-            {/* Cabecera */}
-            <div className="flex items-center justify-between px-4 py-3 border-b border-[#1e2f44]">
+          <div className="pcm-glass-strong rounded-2xl overflow-hidden">
+            <div className="flex items-center justify-between px-4 py-3 border-b pcm-glass-divider">
               <div className="flex items-center gap-2">
                 <Bell size={14} className="text-[#9ab0c7]" />
                 <span className="text-sm font-semibold text-[#eaf2fb]">Notificaciones</span>
@@ -129,7 +127,7 @@ export function NotificationBell() {
             </div>
 
             {/* Pie */}
-            <div className="px-4 py-2 border-t border-[#1e2f44] bg-[#0a1018]">
+            <div className="px-4 py-2 border-t pcm-glass-divider pcm-glass-subtle">
               <p className="text-[10px] text-[#4a6a8a] text-center">
                 {loading ? "Actualizando..." : "Se actualiza cada 30 segundos"}
               </p>

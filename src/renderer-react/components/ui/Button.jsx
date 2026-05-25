@@ -3,13 +3,13 @@ import { cn } from "../../lib/utils";
 
 const variants = {
   primary:
-    "bg-gradient-to-b from-[var(--primary)] to-[#1763d1] text-white hover:brightness-110 shadow-[0_2px_8px_color-mix(in_srgb,var(--primary)_35%,transparent)]",
+    "pcm-glass-accent text-white hover:brightness-110 active:brightness-95",
   secondary:
-    "bg-gradient-to-b from-[#4b5c71] to-[#3b495b] text-white hover:brightness-110",
+    "pcm-glass-subtle text-[var(--text)] border border-[var(--glass-border-soft)] hover:bg-[var(--hover)]",
   danger:
-    "bg-gradient-to-b from-[var(--danger)] to-[#a33d3d] text-white hover:brightness-110",
+    "bg-gradient-to-b from-[var(--danger)] to-[#a33d3d] text-white hover:brightness-110 shadow-[0_4px_16px_color-mix(in_srgb,var(--danger)_30%,transparent)]",
   ghost:
-    "bg-[var(--panel-soft)] border border-[var(--border)] text-[var(--text)] hover:bg-[var(--hover)]",
+    "pcm-glass-subtle text-[var(--text)] hover:bg-[var(--hover)]",
   link: "text-[var(--primary)] underline-offset-4 hover:underline bg-transparent p-0 h-auto font-medium",
 };
 

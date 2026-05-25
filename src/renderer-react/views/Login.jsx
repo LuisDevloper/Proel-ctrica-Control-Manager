@@ -68,12 +68,12 @@ export function Login({ onLogin }) {
         <div className="text-center mb-8">
           <div className="login-hero relative inline-block mb-5">
             <div className="login-hero__glow absolute inset-0 rounded-full bg-[#2f8dff] blur-2xl" />
-            <AppLogo size="xl" className="relative drop-shadow-2xl" />
+            <AppLogo size="xl" className="relative" />
           </div>
           <BrandMark size="lg" variant="display" showRule className="login-brand mb-0" />
         </div>
 
-        <div className="login-card rounded-2xl border border-white/10 bg-[#0d1825]/78 backdrop-blur-xl shadow-[0_32px_64px_#00000080] p-7">
+        <div className="login-card rounded-2xl p-7">
           <p className="text-xs text-[#9ab0c7] font-semibold uppercase tracking-widest mb-5">
             Iniciar sesión
           </p>

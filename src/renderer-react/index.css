@@ -117,68 +117,167 @@ html[data-guest-login] body {
 .animate-fadeOut { animation: fadeOut 0.2s ease forwards; }
 .animate-slideUp { animation: slideUp 0.25s cubic-bezier(0.34,1.2,0.64,1) forwards; }
 .animate-pageFadeIn { animation: pageFadeIn 0.35s ease forwards; }
-/* Confirmación visual: anillo + check (toast success) */
-@keyframes celebrationRingFill {
-  to {
-    stroke-dashoffset: 0;
-  }
-}
-
-@keyframes celebrationCheckDraw {
-  to {
-    stroke-dashoffset: 0;
-  }
-}
-
-@keyframes celebrationCardEnter {
+/* Avisos flotantes (toast unificado) */
+@keyframes alertEnter {
   from {
     opacity: 0;
-    transform: translateY(12px) scale(0.94);
+    transform: translateY(-18px) scale(0.96);
+    filter: blur(6px);
   }
   to {
     opacity: 1;
     transform: translateY(0) scale(1);
+    filter: blur(0);
   }
 }
 
-@keyframes celebrationBackdropIn {
+@keyframes alertLeave {
   from {
-    opacity: 0;
+    opacity: 1;
+    transform: translateY(0) scale(1);
   }
   to {
-    opacity: 1;
+    opacity: 0;
+    transform: translateY(-10px) scale(0.98);
   }
 }
 
-.celebration-ring-progress {
-  animation: celebrationRingFill 0.58s cubic-bezier(0.33, 1, 0.68, 1) forwards;
+@keyframes alertProgress {
+  from { transform: scaleX(1); }
+  to { transform: scaleX(0); }
 }
 
-.celebration-check-path {
-  stroke-dasharray: 100;
-  stroke-dashoffset: 100;
-  animation: celebrationCheckDraw 0.42s cubic-bezier(0.33, 1.15, 0.64, 1) 0.48s forwards;
+.pcm-alert {
+  position: relative;
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 0.75rem;
+  width: 100%;
+  padding: 0.85rem 0.9rem 1rem 0.95rem;
+  border-radius: 1rem;
+  overflow: hidden;
+  pointer-events: auto;
+  background: var(--glass-surface-strong);
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--glass-shadow), var(--glass-highlight);
+  -webkit-backdrop-filter: blur(var(--glass-blur-strong)) saturate(var(--glass-saturate));
+  backdrop-filter: blur(var(--glass-blur-strong)) saturate(var(--glass-saturate));
+  opacity: 0;
+  transform: translateY(-18px) scale(0.96);
 }
 
-.animate-celebrationBackdrop {
-  animation: celebrationBackdropIn 0.22s ease forwards;
+.pcm-alert--visible {
+  animation: alertEnter 0.34s cubic-bezier(0.22, 1, 0.36, 1) forwards;
 }
 
-.animate-celebrationCardEnter {
-  animation: celebrationCardEnter 0.28s cubic-bezier(0.34, 1.15, 0.64, 1) forwards;
+.pcm-alert--leaving {
+  animation: alertLeave 0.22s ease forwards;
 }
 
-.celebration-reduce-motion .celebration-ring-progress {
-  animation-duration: 0.01ms;
+.pcm-alert__accent {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  background: var(--alert-accent, var(--primary));
+  border-radius: 1rem 0 0 1rem;
+}
+
+.pcm-alert--success { --alert-accent: var(--success); }
+.pcm-alert--warning { --alert-accent: var(--warning); }
+.pcm-alert--info { --alert-accent: var(--primary); }
+
+.pcm-alert__icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  margin-left: 0.35rem;
+  border-radius: 0.75rem;
+  background: color-mix(in srgb, var(--alert-accent) 14%, transparent);
+  border: 1px solid color-mix(in srgb, var(--alert-accent) 28%, transparent);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+
+.pcm-alert__label {
+  margin: 0;
+  font-size: 0.625rem;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.pcm-alert__title {
+  margin: 0.125rem 0 0;
+  font-size: 0.875rem;
+  font-weight: 600;
+  line-height: 1.35;
+  color: var(--text);
+}
+
+.pcm-alert__detail {
+  margin: 0.125rem 0 0;
+  font-size: 0.8125rem;
+  line-height: 1.35;
+  color: color-mix(in srgb, var(--alert-accent) 55%, var(--text));
+}
+
+.pcm-alert__close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  border: none;
+  border-radius: 0.55rem;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.pcm-alert__close:hover {
+  background: var(--hover);
+  color: var(--text);
+}
+
+.pcm-alert__progress-wrap {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 2px;
+  background: color-mix(in srgb, var(--glass-border-soft) 70%, transparent);
+}
+
+.pcm-alert__progress {
+  display: block;
+  width: 100%;
+  height: 100%;
+  transform-origin: left center;
+  animation-name: alertProgress;
+  animation-timing-function: linear;
   animation-fill-mode: forwards;
-  stroke-dashoffset: 0;
+  opacity: 0.85;
 }
 
-.celebration-reduce-motion .celebration-check-path {
-  animation-duration: 0.01ms;
-  animation-delay: 0s;
-  animation-fill-mode: forwards;
-  stroke-dashoffset: 0;
+@media (prefers-reduced-motion: reduce) {
+  .pcm-alert--visible,
+  .pcm-alert--leaving {
+    animation: none;
+    opacity: 1;
+    transform: none;
+    filter: none;
+  }
+
+  .pcm-alert__progress {
+    animation: none;
+    transform: scaleX(0);
+  }
 }
 
 /* ── Login: animaciones ligeras (sin stagger ni blur) ── */
@@ -221,8 +320,17 @@ html[data-guest-login] body {
   animation: loginFadeUp 0.42s ease-out both;
 }
 
+/* Contraste suave del wordmark azul, sin resplandor neon */
+.app-logo {
+  filter: brightness(1.03) contrast(1.05);
+}
+
+html[data-theme="light"] .app-logo {
+  filter: brightness(0.99) contrast(1.03);
+}
+
 .login-hero__glow {
-  opacity: 0.22;
+  opacity: 0.14;
   transform: scale(1.12);
 }
 
@@ -326,6 +434,8 @@ html[data-guest-login] body {
       radial-gradient(ellipse 900px 550px at 0% 0%, rgba(26,80,180,0.18), transparent 65%),
       /* Punto de luz tenue inferior derecho */
       radial-gradient(ellipse 700px 500px at 100% 100%, rgba(15,50,110,0.12), transparent 65%),
+      radial-gradient(ellipse 520px 420px at 82% 8%, rgba(47,141,255,0.09), transparent 62%),
+      radial-gradient(ellipse 480px 380px at 12% 88%, rgba(41,161,106,0.06), transparent 60%),
       #040810;
     --panel:      #111a27;
     --panel-soft: #1a2534;
@@ -341,6 +451,42 @@ html[data-guest-login] body {
     --danger:     #c94a4a;
     --success:    #29a16a;
     --scrollbar:  #2a3d57;
+    /* Liquid glass */
+    --glass-surface:
+      linear-gradient(
+        165deg,
+        color-mix(in srgb, var(--panel) 58%, transparent) 0%,
+        color-mix(in srgb, var(--panel-deep) 42%, transparent) 100%
+      );
+    --glass-surface-strong:
+      linear-gradient(
+        155deg,
+        color-mix(in srgb, var(--panel-soft) 72%, transparent) 0%,
+        color-mix(in srgb, var(--panel-deep) 52%, transparent) 100%
+      );
+    --glass-surface-subtle: color-mix(in srgb, var(--panel-soft) 48%, transparent);
+    --glass-border: color-mix(in srgb, rgba(255, 255, 255, 0.16) 55%, var(--border));
+    --glass-border-soft: color-mix(in srgb, rgba(255, 255, 255, 0.08) 40%, var(--border-soft));
+    --glass-blur: 18px;
+    --glass-blur-strong: 28px;
+    --glass-saturate: 1.45;
+    --glass-shadow:
+      0 10px 40px rgba(0, 0, 0, 0.32),
+      0 1px 0 rgba(255, 255, 255, 0.07) inset;
+    --glass-shadow-hover:
+      0 16px 48px rgba(0, 0, 0, 0.38),
+      0 1px 0 rgba(255, 255, 255, 0.1) inset;
+    --glass-highlight: inset 0 1px 0 rgba(255, 255, 255, 0.11);
+    --glass-accent:
+      linear-gradient(
+        135deg,
+        color-mix(in srgb, var(--primary) 88%, transparent),
+        color-mix(in srgb, var(--primary) 62%, transparent)
+      );
+    --glass-accent-border: color-mix(in srgb, var(--primary) 42%, rgba(255, 255, 255, 0.22));
+    --glass-accent-shadow:
+      0 6px 24px color-mix(in srgb, var(--primary) 28%, transparent),
+      inset 0 1px 0 rgba(255, 255, 255, 0.22);
     color-scheme: dark;
   }
 
@@ -352,6 +498,8 @@ html[data-guest-login] body {
       linear-gradient(90deg, rgba(100,150,230,0.07) 1px, transparent 1px),
       radial-gradient(ellipse 900px 550px at 0% 0%, rgba(180,210,255,0.25), transparent 65%),
       radial-gradient(ellipse 700px 500px at 100% 100%, rgba(200,220,255,0.15), transparent 65%),
+      radial-gradient(ellipse 520px 420px at 88% 12%, rgba(147,197,253,0.18), transparent 62%),
+      radial-gradient(ellipse 480px 380px at 8% 92%, rgba(167,243,208,0.12), transparent 60%),
       #f4f7fb;
     --panel:      #ffffff;
     --panel-soft: #f8fafc;
@@ -367,6 +515,38 @@ html[data-guest-login] body {
     --danger:     #dc2626;
     --success:    #16a34a;
     --scrollbar:  #cbd5e1;
+    /* Liquid glass */
+    --glass-surface:
+      linear-gradient(
+        165deg,
+        rgba(255, 255, 255, 0.78) 0%,
+        rgba(255, 255, 255, 0.52) 100%
+      );
+    --glass-surface-strong:
+      linear-gradient(
+        155deg,
+        rgba(255, 255, 255, 0.86) 0%,
+        rgba(248, 250, 252, 0.62) 100%
+      );
+    --glass-surface-subtle: rgba(255, 255, 255, 0.55);
+    --glass-border: rgba(255, 255, 255, 0.72);
+    --glass-border-soft: rgba(255, 255, 255, 0.45);
+    --glass-blur: 16px;
+    --glass-blur-strong: 22px;
+    --glass-saturate: 1.25;
+    --glass-shadow:
+      0 10px 36px rgba(15, 23, 42, 0.08),
+      0 1px 0 rgba(255, 255, 255, 0.95) inset;
+    --glass-shadow-hover:
+      0 14px 42px rgba(15, 23, 42, 0.12),
+      0 1px 0 rgba(255, 255, 255, 1) inset;
+    --glass-highlight: inset 0 1px 0 rgba(255, 255, 255, 0.95);
+    --glass-accent:
+      linear-gradient(135deg, #3b82f6, #2563eb);
+    --glass-accent-border: rgba(255, 255, 255, 0.35);
+    --glass-accent-shadow:
+      0 6px 20px rgba(37, 99, 235, 0.22),
+      inset 0 1px 0 rgba(255, 255, 255, 0.35);
     color-scheme: light;
   }
 
@@ -377,10 +557,26 @@ html[data-guest-login] body {
     margin: 0;
   }
 
+  :root {
+    --sidebar-width: 16.25rem;
+  }
+
+  [data-font-scale="112"] {
+    --sidebar-width: 17.5rem;
+  }
+
+  [data-font-scale="125"] {
+    --sidebar-width: 19.5rem;
+  }
+
+  [data-font-scale="125"] .dashboard-stat-grid {
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 12.5rem), 1fr));
+  }
+
   body {
     font-family: "Segoe UI", "Inter", system-ui, sans-serif;
     background: var(--bg-grad);
-    background-size: 56px 56px, 56px 56px, 100% 100%, 100% 100%, 100% 100%;
+    background-size: 56px 56px, 56px 56px, 100% 100%, 100% 100%, 100% 100%, 100% 100%, 100% 100%;
     background-attachment: fixed;
     color: var(--text);
     transition: background-color 0.3s ease, color 0.3s ease;
@@ -404,9 +600,112 @@ html[data-guest-login] body {
   .pcm-toolbar {
     padding: 0.625rem 0.75rem;
     border-radius: 0.875rem;
-    border: 1px solid var(--border);
-    background: color-mix(in srgb, var(--panel) 78%, transparent);
-    backdrop-filter: blur(8px);
+    border: 1px solid var(--glass-border);
+    background: var(--glass-surface-subtle);
+    -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+    backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+    box-shadow: var(--glass-highlight);
+  }
+
+  /* ── Liquid glass surfaces ── */
+  .pcm-glass,
+  .pcm-glass-strong,
+  .pcm-glass-subtle {
+    border: 1px solid var(--glass-border);
+    box-shadow: var(--glass-shadow), var(--glass-highlight);
+    -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+    backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturate));
+  }
+
+  .pcm-glass {
+    background: var(--glass-surface);
+  }
+
+  .pcm-glass-strong {
+    background: var(--glass-surface-strong);
+    -webkit-backdrop-filter: blur(var(--glass-blur-strong)) saturate(var(--glass-saturate));
+    backdrop-filter: blur(var(--glass-blur-strong)) saturate(var(--glass-saturate));
+  }
+
+  .pcm-glass-subtle {
+    background: var(--glass-surface-subtle);
+    border-color: var(--glass-border-soft);
+    box-shadow: none;
+  }
+
+  .pcm-glass-hover:hover {
+    box-shadow: var(--glass-shadow-hover), var(--glass-highlight);
+  }
+
+  .pcm-glass-accent {
+    background: var(--glass-accent);
+    border: 1px solid var(--glass-accent-border) !important;
+    box-shadow: var(--glass-accent-shadow);
+    -webkit-backdrop-filter: blur(12px) saturate(var(--glass-saturate));
+    backdrop-filter: blur(12px) saturate(var(--glass-saturate));
+    color: #fff;
+  }
+
+  .pcm-glass-field {
+    background: var(--glass-surface-subtle) !important;
+    border: 1px solid var(--glass-border-soft) !important;
+    box-shadow: var(--glass-highlight);
+    -webkit-backdrop-filter: blur(10px) saturate(var(--glass-saturate));
+    backdrop-filter: blur(10px) saturate(var(--glass-saturate));
+  }
+
+  .pcm-glass-field:focus {
+    border-color: color-mix(in srgb, var(--primary) 55%, var(--glass-border)) !important;
+    box-shadow:
+      var(--glass-highlight),
+      0 0 0 3px color-mix(in srgb, var(--primary) 22%, transparent);
+  }
+
+  .pcm-glass-divider {
+    border-color: var(--glass-border-soft) !important;
+  }
+
+  .login-card {
+    background: var(--glass-surface-strong) !important;
+    border: 1px solid var(--glass-border) !important;
+    box-shadow: var(--glass-shadow), var(--glass-highlight), 0 32px 64px rgba(0, 0, 0, 0.45) !important;
+    -webkit-backdrop-filter: blur(var(--glass-blur-strong)) saturate(var(--glass-saturate));
+    backdrop-filter: blur(var(--glass-blur-strong)) saturate(var(--glass-saturate));
+  }
+
+  .login-update-banner__panel {
+    -webkit-backdrop-filter: blur(var(--glass-blur-strong)) saturate(var(--glass-saturate));
+    backdrop-filter: blur(var(--glass-blur-strong)) saturate(var(--glass-saturate));
+    border-color: var(--glass-border) !important;
+    box-shadow: var(--glass-shadow), var(--glass-highlight) !important;
+  }
+
+  @supports not (backdrop-filter: blur(1px)) {
+    .pcm-glass,
+    .pcm-glass-strong,
+    .pcm-glass-subtle,
+    .pcm-glass-field,
+    .pcm-toolbar,
+    .login-card,
+    .pcm-alert {
+      background: var(--panel) !important;
+      -webkit-backdrop-filter: none;
+      backdrop-filter: none;
+    }
+  }
+
+  @media (prefers-reduced-transparency: reduce) {
+    .pcm-glass,
+    .pcm-glass-strong,
+    .pcm-glass-subtle,
+    .pcm-glass-field,
+    .pcm-toolbar,
+    .login-card,
+    .pcm-alert {
+      background: var(--panel) !important;
+      -webkit-backdrop-filter: none;
+      backdrop-filter: none;
+    }
   }
 
   .pcm-readonly-banner {
@@ -459,16 +758,16 @@ html[data-guest-login] body {
   [data-theme="light"] .bg-white\/5         { background-color: var(--hover) !important; }
   [data-theme="light"] .hover\:bg-white\/10:hover { background-color: rgba(0,0,0,0.06) !important; }
 
-  /* Inputs / Select / Textarea */
-  [data-theme="light"] input,
-  [data-theme="light"] select,
-  [data-theme="light"] textarea {
+  /* Inputs / Select / Textarea (solo campos sin vidrio) */
+  [data-theme="light"] input:not(.pcm-glass-field),
+  [data-theme="light"] select:not(.pcm-glass-field),
+  [data-theme="light"] textarea:not(.pcm-glass-field) {
     background-color: #ffffff !important;
     color: var(--text) !important;
     border-color: var(--border) !important;
   }
-  [data-theme="light"] input::placeholder,
-  [data-theme="light"] textarea::placeholder { color: var(--faint) !important; }
+  [data-theme="light"] input:not(.pcm-glass-field)::placeholder,
+  [data-theme="light"] textarea:not(.pcm-glass-field)::placeholder { color: var(--faint) !important; }
   [data-theme="light"] input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(0.5); }
 
   /* Tablas */
@@ -484,8 +783,11 @@ html[data-guest-login] body {
   [data-theme="light"] .bg-\[\#0d2517\]  { background-color: #dcfce7 !important; color: #166534 !important; }
 
   /* Sidebar activo */
+  [data-theme="light"] .pcm-glass-accent,
   [data-theme="light"] .bg-gradient-to-r.from-\[\#2b75cf\].to-\[\#1f58a8\] {
-    background: linear-gradient(to right, #2563eb, #1d4ed8) !important;
+    background: var(--glass-accent) !important;
+    border-color: var(--glass-accent-border) !important;
+    box-shadow: var(--glass-accent-shadow) !important;
   }
   /* Sidebar nav botones (solo los inactivos) */
   [data-theme="light"] nav button.text-\[\#9ab0c7\] { color: var(--muted) !important; }

@@ -140,8 +140,9 @@ function AppContent() {
     setTimeout(async () => {
       try {
         await window.proelectricaApi?.logout?.();
+        showToast("Sesión cerrada correctamente.", "info");
       } catch {
-        /* ignore */
+        showToast("No se pudo cerrar la sesión en el servidor.", "warning");
       }
       setUser(null);
       setView("dashboard");
@@ -166,7 +167,7 @@ function AppContent() {
         ) : (
           <UpdateBanner variant="overlay" />
         )}
-        <div className={`min-h-screen flex flex-col relative z-10${user ? " animate-pageFadeIn" : ""}`}>
+        <div className={`min-h-screen max-h-screen flex flex-col overflow-hidden relative z-10${user ? " animate-pageFadeIn" : ""}`}>
 
         {!user ? (
           <>
@@ -179,10 +180,10 @@ function AppContent() {
           </>
         ) : (
           <div
-            className="flex gap-4 flex-1 p-4 min-h-0 min-w-0"
+            className="flex gap-4 flex-1 p-4 min-h-0 min-w-0 overflow-hidden"
             style={{ transition: "opacity 0.35s ease", opacity: fadingOut ? 0 : 1 }}
           >
-            <div className="shrink-0">
+            <div className="shrink-0 min-h-0">
               <Sidebar
                 currentView={view}
                 onNavigate={setView}
@@ -195,12 +196,12 @@ function AppContent() {
               />
             </div>
 
-            <div className="flex-1 min-w-0 flex flex-col gap-0">
-              <header className="flex items-center justify-end py-2 px-1 mb-1">
+            <div className="flex-1 min-w-0 min-h-0 flex flex-col gap-0 overflow-hidden">
+              <header className="flex items-center justify-end py-2 px-1 mb-1 shrink-0">
                 <NotificationBell />
               </header>
 
-              <main className="flex-1 min-w-0">
+              <main className="flex-1 min-w-0 min-h-0 overflow-y-auto overflow-x-hidden">
                 <DbConnectionBanner />
                 <Suspense fallback={
                   <div className="flex flex-col gap-4 animate-pulse pt-2">

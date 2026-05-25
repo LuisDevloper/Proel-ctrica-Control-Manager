@@ -71,16 +71,19 @@ async function makeSidebar() {
   console.log(`✓ ${SIDEBAR}`);
 }
 
-/** Cabecera pequeña (150×57): solo franja de marca, sin logo. */
+/** Cabecera pequeña (150×57): franja de marca con logo reducido. */
 async function makeHeader() {
   const w = 150;
   const h = 57;
   const img = new Jimp({ width: w, height: h, color: 0x071018ff });
   fillGradient(img, { r: 8, g: 16, b: 26 }, { r: 12, g: 22, b: 34 });
 
+  const logo = scaleLogo(await loadLogo(), Math.round(w * 0.42), Math.round(h * 0.72));
+  compositeCenter(img, logo, Math.round((h - logo.bitmap.height) / 2));
+
   for (let x = 0; x < w; x++) {
-    setPx(img, x, 0, 47, 141, 255);
-    setPx(img, x, h - 1, 47, 141, 255, 80);
+    setPx(img, x, 0, 47, 141, 255, 120);
+    setPx(img, x, h - 1, 47, 141, 255, 60);
   }
 
   await img.write(HEADER);

@@ -5,10 +5,8 @@ export function Card({ className, children, ...props }) {
   return (
     <div
       className={cn(
-        "rounded-2xl border border-[var(--border)]",
-        "bg-gradient-to-b from-[color-mix(in_srgb,var(--panel)_92%,transparent)] to-[color-mix(in_srgb,var(--panel-deep)_95%,transparent)]",
-        "shadow-[0_8px_24px_rgba(0,0,0,0.22)] backdrop-blur-sm",
-        "transition-shadow duration-200 hover:shadow-[0_12px_28px_rgba(0,0,0,0.28)]",
+        "pcm-glass pcm-glass-hover rounded-2xl",
+        "transition-[box-shadow,transform] duration-200",
         className
       )}
       {...props}
@@ -20,7 +18,7 @@ export function Card({ className, children, ...props }) {
 
 export function CardHeader({ className, children }) {
   return (
-    <div className={cn("px-5 pt-5 pb-3 border-b border-[var(--border-soft)]", className)}>
+    <div className={cn("px-5 pt-5 pb-3 border-b pcm-glass-divider", className)}>
       {children}
     </div>
   );

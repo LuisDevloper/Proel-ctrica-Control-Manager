@@ -1,4 +1,4 @@
-import React, { useEffect, useState, lazy, Suspense, useCallback } from "react";
+import React, { useEffect, useState, lazy, Suspense } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/Card";
 import { Button } from "../components/ui/Button";
 import { Select, Field } from "../components/ui/Input";
@@ -32,12 +32,12 @@ const DASHBOARD_MONTHS = [
 
 function StatCard({ icon: Icon, label, value, color }) {
   return (
-    <Card className="hover:border-[#3a5878]">
-      <CardContent className="flex items-center gap-4 py-5">
-        <div className={`p-2.5 rounded-xl bg-white/5 ${color}`}><Icon size={22} /></div>
-        <div>
-          <p className="text-2xl font-bold text-[#eaf2fb]">{value ?? "—"}</p>
-          <p className="text-xs text-[#9ab0c7]">{label}</p>
+    <Card className="hover:border-[#3a5878] min-w-0">
+      <CardContent className="flex items-center gap-3 py-4 min-w-0">
+        <div className={`p-2.5 rounded-xl bg-white/5 shrink-0 ${color}`}><Icon size={22} /></div>
+        <div className="min-w-0 flex-1">
+          <p className="text-2xl font-bold text-[#eaf2fb] leading-none">{value ?? "—"}</p>
+          <p className="text-xs text-[#9ab0c7] mt-1 leading-snug break-words">{label}</p>
         </div>
       </CardContent>
     </Card>
@@ -55,42 +55,35 @@ export function Dashboard() {
   const [chartsLoading, setChartsLoading] = useState(false);
   const { showToast } = useToast();
 
-  const loadCharts = useCallback(async (selectedYear, selectedMonth, silent = false) => {
-    if (!silent) setChartsLoading(true);
-    try {
-      const data = await window.proelectricaApi.getDashboardCharts({
-        year: selectedYear,
-        month: selectedMonth || undefined,
-      });
-      setCharts(data);
-      if (Array.isArray(data?.availableYears) && data.availableYears.length) {
-        setAvailableYears(data.availableYears);
-      }
-    } catch {
-      showToast("No se pudieron cargar las gráficas del dashboard.", "warning");
-    } finally {
-      if (!silent) setChartsLoading(false);
-    }
-  }, [showToast]);
-
   useEffect(() => {
     let cancelled = false;
-    window.proelectricaApi.getDashboardStats()
-      .then((s) => {
-        if (!cancelled) setStats(s);
+    setLoading(true);
+    Promise.all([
+      window.proelectricaApi.getDashboardStats(),
+      window.proelectricaApi.getDashboardCharts({
+        year,
+        month: month || undefined,
+      }),
+    ])
+      .then(([s, data]) => {
+        if (cancelled) return;
+        setStats(s);
+        setCharts(data);
+        if (Array.isArray(data?.availableYears) && data.availableYears.length) {
+          setAvailableYears(data.availableYears);
+        }
       })
       .catch(() => {
         if (!cancelled) showToast("No se pudo cargar el dashboard.", "warning");
       })
       .finally(() => {
-        if (!cancelled) setLoading(false);
+        if (!cancelled) {
+          setLoading(false);
+          setChartsLoading(false);
+        }
       });
     return () => { cancelled = true; };
-  }, [showToast]);
-
-  useEffect(() => {
-    loadCharts(year, month);
-  }, [year, month, loadCharts]);
+  }, [year, month, showToast]);
 
   if (loading) {
     return (
@@ -160,7 +153,7 @@ export function Dashboard() {
         }
       />
 
-      <div className="grid grid-cols-2 xl:grid-cols-5 gap-3">
+      <div className="dashboard-stat-grid grid gap-3 grid-cols-[repeat(auto-fit,minmax(min(100%,11rem),1fr))]">
         <StatCard icon={ElectricMotorIcon} label="Motores"           value={stats?.totalMotors}       color="text-[#2f8dff]" />
         <StatCard icon={Fan}           label="Turbinas"          value={stats?.totalTurbinas}     color="text-[#c084fc]" />
         <StatCard icon={Wrench}        label="Mantenimientos"    value={stats?.totalMaintenances} color="text-[#39d48f]" />
@@ -196,10 +189,13 @@ export function Dashboard() {
 
       <Suspense
         fallback={
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 animate-pulse">
-            {[1, 2, 3].map((i) => (
-              <div key={i} className="h-64 rounded-2xl bg-white/5 border border-[#2a3d57]/50" />
-            ))}
+          <div className="flex flex-col gap-4 animate-pulse">
+            <div className="h-64 w-full rounded-2xl bg-white/5 border border-[#2a3d57]/50" />
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+              {[1, 2].map((i) => (
+                <div key={i} className="h-64 rounded-2xl bg-white/5 border border-[#2a3d57]/50" />
+              ))}
+            </div>
           </div>
         }
       >

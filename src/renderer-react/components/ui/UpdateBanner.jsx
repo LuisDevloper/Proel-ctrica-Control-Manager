@@ -114,28 +114,28 @@ export function UpdateBanner({ variant = "inline" }) {
   const configs = {
     checking: {
       icon: Loader2,
-      bg: "bg-[#0d1825]/95 border-[#2f8dff]/35 backdrop-blur-md shadow-[0_4px_24px_#00000066]",
+      bg: "border-[color-mix(in_srgb,var(--primary)_38%,var(--glass-border))]",
       text: "text-[#c5d8ef]",
       msg: "Comprobando actualizaciones…",
       showClose: false,
     },
     available: {
       icon: Download,
-      bg: "bg-[#0d1e38] border-[#2f8dff]/40",
+      bg: "border-[color-mix(in_srgb,var(--primary)_42%,var(--glass-border))]",
       text: "text-[#7ab8ff]",
       msg: `Nueva versión ${version} disponible. Descargando en segundo plano...`,
       showClose: false,
     },
     downloading: {
       icon: RefreshCw,
-      bg: "bg-[#0d1e38] border-[#2f8dff]/40",
+      bg: "border-[color-mix(in_srgb,var(--primary)_42%,var(--glass-border))]",
       text: "text-[#7ab8ff]",
       msg: `Descargando actualización... ${percent ?? 0}%`,
       showClose: false,
     },
     downloaded: {
       icon: CheckCircle,
-      bg: "bg-[#0d2517] border-[#29a16a]/40",
+      bg: "border-[color-mix(in_srgb,var(--success)_42%,var(--glass-border))]",
       text: "text-[#5edc9e]",
       msg: `Versión ${version} lista. Se instalará al cerrar la app.`,
       showClose: true,
@@ -143,7 +143,7 @@ export function UpdateBanner({ variant = "inline" }) {
     },
     error: {
       icon: X,
-      bg: "bg-[#2e1212] border-[#c94a4a]/40",
+      bg: "border-[color-mix(in_srgb,var(--danger)_42%,var(--glass-border))]",
       text: "text-[#e07070]",
       msg: `Error de actualización: ${message}`,
       showClose: true,
@@ -167,7 +167,7 @@ export function UpdateBanner({ variant = "inline" }) {
         "rounded-xl border font-medium text-xs transition-[box-shadow,background-color] duration-300",
         cfg.bg,
         cfg.text,
-        isOverlay ? "login-update-banner__panel shadow-[0_8px_32px_#00000055]" : "flex items-center gap-3 mb-3 px-4 py-2.5",
+        isOverlay ? "login-update-banner__panel pcm-glass-strong shadow-[0_8px_32px_#00000055]" : "pcm-glass flex items-center gap-3 mb-3 px-4 py-2.5",
         isOverlay && (showCompact ? "login-update-banner__panel--compact" : "login-update-banner__panel--expanded")
       )}
       role={

@@ -1,6 +1,7 @@
 function registerMaintenancesHandlers({ ipcMain, getDatabase, guards, equipment, logActivity, deleteDocumentsForEntity }) {
   const { denyIfNotAuthenticated, denyIfVisor, secureHandler } = guards;
   const { calendarMonthIsoRange } = equipment;
+  const { syncMotorStatusWithMaintenances } = require("../../../modules/equipment/status");
   const { buildUpdateDetails } = require("../../../modules/activity/changes");
   const { isRowUnchanged, normStr, normNum, normNullableId } = require("../../../modules/activity/unchanged");
 
@@ -76,6 +77,7 @@ function registerMaintenancesHandlers({ ipcMain, getDatabase, guards, equipment,
       new Date().toISOString()
     );
     const newMtn = db.prepare("SELECT id FROM maintenances ORDER BY id DESC LIMIT 1").get();
+    syncMotorStatusWithMaintenances(db, maintenance.motorId);
     logActivity(db, maintenance._username, "CREATE", "maintenances", newMtn?.id, `${maintenance.maintenanceType} — Motor #${maintenance.motorId}`);
     return { ok: true, id: newMtn?.id };
   });
@@ -124,6 +126,11 @@ function registerMaintenancesHandlers({ ipcMain, getDatabase, guards, equipment,
       Number(maintenance.id)
     );
 
+    syncMotorStatusWithMaintenances(db, before.motor_id);
+    if (after.motor_id !== before.motor_id) {
+      syncMotorStatusWithMaintenances(db, after.motor_id);
+    }
+
     logActivity(
       db,
       maintenance._username,
@@ -144,8 +151,10 @@ function registerMaintenancesHandlers({ ipcMain, getDatabase, guards, equipment,
     const denied = denyIfVisor();
     if (denied) return denied;
     const db = getDatabase();
+    const row = db.prepare("SELECT motor_id FROM maintenances WHERE id = ?").get(Number(id));
     deleteDocumentsForEntity(db, "maintenance", id);
     db.prepare("DELETE FROM maintenances WHERE id = ?").run(Number(id));
+    if (row?.motor_id) syncMotorStatusWithMaintenances(db, row.motor_id);
     logActivity(db, null, "DELETE", "maintenances", id, "");
     return { ok: true };
   });

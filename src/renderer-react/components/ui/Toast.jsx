@@ -1,79 +1,41 @@
-import React, { createContext, useContext, useState, useCallback, useRef, useEffect } from "react";
-import { cn } from "../../lib/utils";
-import { AlertTriangle, Info } from "lucide-react";
-import { SuccessCelebration } from "./SuccessCelebration";
+import React, { createContext, useContext, useState, useCallback } from "react";
+import { AlertToast } from "./AlertToast";
 
 const ToastContext = createContext(null);
 
-const CELEBRATION_MS = 2200;
-
-const icons = {
-  warning: <AlertTriangle size={16} className="text-[#e0a91f]" />,
-  info:    <Info size={16} className="text-[#5fb3ff]" />,
-};
-
-const borders = {
-  warning: "border-[#e0a91f]",
-  info:    "border-[#2f8dff]",
+const DURATIONS = {
+  success: 3400,
+  warning: 4200,
+  info: 3600,
 };
 
 export function ToastProvider({ children }) {
   const [toasts, setToasts] = useState([]);
-  const [celebration, setCelebration] = useState(null);
-  const celebrationTimerRef = useRef(null);
 
-  useEffect(() => () => {
-    if (celebrationTimerRef.current) {
-      clearTimeout(celebrationTimerRef.current);
-    }
+  const dismissToast = useCallback((id) => {
+    setToasts((prev) => prev.filter((t) => t.id !== id));
   }, []);
 
   const showToast = useCallback((message, type = "info") => {
-    if (type === "success") {
-      if (celebrationTimerRef.current) {
-        clearTimeout(celebrationTimerRef.current);
-        celebrationTimerRef.current = null;
-      }
-      const id = Date.now();
-      setCelebration({ message, id });
-      celebrationTimerRef.current = window.setTimeout(() => {
-        setCelebration((c) => (c?.id === id ? null : c));
-        celebrationTimerRef.current = null;
-      }, CELEBRATION_MS);
-      return;
-    }
-
-    const id = Date.now();
-    setToasts((prev) => [...prev, { id, message, type }]);
-    setTimeout(() => {
-      setToasts((prev) => prev.filter((t) => t.id !== id));
-    }, 2800);
+    const id = Date.now() + Math.random();
+    setToasts((prev) => [...prev.slice(-2), { id, message, type }]);
   }, []);
 
   return (
     <ToastContext.Provider value={{ showToast }}>
       {children}
-      {celebration ? (
-        <div
-          className="fixed inset-0 z-[10000] flex items-center justify-center p-4 pointer-events-auto bg-black/45 animate-celebrationBackdrop"
-        >
-          <SuccessCelebration message={celebration.message} />
-        </div>
-      ) : null}
-      <div className="fixed bottom-5 right-5 flex flex-col gap-2 z-[9999] pointer-events-none">
+      <div
+        className="fixed top-4 left-1/2 z-[10000] flex w-[min(calc(100%-1.5rem),26rem)] -translate-x-1/2 flex-col gap-2 pointer-events-none"
+        aria-label="Avisos del sistema"
+      >
         {toasts.map((toast) => (
-          <div
+          <AlertToast
             key={toast.id}
-            className={cn(
-              "flex items-center gap-3 min-w-[240px] max-w-[420px] px-4 py-3 rounded-xl border",
-              "bg-[#1b2b3f] text-[#e9eef5] text-sm shadow-xl pointer-events-auto",
-              "animate-in slide-in-from-right-4 fade-in duration-200",
-              borders[toast.type] || "border-[#355071]"
-            )}
-          >
-            {icons[toast.type] || icons.info}
-            <span className="flex-1">{toast.message}</span>
-          </div>
+            message={toast.message}
+            type={toast.type}
+            duration={DURATIONS[toast.type] || DURATIONS.info}
+            onDismiss={() => dismissToast(toast.id)}
+          />
         ))}
       </div>
     </ToastContext.Provider>

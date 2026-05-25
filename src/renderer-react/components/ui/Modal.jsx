@@ -18,13 +18,13 @@ export function Modal({ open, onClose, title, children, className }) {
       onClick={(e) => { if (e.target === e.currentTarget) onClose?.(); }}
     >
       <div className={cn(
-        "w-full max-w-md bg-gradient-to-b from-[#17273a] to-[#111d2c] border border-[#335073] rounded-2xl shadow-2xl",
+        "w-full max-w-md pcm-glass-strong rounded-2xl",
         "animate-in zoom-in-95 duration-200",
         className
       )}>
         {title && (
-          <div className="flex items-center justify-between px-5 py-4 border-b border-[#2a3d57]">
-            <h3 className="text-base font-semibold text-[#eaf2fb]">{title}</h3>
+          <div className="flex items-center justify-between px-5 py-4 border-b pcm-glass-divider">
+            <h3 className="text-base font-semibold text-[var(--text)]">{title}</h3>
             <button
               onClick={onClose}
               className="text-[#9ab0c7] hover:text-white transition-colors rounded-lg p-1 hover:bg-white/10"

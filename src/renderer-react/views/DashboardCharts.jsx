@@ -1,5 +1,6 @@
-import React from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { useTheme } from "../context/ThemeContext";
+import { cn } from "../lib/utils";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/Card";
 import { EmptyState } from "../components/ui/EmptyState";
 import {
@@ -91,21 +92,31 @@ function EquipmentStatusCenterLabel({ viewBox, total }) {
   );
 }
 
-function MotorStatusLegend({ items }) {
+function MotorStatusLegend({ items, className }) {
   return (
-    <ul className="grid grid-cols-2 lg:grid-cols-4 gap-2 mt-3 pt-3 border-t border-[var(--border-soft)] list-none m-0 p-0">
+    <ul className={cn(
+      "motor-status-legend grid grid-cols-2 gap-3 w-full list-none m-0 p-0 auto-rows-fr",
+      className
+    )}>
       {items.map(({ status, value, pct, color }) => (
-        <li key={status} className="flex flex-col items-center gap-1 text-center min-w-0 px-1">
-          <span className="flex items-center gap-1.5 w-full justify-center">
-            <span className="w-2.5 h-2.5 rounded-sm shrink-0" style={{ backgroundColor: color }} aria-hidden />
-            <span className="text-[10px] text-[var(--muted)] leading-tight truncate" title={status}>
+        <li
+          key={status}
+          className="flex flex-col justify-center gap-2 min-w-0 rounded-xl px-4 py-4 pcm-glass-subtle h-full"
+        >
+          <div className="flex items-start gap-2.5 min-w-0">
+            <span
+              className="w-3 h-3 rounded-sm shrink-0 mt-0.5"
+              style={{ backgroundColor: color }}
+              aria-hidden
+            />
+            <span className="text-sm text-[var(--muted)] leading-snug break-words flex-1 min-w-0">
               {status}
             </span>
-          </span>
-          <span className="text-xs font-semibold text-[var(--text)] tabular-nums">
+          </div>
+          <p className="text-base font-semibold text-[var(--text)] tabular-nums pl-[1.375rem]">
             {value}
-            <span className="text-[var(--faint)] font-normal"> · {pct}%</span>
-          </span>
+            <span className="text-[var(--faint)] font-normal text-sm"> · {pct}%</span>
+          </p>
         </li>
       ))}
     </ul>
@@ -168,6 +179,80 @@ function TooltipCostos({ active, payload }) {
   );
 }
 
+function useElementWidth() {
+  const ref = useRef(null);
+  const [width, setWidth] = useState(0);
+
+  useEffect(() => {
+    const node = ref.current;
+    if (!node) return undefined;
+
+    const update = () => {
+      setWidth(Math.floor(node.getBoundingClientRect().width));
+    };
+
+    update();
+    const observer = new ResizeObserver(update);
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, []);
+
+  return [ref, width];
+}
+
+function CostByMotorChart({ data, tickColor, gridColor, labelColor, domainMax, height }) {
+  const [containerRef, width] = useElementWidth();
+  const yAxisWidth = Math.max(
+    84,
+    Math.min(148, data.reduce((max, row) => Math.max(max, String(row.motor || "").length), 0) * 8 + 20)
+  );
+
+  return (
+    <div ref={containerRef} className="w-full pt-1" style={{ height }}>
+      {width > 0 && (
+        <BarChart
+          width={width}
+          height={height}
+          data={data}
+          layout="vertical"
+          margin={{ left: 12, right: 20, top: 20, bottom: 28 }}
+          barSize={22}
+          barCategoryGap="32%"
+        >
+          <CartesianGrid strokeDasharray="3 3" stroke={gridColor} horizontal={false} />
+          <XAxis
+            type="number"
+            domain={[0, domainMax]}
+            tick={{ fill: tickColor, fontSize: 10, dy: 4 }}
+            axisLine={false}
+            tickLine={false}
+            tickFormatter={v => "$" + Number(v).toLocaleString("es-CO")}
+          />
+          <YAxis
+            type="category"
+            dataKey="motor"
+            tick={{ fill: tickColor, fontSize: 11 }}
+            axisLine={false}
+            tickLine={false}
+            width={yAxisWidth}
+            tickMargin={8}
+          />
+          <Tooltip content={<TooltipCostos />} cursor={{ fill: "#ffffff06" }} />
+          <Bar dataKey="total" name="Costo" fill="#29a16a" radius={[0, 6, 6, 0]} maxBarSize={26}>
+            <LabelList
+              dataKey="total"
+              position="right"
+              offset={12}
+              formatter={v => "$" + Number(v).toLocaleString("es-CO")}
+              style={{ fill: labelColor, fontSize: 10 }}
+            />
+          </Bar>
+        </BarChart>
+      )}
+    </div>
+  );
+}
+
 /** Bloque pesado (Recharts) cargado en chunk separado desde Dashboard. */
 export function DashboardCharts({ charts, stats, periodLabel, loading = false }) {
   const { theme } = useTheme();
@@ -189,57 +274,64 @@ export function DashboardCharts({ charts, stats, periodLabel, loading = false })
   const barData  = (charts?.maintenancesByMonth || []).map(r => ({ mes: fmtMonth(r.month), mesFull: fmtMonthFull(r.month), total: r.count }));
   const lineData = (charts?.failuresByMonth || []).map(r => ({ mes: fmtMonth(r.month), mesFull: fmtMonthFull(r.month), fallas: r.count }));
   const costData = (charts?.costByMotor || []).map(r => ({ motor: r.motor, total: Number(r.total || 0) }));
+  const costMax = costData.reduce((max, row) => Math.max(max, row.total), 0);
+  const costDomainMax = costMax <= 0 ? 1 : Math.ceil(costMax * 1.28);
+  const costChartHeight = Math.max(140, costData.length * 64 + 56);
   const label = periodLabel || charts?.periodLabel || charts?.year || new Date().getFullYear();
 
   return (
-    <div className={loading ? "opacity-60 pointer-events-none transition-opacity" : "transition-opacity"}>
+    <div className={loading ? "opacity-60 pointer-events-none transition-opacity flex flex-col gap-5" : "transition-opacity flex flex-col gap-5"}>
     <>
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        <Card>
+      <Card className="w-full">
           <CardHeader><CardTitle>Estado de equipos</CardTitle></CardHeader>
           <CardContent>
             {equipmentTotal === 0
               ? <EmptyState message="No hay motores ni turbinas registrados." className="py-10" />
               : (
-                <>
-                  <ResponsiveContainer width="100%" height={200}>
-                    <PieChart>
-                      <Pie
-                        data={pieData}
-                        cx="50%"
-                        cy="50%"
-                        innerRadius={52}
-                        outerRadius={78}
-                        paddingAngle={pieData.length > 1 ? 2 : 0}
-                        dataKey="value"
-                        stroke="#0a0f14"
-                        strokeWidth={2}
-                      >
-                        {pieData.map((entry, i) => (
-                          <Cell key={i} fill={EQUIPMENT_COLORS[entry.name] || "#4a6a8a"} />
-                        ))}
-                        <Label content={(props) => <EquipmentStatusCenterLabel {...props} total={equipmentTotal} />} position="center" />
-                      </Pie>
-                      <Tooltip content={<TooltipEquipmentStatus />} />
-                    </PieChart>
-                  </ResponsiveContainer>
-                  <p className="text-center text-[11px] text-[var(--muted)] -mt-1 mb-1">
-                    Motores: {motorTotal} · Turbinas: {turbinaTotal}
-                  </p>
-                  <MotorStatusLegend items={equipmentLegend} />
-                </>
+                <div className="flex flex-col lg:flex-row lg:items-stretch gap-6 lg:gap-8">
+                  <div className="shrink-0 w-full max-w-[260px] mx-auto lg:mx-0 lg:self-center">
+                    <ResponsiveContainer width="100%" height={220}>
+                      <PieChart>
+                        <Pie
+                          data={pieData}
+                          cx="50%"
+                          cy="50%"
+                          innerRadius={58}
+                          outerRadius={92}
+                          paddingAngle={pieData.length > 1 ? 2 : 0}
+                          dataKey="value"
+                          stroke="#0a0f14"
+                          strokeWidth={2}
+                        >
+                          {pieData.map((entry, i) => (
+                            <Cell key={i} fill={EQUIPMENT_COLORS[entry.name] || "#4a6a8a"} />
+                          ))}
+                          <Label content={(props) => <EquipmentStatusCenterLabel {...props} total={equipmentTotal} />} position="center" />
+                        </Pie>
+                        <Tooltip content={<TooltipEquipmentStatus />} />
+                      </PieChart>
+                    </ResponsiveContainer>
+                    <p className="text-center text-[11px] text-[var(--muted)] mt-2">
+                      Motores: {motorTotal} · Turbinas: {turbinaTotal}
+                    </p>
+                  </div>
+                  <div className="flex-1 min-w-0 w-full flex">
+                    <MotorStatusLegend items={equipmentLegend} className="flex-1" />
+                  </div>
+                </div>
               )
             }
           </CardContent>
         </Card>
 
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
         <Card>
           <CardHeader><CardTitle>Mantenimientos por mes ({label})</CardTitle></CardHeader>
           <CardContent>
             {barData.every((row) => row.total === 0)
               ? <p className="text-sm text-[#9ab0c7]">Sin mantenimientos registrados en {label}.</p>
               : <ResponsiveContainer width="100%" height={220}>
-                  <BarChart data={barData} barSize={22}>
+                  <BarChart data={barData} barSize={22} margin={{ top: 8, right: 8, left: 0, bottom: 4 }}>
                     <CartesianGrid strokeDasharray="3 3" stroke={gridColor} vertical={false} />
                     <XAxis dataKey="mes" tick={{ fill: tickColor, fontSize: 11 }} axisLine={false} tickLine={false} />
                     <YAxis allowDecimals={false} tick={{ fill: tickColor, fontSize: 11 }} axisLine={false} tickLine={false} width={28} />
@@ -257,7 +349,7 @@ export function DashboardCharts({ charts, stats, periodLabel, loading = false })
             {lineData.every((row) => row.fallas === 0)
               ? <p className="text-sm text-[#9ab0c7]">Sin fallas registradas en {label}.</p>
               : <ResponsiveContainer width="100%" height={220}>
-                  <AreaChart data={lineData}>
+                  <AreaChart data={lineData} margin={{ top: 8, right: 8, left: 0, bottom: 4 }}>
                     <defs>
                       <linearGradient id="fallaGrad" x1="0" y1="0" x2="0" y2="1">
                         <stop offset="5%"  stopColor="#e0a91f" stopOpacity={0.3} />
@@ -279,28 +371,15 @@ export function DashboardCharts({ charts, stats, periodLabel, loading = false })
       {costData.length > 0 && (
         <Card>
           <CardHeader><CardTitle>Costo acumulado por motor ({label})</CardTitle></CardHeader>
-          <CardContent>
-            <ResponsiveContainer width="100%" height={Math.max(80, costData.length * 48 + 40)}>
-              <BarChart data={costData} layout="vertical" margin={{ left: 0, right: 80, top: 4, bottom: 4 }} barSize={22}>
-                <CartesianGrid strokeDasharray="3 3" stroke={gridColor} horizontal={false} />
-                <XAxis
-                  type="number"
-                  tick={{ fill: tickColor, fontSize: 10 }}
-                  axisLine={false} tickLine={false}
-                  tickFormatter={v => "$" + Number(v).toLocaleString("es-CO")}
-                />
-                <YAxis type="category" dataKey="motor" tick={{ fill: tickColor, fontSize: 11 }} axisLine={false} tickLine={false} width={65} />
-                <Tooltip content={<TooltipCostos />} cursor={{ fill: "#ffffff06" }} />
-                <Bar dataKey="total" name="Costo" fill="#29a16a" radius={[0,6,6,0]} maxBarSize={26}>
-                  <LabelList
-                    dataKey="total"
-                    position="right"
-                    formatter={v => "$" + Number(v).toLocaleString("es-CO")}
-                    style={{ fill: labelColor, fontSize: 10 }}
-                  />
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
+          <CardContent className="pb-5 pt-2">
+            <CostByMotorChart
+              data={costData}
+              tickColor={tickColor}
+              gridColor={gridColor}
+              labelColor={labelColor}
+              domainMax={costDomainMax}
+              height={costChartHeight}
+            />
           </CardContent>
         </Card>
       )}

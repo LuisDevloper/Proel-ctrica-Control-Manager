@@ -28,7 +28,7 @@ function LogoutModal({ open, onConfirm, onCancel }) {
         onClick={onCancel}
       />
       {/* Tarjeta con slide-up */}
-      <div className="relative z-10 bg-[#111d2c] border border-[#2a3d57] rounded-2xl shadow-2xl p-6 w-80 animate-slideUp">
+      <div className="relative z-10 pcm-glass-strong rounded-2xl p-6 w-80 animate-slideUp">
         {/* Icono */}
         <div className="flex justify-center mb-4">
           <div className="w-14 h-14 rounded-full bg-[#2e1212]/80 border border-[#e07070]/30 flex items-center justify-center">
@@ -85,10 +85,9 @@ export function Sidebar({ currentView, onNavigate, user, onLogout, collapsed, on
       onConfirm={() => { setShowLogoutModal(false); onLogout(); }}
     />
     <aside className={cn(
-      "flex flex-col gap-3 h-[calc(100vh-48px)] sticky top-6",
-      "bg-gradient-to-b from-[#122033ee] to-[#101926ee] border border-[#2a3d57]",
-      "rounded-2xl shadow-xl backdrop-blur-sm transition-all duration-300",
-      collapsed ? "w-[64px] px-2 py-3" : "w-[260px] px-4 py-4"
+      "app-sidebar pcm-glass-strong flex flex-col gap-3 min-h-0 max-h-[calc(100dvh-3rem)] sticky top-6 overflow-hidden",
+      "rounded-2xl transition-all duration-300",
+      collapsed ? "w-[4rem] min-w-[4rem] px-2 py-3" : "w-[var(--sidebar-width)] min-w-[var(--sidebar-width)] px-4 py-4"
     )}>
 
       <div className={cn("flex items-center", collapsed ? "justify-center" : "justify-between")}>
@@ -103,11 +102,11 @@ export function Sidebar({ currentView, onNavigate, user, onLogout, collapsed, on
       </div>
 
       {!collapsed && (
-        <div className="pb-3 border-b border-[#2a3d57]">
+        <div className="pb-3 border-b pcm-glass-divider shrink-0">
           <AppLogo size="md" className="mb-2" />
           <BrandMark size="sm" variant="compact" titleAs="h2" className="text-left" />
           {user && (
-            <p className="text-xs text-[#9ab0c7] mt-2 pt-2 border-t border-[#2a3d57]">
+            <p className="text-xs text-[#9ab0c7] mt-2 pt-2 border-t pcm-glass-divider">
               {user.username}
               <span className="ml-1 text-[#5fb3ff]">({user.role})</span>
             </p>
@@ -115,7 +114,7 @@ export function Sidebar({ currentView, onNavigate, user, onLogout, collapsed, on
         </div>
       )}
 
-      <nav className="flex flex-col gap-1 flex-1 overflow-y-auto">
+      <nav className="flex flex-col gap-1 flex-1 min-h-0 overflow-y-auto overscroll-contain pr-0.5">
         {NAV_ITEMS.filter(item => !item.adminOnly || user?.role === "ADMIN").map(({ view, label, icon: Icon }) => {
           const active = currentView === view;
           return (
@@ -124,22 +123,22 @@ export function Sidebar({ currentView, onNavigate, user, onLogout, collapsed, on
               onClick={() => onNavigate(view)}
               title={collapsed ? label : undefined}
               className={cn(
-                "flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-150 text-left w-full border-none cursor-pointer",
+                "flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-150 text-left w-full border-none cursor-pointer shrink-0",
                 active
-                  ? "bg-gradient-to-r from-[#2b75cf] to-[#1f58a8] text-white shadow-lg shadow-blue-900/30"
+                  ? "pcm-glass-accent text-white"
                   : "text-[#9ab0c7] hover:text-[#eaf2fb] hover:bg-white/5",
                 collapsed && "justify-center px-2"
               )}
             >
               <Icon size={17} className="shrink-0" />
-              {!collapsed && <span>{label}</span>}
+              {!collapsed && <span className="min-w-0 leading-snug break-words">{label}</span>}
             </button>
           );
         })}
       </nav>
 
       {/* Toggle de tema */}
-      <div className={cn("pb-1", collapsed && "flex justify-center")}>
+      <div className={cn("pb-1 shrink-0", collapsed && "flex justify-center")}>
         <button
           onClick={onThemeToggle}
           title={theme === "light" ? "Cambiar a modo oscuro" : "Cambiar a modo claro"}
@@ -150,21 +149,21 @@ export function Sidebar({ currentView, onNavigate, user, onLogout, collapsed, on
           )}
         >
           {theme === "light" ? <Moon size={17} className="shrink-0"/> : <Sun size={17} className="shrink-0"/>}
-          {!collapsed && <span>{theme === "light" ? "Modo oscuro" : "Modo claro"}</span>}
+          {!collapsed && <span className="min-w-0 leading-snug break-words">{theme === "light" ? "Modo oscuro" : "Modo claro"}</span>}
         </button>
       </div>
 
       {/* Indicador BD */}
-      <div className={cn("border-t border-[#2a3d57] pt-3", collapsed && "flex justify-center")}>
+      <div className={cn("border-t pcm-glass-divider pt-3 shrink-0", collapsed && "flex justify-center")}>
         {!collapsed && (
-          <div className="flex items-center gap-2 px-3 py-1.5 mb-2 rounded-lg bg-[#0a141e]">
+          <div className="flex items-center gap-2 px-3 py-1.5 mb-2 rounded-lg pcm-glass-subtle">
             <span className={cn(
               "w-2 h-2 rounded-full shrink-0",
               dbStatus === null  && "bg-[#9ab0c7] animate-pulse",
               dbStatus === true  && "bg-[#39d48f]",
               dbStatus === false && "bg-[#e07070] animate-pulse"
             )} />
-            <span className="text-[11px] text-[#9ab0c7]">
+            <span className="text-[11px] text-[#9ab0c7] leading-snug break-words">
               {dbStatus === null  ? "Verificando BD..." :
                dbStatus === true  ? "Base de datos OK" :
                "Error de conexion"}
@@ -183,7 +182,7 @@ export function Sidebar({ currentView, onNavigate, user, onLogout, collapsed, on
         )}
       </div>
 
-      <div className="border-t border-[#2a3d57] pt-3">
+      <div className="border-t pcm-glass-divider pt-3 shrink-0">
         <button
           onClick={() => setShowLogoutModal(true)}
           title={collapsed ? "Cerrar sesion" : undefined}
@@ -194,7 +193,7 @@ export function Sidebar({ currentView, onNavigate, user, onLogout, collapsed, on
           )}
         >
           <LogOut size={17} className="shrink-0" />
-          {!collapsed && <span>Cerrar sesion</span>}
+          {!collapsed && <span className="min-w-0 leading-snug break-words">Cerrar sesion</span>}
         </button>
       </div>
     </aside>
