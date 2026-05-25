@@ -6,6 +6,17 @@ import semver from "semver";
  */
 export const CHANGELOG = [
   {
+    version: "1.4.1",
+    date: "2026-05-21",
+    title: "Login, marca y pantalla de inicio",
+    highlights: [
+      "Tipografia corporativa Proélectrica / Control Manager (Plus Jakarta Sans)",
+      "Fondo de login a pantalla completa sin cuadricula visible arriba",
+      "Banner de comprobacion de actualizaciones visible en el login",
+      "Marca unificada en splash, login y barra lateral",
+    ],
+  },
+  {
     version: "1.4.0",
     date: "2026-05-21",
     title: "Auditoria, reportes y mejoras operativas",
