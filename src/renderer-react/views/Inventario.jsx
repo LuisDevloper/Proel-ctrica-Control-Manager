@@ -11,6 +11,7 @@ import { useFilters } from "../hooks/useFilters";
 import { xlsxExport } from "../lib/excelExport";
 import { useToast } from "../components/ui/Toast";
 import { useAsync } from "../hooks/useAsync";
+import { useInlineEdit } from "../hooks/useInlineEdit";
 import { Pencil, Trash2, Plus, X, Check, Package, FileText, ArrowDownCircle, ArrowUpCircle, History } from "lucide-react";
 import { exportInventoryPDF } from "../lib/pdfReport";
 import { useDbHealth } from "../context/DbHealthContext";
@@ -47,6 +48,17 @@ const itemFilterFn = (item, query) => {
   const hay = `${item.part_name || ""} ${item.sku || ""} ${item.location || ""}`.toLowerCase();
   return !query || hay.includes(query.toLowerCase());
 };
+
+const INVENTORY_EDIT_FIELDS = ["partName", "sku", "minStock", "location"];
+
+function inventoryEditSnapshot(item) {
+  return {
+    partName: item.part_name,
+    sku: item.sku || "",
+    minStock: item.min_stock,
+    location: item.location || "",
+  };
+}
 
 const movementFilterFn = (item, query, _status, typeFilter) => {
   const hay = `${item.partName || ""} ${item.referenceLabel || ""} ${item.notes || ""}`.toLowerCase();
@@ -85,8 +97,7 @@ export function Inventario({ user }) {
   const [movements, setMovements] = useState([]);
   const [maintenances, setMaintenances] = useState([]);
   const [shipments, setShipments] = useState([]);
-  const [editId, setEditId] = useState(null);
-  const [editData, setEditData] = useState({});
+  const { editId, editData, setEditData, openEdit, closeEdit, isEditUnchanged, guardEditSave } = useInlineEdit();
   const [deleteId, setDeleteId] = useState(null);
   const [form, setForm] = useState({ partName: "", sku: "", quantity: "", minStock: "", location: "" });
   const [movForm, setMovForm] = useState({
@@ -171,6 +182,7 @@ export function Inventario({ user }) {
   }
 
   async function handleUpdate() {
+    if (!guardEditSave(INVENTORY_EDIT_FIELDS, showToast)) return;
     const { ok } = await run(
       () => window.proelectricaApi.updateInventoryItem({
         id: editId,
@@ -182,7 +194,7 @@ export function Inventario({ user }) {
       }),
       "Repuesto actualizado."
     );
-    if (ok) { setEditId(null); load(); }
+    if (ok) { closeEdit(); load(); }
   }
 
   async function handleDelete() {
@@ -295,7 +307,7 @@ export function Inventario({ user }) {
                               <Button variant="ghost" size="icon" title="Registrar salida" onClick={() => quickMovement(item, "salida")} disabled={formDisabled}>
                                 <ArrowUpCircle size={14} className="text-[#e07070]" />
                               </Button>
-                              <Button variant="ghost" size="icon" onClick={() => { setEditId(item.id); setEditData({ partName: item.part_name, sku: item.sku || "", minStock: item.min_stock, location: item.location || "" }); }} disabled={formDisabled} title={mutBlockTitle}>
+                              <Button variant="ghost" size="icon" onClick={() => openEdit(item.id, inventoryEditSnapshot(item))} disabled={formDisabled} title={mutBlockTitle}>
                                 <Pencil size={13}/>
                               </Button>
                               <Button variant="ghost" size="icon" className="hover:text-[#e07070]" onClick={() => setDeleteId(item.id)} disabled={formDisabled} title={mutBlockTitle}>
@@ -315,8 +327,8 @@ export function Inventario({ user }) {
                                 <Field label="Stock actual"><Input disabled value={item.quantity} title="Use movimientos para cambiar el stock"/></Field>
                               </div>
                               <div className="flex gap-2 mt-2">
-                                <Button size="sm" onClick={handleUpdate} disabled={formDisabled} title={mutBlockTitle}><Check size={13} className="mr-1"/>Guardar</Button>
-                                <Button size="sm" variant="secondary" onClick={() => setEditId(null)}><X size={13} className="mr-1"/>Cancelar</Button>
+                                <Button size="sm" onClick={handleUpdate} disabled={formDisabled || isEditUnchanged(INVENTORY_EDIT_FIELDS)} title={isEditUnchanged(INVENTORY_EDIT_FIELDS) ? "No hay cambios para guardar" : mutBlockTitle}><Check size={13} className="mr-1"/>Guardar</Button>
+                                <Button size="sm" variant="secondary" onClick={closeEdit}><X size={13} className="mr-1"/>Cancelar</Button>
                               </div>
                             </Td>
                           </Tr>

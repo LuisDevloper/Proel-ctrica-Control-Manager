@@ -2,6 +2,7 @@ function registerTurbinasHandlers({ ipcMain, getDatabase, guards, equipment, log
   const { denyIfNotAuthenticated, denyIfVisor, secureHandler } = guards;
   const { canonicalMotorStatus, canonicalOperationalLocation } = equipment;
   const { buildUpdateDetails } = require("../../../modules/activity/changes");
+  const { isRowUnchanged, normStr, normNullableId } = require("../../../modules/activity/unchanged");
 
   const TURBINE_UPDATE_FIELDS = [
     ["code", "Codigo"],
@@ -97,34 +98,6 @@ function registerTurbinasHandlers({ ipcMain, getDatabase, guards, equipment, log
     const status = canonicalMotorStatus(turbine.status).status;
     const motorId = turbine.motorId || turbine.motor_id ? Number(turbine.motorId || turbine.motor_id) : null;
 
-    try {
-      db.prepare(`
-        UPDATE turbinas
-        SET code = ?, gg = ?, pt = ?, bearing_1 = ?, bearing_2 = ?,
-            runtime_retiro = ?, comentarios_retiro = ?,
-            operational_location = ?, status = ?, motor_id = ?, notes = ?
-        WHERE id = ?
-      `).run(
-        turbine.code,
-        turbine.gg || "",
-        turbine.pt || "",
-        turbine.bearing1 || turbine.bearing_1 || "",
-        turbine.bearing2 || turbine.bearing_2 || "",
-        turbine.runtimeRetiro || turbine.runtime_retiro || "",
-        turbine.comentariosRetiro || turbine.comentarios_retiro || "",
-        operationalLocation,
-        status,
-        motorId,
-        turbine.notes || "",
-        Number(turbine.id)
-      );
-    } catch (e) {
-      if (String(e.message || "").includes("UNIQUE")) {
-        return { ok: false, message: "Ya existe otra turbina con ese codigo." };
-      }
-      throw e;
-    }
-
     const after = {
       code: turbine.code,
       gg: turbine.gg || "",
@@ -138,6 +111,50 @@ function registerTurbinasHandlers({ ipcMain, getDatabase, guards, equipment, log
       motor_id: motorId,
       notes: turbine.notes || "",
     };
+
+    if (isRowUnchanged(before, after, [
+      { beforeKey: "code", normalize: normStr },
+      { beforeKey: "gg", normalize: normStr },
+      { beforeKey: "pt", normalize: normStr },
+      { beforeKey: "bearing_1", normalize: normStr },
+      { beforeKey: "bearing_2", normalize: normStr },
+      { beforeKey: "runtime_retiro", normalize: normStr },
+      { beforeKey: "comentarios_retiro", normalize: normStr },
+      { beforeKey: "operational_location", normalize: normStr },
+      { beforeKey: "status", normalize: normStr },
+      { beforeKey: "motor_id", normalize: normNullableId },
+      { beforeKey: "notes", normalize: normStr },
+    ])) {
+      return { ok: true, unchanged: true };
+    }
+
+    try {
+      db.prepare(`
+        UPDATE turbinas
+        SET code = ?, gg = ?, pt = ?, bearing_1 = ?, bearing_2 = ?,
+            runtime_retiro = ?, comentarios_retiro = ?,
+            operational_location = ?, status = ?, motor_id = ?, notes = ?
+        WHERE id = ?
+      `).run(
+        after.code,
+        after.gg,
+        after.pt,
+        after.bearing_1,
+        after.bearing_2,
+        after.runtime_retiro,
+        after.comentarios_retiro,
+        after.operational_location,
+        after.status,
+        after.motor_id,
+        after.notes,
+        Number(turbine.id)
+      );
+    } catch (e) {
+      if (String(e.message || "").includes("UNIQUE")) {
+        return { ok: false, message: "Ya existe otra turbina con ese codigo." };
+      }
+      throw e;
+    }
 
     logActivity(
       db,

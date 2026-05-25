@@ -22,6 +22,7 @@ const EXCEL_COLS = [
 ];
 import { useToast } from "../components/ui/Toast";
 import { useAsync } from "../hooks/useAsync";
+import { useInlineEdit } from "../hooks/useInlineEdit";
 import { exportMaintenancesPDF } from "../lib/pdfReport";
 import { CurrencyInput } from "../components/ui/CurrencyInput";
 import { Plus, Pencil, Trash2, X, Check, FileText, CheckCircle2, Wrench, Paperclip } from "lucide-react";
@@ -37,6 +38,22 @@ const filterFn = (item, query, status) => {
   return (!query || hay.includes(query.toLowerCase())) && (!status || item.maintenance_type === status);
 };
 
+const MAINTENANCE_EDIT_FIELDS = [
+  "maintenanceType", "maintenanceDate", "description", "cost", "status", "motorId", "technicianId",
+];
+
+function maintenanceEditSnapshot(item, motors, technicians) {
+  return {
+    maintenanceType: item.maintenance_type,
+    maintenanceDate: item.maintenance_date || "",
+    description: item.description || "",
+    cost: item.cost || 0,
+    status: item.status || "Pendiente",
+    motorId: motors.find((m) => m.code === item.motor_code)?.id || "",
+    technicianId: technicians.find((t) => t.full_name === item.technician_name)?.id || "",
+  };
+}
+
 const fmtCost = (v) => {
   if (!v && v !== 0) return "$0";
   return "$" + Number(v).toLocaleString("es-CO");
@@ -50,8 +67,7 @@ export function Mantenimientos({ user }) {
   const [items, setItems]         = useState([]);
   const [motors, setMotors]       = useState([]);
   const [technicians, setTechs]   = useState([]);
-  const [editId, setEditId]       = useState(null);
-  const [editData, setEditData]   = useState({});
+  const { editId, editData, setEditData, openEdit, closeEdit, isEditUnchanged, guardEditSave } = useInlineEdit();
   const [deleteId, setDeleteId]   = useState(null);
   const [docsTarget, setDocsTarget] = useState(null);
   const [form, setForm]           = useState({ motorId:"", technicianId:"", maintenanceType:"Preventivo", maintenanceDate:"", description:"", cost:"" });
@@ -145,8 +161,9 @@ export function Mantenimientos({ user }) {
   }
 
   async function handleUpdate() {
+    if (!guardEditSave(MAINTENANCE_EDIT_FIELDS, showToast)) return;
     const { ok } = await run(() => window.proelectricaApi.updateMaintenance({ id: editId, ...editData, _username: user?.username }), "Mantenimiento actualizado.");
-    if (ok) { setEditId(null); load(); }
+    if (ok) { closeEdit(); load(); }
   }
 
   async function handleDelete() {
@@ -298,7 +315,7 @@ export function Mantenimientos({ user }) {
                                 <CheckCircle2 size={14}/>
                               </Button>
                             )}
-                            <Button variant="ghost" size="icon" onClick={()=>{setEditId(item.id);setEditData({maintenanceType:item.maintenance_type,maintenanceDate:item.maintenance_date||"",description:item.description||"",cost:item.cost||0,status:item.status||"Pendiente",motorId:motors.find(m=>m.code===item.motor_code)?.id||"",technicianId:technicians.find(t=>t.full_name===item.technician_name)?.id||""})}} disabled={formDisabled} title={mutBlockTitle}><Pencil size={13}/></Button>
+                            <Button variant="ghost" size="icon" onClick={() => openEdit(item.id, maintenanceEditSnapshot(item, motors, technicians))} disabled={formDisabled} title={mutBlockTitle}><Pencil size={13}/></Button>
                             <Button variant="ghost" size="icon" className="hover:text-[#e07070]" onClick={()=>setDeleteId(item.id)} disabled={formDisabled} title={mutBlockTitle}><Trash2 size={13}/></Button>
                           </div>
                         </Td>
@@ -320,8 +337,8 @@ export function Mantenimientos({ user }) {
                               <Field label="Descripcion" className="col-span-2"><Textarea disabled={formDisabled} value={editData.description} onChange={(e)=>setEditData({...editData,description:e.target.value})}/></Field>
                             </div>
                             <div className="flex gap-2 mt-2">
-                              <Button size="sm" onClick={handleUpdate} disabled={formDisabled} title={mutBlockTitle}><Check size={13} className="mr-1"/>Guardar</Button>
-                              <Button size="sm" variant="secondary" onClick={()=>setEditId(null)}><X size={13} className="mr-1"/>Cancelar</Button>
+                              <Button size="sm" onClick={handleUpdate} disabled={formDisabled || isEditUnchanged(MAINTENANCE_EDIT_FIELDS)} title={isEditUnchanged(MAINTENANCE_EDIT_FIELDS) ? "No hay cambios para guardar" : mutBlockTitle}><Check size={13} className="mr-1"/>Guardar</Button>
+                              <Button size="sm" variant="secondary" onClick={closeEdit}><X size={13} className="mr-1"/>Cancelar</Button>
                             </div>
                           </Td>
                         </Tr>

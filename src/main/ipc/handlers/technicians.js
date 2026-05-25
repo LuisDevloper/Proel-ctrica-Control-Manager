@@ -1,6 +1,7 @@
 function registerTechniciansHandlers({ ipcMain, getDatabase, guards, logActivity }) {
   const { denyIfNotAuthenticated, denyIfVisor, secureHandler } = guards;
   const { buildUpdateDetails } = require("../../../modules/activity/changes");
+  const { isRowUnchanged, normStr } = require("../../../modules/activity/unchanged");
 
   const TECHNICIAN_UPDATE_FIELDS = [
     ["full_name", "Nombre"],
@@ -43,6 +44,15 @@ function registerTechniciansHandlers({ ipcMain, getDatabase, guards, logActivity
       email: technician.email || "",
       specialty: technician.specialty || "",
     };
+
+    if (isRowUnchanged(before, after, [
+      { beforeKey: "full_name", normalize: normStr },
+      { beforeKey: "phone", normalize: normStr },
+      { beforeKey: "email", normalize: normStr },
+      { beforeKey: "specialty", normalize: normStr },
+    ])) {
+      return { ok: true, unchanged: true };
+    }
 
     db.prepare(`
       UPDATE technicians

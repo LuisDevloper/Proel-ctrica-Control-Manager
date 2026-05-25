@@ -28,6 +28,7 @@ import { Plus, Pencil, Trash2, X, Check, FileText, CheckCircle2, AlertTriangle }
 import { Input as InputComp, Field as FieldComp } from "../components/ui/Input";
 import { useDbHealth } from "../context/DbHealthContext";
 import { canMutateRecords, READ_ONLY_ROLE_TITLE } from "../lib/permissions";
+import { editFormUnchanged } from "../lib/utils";
 import { PageHeader } from "../components/ui/PageHeader";
 import { ReadOnlyBanner } from "../components/ui/ReadOnlyBanner";
 import { EmptyState } from "../components/ui/EmptyState";
@@ -36,6 +37,24 @@ const filterFn = (item, query, status) => {
   const hay = `${item.failure_type||""} ${item.motor_code||""}`.toLowerCase();
   return (!query || hay.includes(query.toLowerCase())) && (!status || item.status === status);
 };
+
+const FAILURE_EDIT_FIELDS = [
+  "motorId", "technicianId", "failureType", "priority", "status", "reportedAt", "solution",
+];
+
+function failureEditSnapshot(item, motors, technicians) {
+  return {
+    motorId: String(item.motor_id || motors.find((m) => m.code === item.motor_code)?.id || ""),
+    technicianId: String(
+      item.technician_id ?? technicians.find((t) => t.full_name === item.technician_name)?.id ?? ""
+    ),
+    failureType: item.failure_type || "",
+    priority: item.priority,
+    status: item.status,
+    reportedAt: item.reported_at || "",
+    solution: item.solution || "",
+  };
+}
 
 function ResolveModal({ open, failure, motors, technicians, onClose, onConfirm, confirmDisabled, disableTitle }) {
   const today = new Date().toISOString().split("T")[0];
@@ -132,6 +151,7 @@ export function Fallas({ user }) {
   const [technicians, setTechs]   = useState([]);
   const [editId, setEditId]       = useState(null);
   const [editData, setEditData]   = useState({});
+  const [editOriginal, setEditOriginal] = useState(null);
   const [deleteId, setDeleteId]   = useState(null);
   const [resolveItem, setResolveItem] = useState(null);
   const [form, setForm]           = useState({ motorId:"", technicianId:"", failureType:"", priority:"Alta", status:"Pendiente", reportedAt:"", solution:"" });
@@ -151,6 +171,23 @@ export function Fallas({ user }) {
 
   useEffect(() => { load(); }, [load]);
 
+  function openEdit(item) {
+    const snapshot = failureEditSnapshot(item, motors, technicians);
+    setEditId(item.id);
+    setEditData(snapshot);
+    setEditOriginal(snapshot);
+  }
+
+  function closeEdit() {
+    setEditId(null);
+    setEditData({});
+    setEditOriginal(null);
+  }
+
+  const editUnchanged = editOriginal
+    ? editFormUnchanged(editOriginal, editData, FAILURE_EDIT_FIELDS)
+    : true;
+
   async function handleSave() {
     if (!form.motorId || !form.failureType || !form.reportedAt) { showToast("Motor, tipo y fecha son obligatorios.", "warning"); return; }
     const { ok } = await run(() => window.proelectricaApi.createFailure({ ...form, _username: user?.username }), "Falla registrada.");
@@ -158,8 +195,15 @@ export function Fallas({ user }) {
   }
 
   async function handleUpdate() {
+    if (editFormUnchanged(editOriginal, editData, FAILURE_EDIT_FIELDS)) {
+      showToast("No hay cambios para guardar.", "info");
+      return;
+    }
     const { ok } = await run(() => window.proelectricaApi.updateFailure({ id: editId, ...editData, _username: user?.username }), "Falla actualizada.");
-    if (ok) { setEditId(null); load(); }
+    if (ok) {
+      closeEdit();
+      load();
+    }
   }
 
   async function handleDelete() {
@@ -265,7 +309,7 @@ export function Fallas({ user }) {
                                 <CheckCircle2 size={14}/>
                               </Button>
                             )}
-                            <Button variant="ghost" size="icon" onClick={()=>{setEditId(item.id);setEditData({failureType:item.failure_type||"",priority:item.priority,status:item.status,reportedAt:item.reported_at||"",solution:item.solution||"",motorId:motors.find(m=>m.code===item.motor_code)?.id||"",technicianId:technicians.find(t=>t.full_name===item.technician_name)?.id||""})}} disabled={formDisabled} title={mutBlockTitle}><Pencil size={13}/></Button>
+                            <Button variant="ghost" size="icon" onClick={() => openEdit(item)} disabled={formDisabled} title={mutBlockTitle}><Pencil size={13}/></Button>
                             <Button variant="ghost" size="icon" className="hover:text-[#e07070]" onClick={()=>setDeleteId(item.id)} disabled={formDisabled} title={mutBlockTitle}><Trash2 size={13}/></Button>
                           </div>
                         </Td>
@@ -274,6 +318,18 @@ export function Fallas({ user }) {
                         <Tr className="bg-[#0d1e30]">
                           <Td colSpan={7}>
                             <div className="grid grid-cols-2 gap-3 py-1">
+                              <Field label="Motor">
+                                <Select disabled={formDisabled} value={editData.motorId} onChange={(e)=>setEditData({...editData,motorId:e.target.value})}>
+                                  <option value="">Seleccionar motor</option>
+                                  {motors.map(m=><option key={m.id} value={m.id}>{m.code}</option>)}
+                                </Select>
+                              </Field>
+                              <Field label="Tecnico">
+                                <Select disabled={formDisabled} value={editData.technicianId} onChange={(e)=>setEditData({...editData,technicianId:e.target.value})}>
+                                  <option value="">Sin asignar</option>
+                                  {technicians.map(t=><option key={t.id} value={t.id}>{t.full_name}</option>)}
+                                </Select>
+                              </Field>
                               <Field label="Tipo"><Input disabled={formDisabled} value={editData.failureType} onChange={(e)=>setEditData({...editData,failureType:e.target.value})}/></Field>
                               <Field label="Fecha"><Input disabled={formDisabled} type="date" value={editData.reportedAt} onChange={(e)=>setEditData({...editData,reportedAt:e.target.value})}/></Field>
                               <Field label="Prioridad"><Select disabled={formDisabled} value={editData.priority} onChange={(e)=>setEditData({...editData,priority:e.target.value})}><option>Alta</option><option>Media</option><option>Baja</option></Select></Field>
@@ -281,8 +337,8 @@ export function Fallas({ user }) {
                               <Field label="Solucion" className="col-span-2"><Textarea disabled={formDisabled} value={editData.solution} onChange={(e)=>setEditData({...editData,solution:e.target.value})}/></Field>
                             </div>
                             <div className="flex gap-2 mt-2">
-                              <Button size="sm" onClick={handleUpdate} disabled={formDisabled} title={mutBlockTitle}><Check size={13} className="mr-1"/>Guardar</Button>
-                              <Button size="sm" variant="secondary" onClick={()=>setEditId(null)}><X size={13} className="mr-1"/>Cancelar</Button>
+                              <Button size="sm" onClick={handleUpdate} disabled={formDisabled || editUnchanged} title={editUnchanged ? "No hay cambios para guardar" : mutBlockTitle}><Check size={13} className="mr-1"/>Guardar</Button>
+                              <Button size="sm" variant="secondary" onClick={closeEdit}><X size={13} className="mr-1"/>Cancelar</Button>
                             </div>
                           </Td>
                         </Tr>

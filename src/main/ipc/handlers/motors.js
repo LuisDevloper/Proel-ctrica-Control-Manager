@@ -2,6 +2,7 @@ function registerMotorsHandlers({ ipcMain, getDatabase, guards, equipment, logAc
   const { denyIfNotAuthenticated, denyIfVisor, secureHandler } = guards;
   const { canonicalMotorStatus, canonicalOperationalLocation } = equipment;
   const { buildUpdateDetails } = require("../../../modules/activity/changes");
+  const { isRowUnchanged, normStr, normNum, normNullableId } = require("../../../modules/activity/unchanged");
 
   const MOTOR_UPDATE_FIELDS = [
     ["code", "Codigo"],
@@ -97,28 +98,6 @@ function registerMotorsHandlers({ ipcMain, getDatabase, guards, equipment, logAc
     const status = canonicalMotorStatus(motor.status).status;
     const photo = motor.photo !== undefined ? motor.photo : before.photo;
 
-    db.prepare(`
-      UPDATE motors
-      SET code = ?, brand = ?, model = ?, serial_number = ?, power = ?, voltage = ?, rpm = ?,
-          location = ?, operational_location = ?, status = ?, installed_at = ?, notes = ?, photo = ?
-      WHERE id = ?
-    `).run(
-      motor.code,
-      motor.brand,
-      motor.model || "",
-      motor.serial_number || "",
-      motor.power || null,
-      motor.voltage || null,
-      motor.rpm || null,
-      motor.location || "",
-      operationalLocation,
-      status,
-      motor.installed_at || null,
-      motor.notes || "",
-      photo,
-      Number(motor.id)
-    );
-
     const after = {
       code: motor.code,
       brand: motor.brand,
@@ -134,6 +113,46 @@ function registerMotorsHandlers({ ipcMain, getDatabase, guards, equipment, logAc
       notes: motor.notes || "",
       photo,
     };
+
+    if (isRowUnchanged(before, after, [
+      { beforeKey: "code", normalize: normStr },
+      { beforeKey: "brand", normalize: normStr },
+      { beforeKey: "model", normalize: normStr },
+      { beforeKey: "serial_number", normalize: normStr },
+      { beforeKey: "power", normalize: normNullableId },
+      { beforeKey: "voltage", normalize: normNullableId },
+      { beforeKey: "rpm", normalize: normNullableId },
+      { beforeKey: "location", normalize: normStr },
+      { beforeKey: "operational_location", normalize: normStr },
+      { beforeKey: "status", normalize: normStr },
+      { beforeKey: "installed_at", normalize: normStr },
+      { beforeKey: "notes", normalize: normStr },
+      { beforeKey: "photo", normalize: normStr },
+    ])) {
+      return { ok: true, unchanged: true };
+    }
+
+    db.prepare(`
+      UPDATE motors
+      SET code = ?, brand = ?, model = ?, serial_number = ?, power = ?, voltage = ?, rpm = ?,
+          location = ?, operational_location = ?, status = ?, installed_at = ?, notes = ?, photo = ?
+      WHERE id = ?
+    `).run(
+      after.code,
+      after.brand,
+      after.model,
+      after.serial_number,
+      after.power,
+      after.voltage,
+      after.rpm,
+      after.location,
+      after.operational_location,
+      after.status,
+      after.installed_at,
+      after.notes,
+      after.photo,
+      Number(motor.id)
+    );
 
     logActivity(
       db,

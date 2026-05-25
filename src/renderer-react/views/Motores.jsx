@@ -25,6 +25,7 @@ const EXCEL_COLS = [
 ];
 import { useToast } from "../components/ui/Toast";
 import { useAsync } from "../hooks/useAsync";
+import { useInlineEdit } from "../hooks/useInlineEdit";
 import { SkeletonTable } from "../components/ui/Skeleton";
 import { MotorDetail } from "./MotorDetail";
 import { useDbHealth } from "../context/DbHealthContext";
@@ -95,6 +96,28 @@ const EMPTY_FORM = {
   location: "", operational_location: "En planta", status: "Operativo", installed_at: "", notes: "", photo: null,
 };
 
+const MOTOR_EDIT_FIELDS = [
+  "code", "brand", "model", "power", "voltage", "rpm", "location",
+  "operational_location", "status", "installed_at", "notes", "photo",
+];
+
+function motorEditSnapshot(motor) {
+  return {
+    code: motor.code,
+    brand: motor.brand,
+    model: motor.model || "",
+    power: motor.power || "",
+    voltage: motor.voltage || "",
+    rpm: motor.rpm || "",
+    location: motor.location || "",
+    operational_location: motor.operational_location || "En planta",
+    status: motor.status,
+    installed_at: motor.installed_at || "",
+    notes: motor.notes || "",
+    photo: motor.photo || null,
+  };
+}
+
 function EquiposTabs({ tab, onTabChange }) {
   const tabs = [
     { id: "motores", label: "Motores", icon: ElectricMotorIcon },
@@ -126,8 +149,7 @@ export function Motores({ user }) {
   const [motors, setMotors]       = useState([]);
   const [loadingData, setLoadingData] = useState(true);
   const [detailId, setDetailId]   = useState(null);
-  const [editId, setEditId]       = useState(null);
-  const [editData, setEditData]   = useState({});
+  const { editId, editData, setEditData, openEdit, closeEdit, isEditUnchanged, guardEditSave } = useInlineEdit();
   const [deleteId, setDeleteId]   = useState(null);
   const [form, setForm]           = useState(EMPTY_FORM);
   const [showImport, setShowImport] = useState(false);
@@ -160,8 +182,9 @@ export function Motores({ user }) {
   }
 
   async function handleUpdate() {
+    if (!guardEditSave(MOTOR_EDIT_FIELDS, showToast)) return;
     const { ok } = await run(() => window.proelectricaApi.updateMotor({ id: editId, ...editData, _username: user?.username }), "Motor actualizado.");
-    if (ok) { setEditId(null); load(); }
+    if (ok) { closeEdit(); load(); }
   }
 
   async function handleDelete() {
@@ -294,7 +317,7 @@ export function Motores({ user }) {
                             <Button variant="ghost" size="icon" title="Ver detalle" onClick={() => setDetailId(motor.id)}>
                               <Eye size={13}/>
                             </Button>
-                            <Button variant="ghost" size="icon" onClick={() => { setEditId(motor.id); setEditData({code:motor.code,brand:motor.brand,model:motor.model||"",power:motor.power||"",voltage:motor.voltage||"",rpm:motor.rpm||"",location:motor.location||"",operational_location:motor.operational_location||"En planta",status:motor.status,installed_at:motor.installed_at||"",notes:motor.notes||"",photo:motor.photo||null}); }} disabled={formDisabled} title={mutBlockTitle}>
+                            <Button variant="ghost" size="icon" onClick={() => openEdit(motor.id, motorEditSnapshot(motor))} disabled={formDisabled} title={mutBlockTitle}>
                               <Pencil size={13}/>
                             </Button>
                             <Button variant="ghost" size="icon" className="hover:text-[#e07070]" onClick={() => setDeleteId(motor.id)} disabled={formDisabled} title={mutBlockTitle}>
@@ -327,8 +350,8 @@ export function Motores({ user }) {
                               </Field>
                             </div>
                             <div className="flex gap-2 mt-2">
-                              <Button size="sm" onClick={handleUpdate} disabled={formDisabled} title={mutBlockTitle}><Check size={13} className="mr-1"/>Guardar</Button>
-                              <Button size="sm" variant="secondary" onClick={()=>setEditId(null)}><X size={13} className="mr-1"/>Cancelar</Button>
+                              <Button size="sm" onClick={handleUpdate} disabled={formDisabled || isEditUnchanged(MOTOR_EDIT_FIELDS)} title={isEditUnchanged(MOTOR_EDIT_FIELDS) ? "No hay cambios para guardar" : mutBlockTitle}><Check size={13} className="mr-1"/>Guardar</Button>
+                              <Button size="sm" variant="secondary" onClick={closeEdit}><X size={13} className="mr-1"/>Cancelar</Button>
                             </div>
                           </Td>
                         </Tr>

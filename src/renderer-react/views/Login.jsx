@@ -1,16 +1,23 @@
-import React, { useState } from "react";
+import React, { useState, useCallback, useEffect } from "react";
 import { Input } from "../components/ui/Input";
 import { useToast } from "../components/ui/Toast";
-import { Loader2, Lock, User } from "lucide-react";
+import { Loader2, Lock, User, Eye, EyeOff, CaseSensitive } from "lucide-react";
 import { AppLogo } from "../components/ui/AppLogo";
 import { BrandMark } from "../components/ui/BrandMark";
 
 const SAVED_USER_KEY = "pcm-saved-username";
 
+function readCapsLock(event) {
+  return Boolean(event?.getModifierState?.("CapsLock"));
+}
+
 export function Login({ onLogin }) {
   const savedUser = localStorage.getItem(SAVED_USER_KEY) || "";
   const [username, setUsername] = useState(savedUser);
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [capsLockOn, setCapsLockOn] = useState(false);
+  const [passwordFocused, setPasswordFocused] = useState(false);
   const [remember, setRemember]   = useState(!!savedUser);
   const [error, setError]         = useState("");
   const [loading, setLoading]     = useState(false);
@@ -18,6 +25,23 @@ export function Login({ onLogin }) {
   const { showToast }             = useToast();
   const userId = React.useId();
   const passId = React.useId();
+
+  const syncCapsLock = useCallback((event) => {
+    setCapsLockOn(readCapsLock(event));
+  }, []);
+
+  useEffect(() => {
+    if (!passwordFocused) return;
+    function onKey(event) {
+      setCapsLockOn(readCapsLock(event));
+    }
+    window.addEventListener("keydown", onKey);
+    window.addEventListener("keyup", onKey);
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      window.removeEventListener("keyup", onKey);
+    };
+  }, [passwordFocused]);
 
   async function handleLogin(e) {
     e.preventDefault();
@@ -30,7 +54,7 @@ export function Login({ onLogin }) {
       else localStorage.removeItem(SAVED_USER_KEY);
       showToast("Bienvenido, " + res.user.username, "success");
       setSuccess(true);
-      setTimeout(() => onLogin(res.user), 400);
+      setTimeout(() => onLogin(res.user), 360);
     } catch {
       setError("Error al conectar con la base de datos.");
     } finally {
@@ -39,30 +63,17 @@ export function Login({ onLogin }) {
   }
 
   return (
-    <div
-      className="flex-1 min-h-0 flex items-center justify-center p-4 sm:p-6 relative z-10"
-      style={{
-        transition: "opacity 0.4s ease",
-        opacity: success ? 0 : 1,
-      }}
-    >
-        <div
-          className="w-full max-w-[420px]"
-          style={{
-            animation: "slideUp 0.4s cubic-bezier(0.34,1.1,0.64,1) both",
-            transition: "transform 0.4s ease, opacity 0.4s ease",
-            transform: success ? "scale(0.96) translateY(-8px)" : undefined,
-          }}
-        >
+    <div className={`login-scene flex-1 min-h-0 flex items-center justify-center p-4 sm:p-6 relative z-10${success ? " login-scene--success" : ""}`}>
+      <div className="login-stack w-full max-w-[420px] relative">
         <div className="text-center mb-8">
-          <div className="relative inline-block mb-5">
-            <div className="absolute inset-0 rounded-full bg-[#2f8dff] opacity-25 blur-2xl scale-125" />
+          <div className="login-hero relative inline-block mb-5">
+            <div className="login-hero__glow absolute inset-0 rounded-full bg-[#2f8dff] blur-2xl" />
             <AppLogo size="xl" className="relative drop-shadow-2xl" />
           </div>
-          <BrandMark size="lg" variant="display" showRule className="mb-0" />
+          <BrandMark size="lg" variant="display" showRule className="login-brand mb-0" />
         </div>
 
-        <div className="rounded-2xl border border-white/10 bg-[#0d1825]/78 backdrop-blur-xl shadow-[0_32px_64px_#00000080] p-7">
+        <div className="login-card rounded-2xl border border-white/10 bg-[#0d1825]/78 backdrop-blur-xl shadow-[0_32px_64px_#00000080] p-7">
           <p className="text-xs text-[#9ab0c7] font-semibold uppercase tracking-widest mb-5">
             Iniciar sesión
           </p>
@@ -90,14 +101,36 @@ export function Login({ onLogin }) {
                 <Lock size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#4a6a8a]" aria-hidden />
                 <Input
                   id={passId}
-                  type="password"
-                  className="pl-9 bg-[#0a121f]/80 border-white/10"
+                  type={showPassword ? "text" : "password"}
+                  className="pl-9 pr-10 bg-[#0a121f]/80 border-white/10"
                   placeholder="Contraseña"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
+                  onKeyDown={syncCapsLock}
+                  onKeyUp={syncCapsLock}
+                  onFocus={(e) => {
+                    setPasswordFocused(true);
+                    syncCapsLock(e);
+                  }}
+                  onBlur={() => setPasswordFocused(false)}
                   autoComplete="new-password"
                 />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword((visible) => !visible)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-[#4a6a8a] hover:text-[#9ab0c7] transition-colors cursor-pointer border-none bg-transparent p-0.5"
+                  aria-label={showPassword ? "Ocultar contraseña" : "Mostrar contraseña"}
+                  title={showPassword ? "Ocultar contraseña" : "Mostrar contraseña"}
+                >
+                  {showPassword ? <EyeOff size={14} aria-hidden /> : <Eye size={14} aria-hidden />}
+                </button>
               </div>
+              {passwordFocused && capsLockOn && (
+                <p className="mt-1.5 flex items-center gap-1.5 text-[11px] text-[#e0a91f]" role="status">
+                  <CaseSensitive size={13} className="shrink-0" aria-hidden />
+                  Bloq Mayús activado
+                </p>
+              )}
             </div>
 
             <label className="flex items-center gap-2.5 cursor-pointer select-none w-fit">
@@ -122,7 +155,7 @@ export function Login({ onLogin }) {
             </label>
 
             {error && (
-              <div className="flex items-center gap-2 bg-[#2e1212]/80 border border-[#5c2222] rounded-xl px-3 py-2.5">
+              <div className="login-error flex items-center gap-2 bg-[#2e1212]/80 border border-[#5c2222] rounded-xl px-3 py-2.5" role="alert">
                 <div className="w-1.5 h-1.5 rounded-full bg-[#e07070] shrink-0" />
                 <p className="text-xs text-[#e07070]">{error}</p>
               </div>
@@ -130,7 +163,7 @@ export function Login({ onLogin }) {
 
             <button
               type="submit"
-              disabled={loading}
+              disabled={loading || success}
               className="mt-1 w-full py-3 rounded-xl font-semibold text-sm text-white cursor-pointer transition-all duration-150 active:scale-[.98] disabled:opacity-60 disabled:cursor-not-allowed border-none"
               style={{
                 background: "linear-gradient(135deg, #2f8dff 0%, #1354a8 60%, #0d3d80 100%)",
@@ -145,10 +178,10 @@ export function Login({ onLogin }) {
           </form>
         </div>
 
-        <p className="text-center text-[11px] text-[#8fa8c4] mt-5 drop-shadow">
+        <p className="login-footer text-center text-[11px] text-[#8fa8c4] mt-5 drop-shadow">
           Proélectrica © {new Date().getFullYear()} — Sistema de Control Industrial
         </p>
-        </div>
+      </div>
     </div>
   );
 }

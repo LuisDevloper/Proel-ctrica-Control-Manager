@@ -10,6 +10,7 @@ import { useFilters } from "../hooks/useFilters";
 import { xlsxExport } from "../lib/excelExport";
 import { useToast } from "../components/ui/Toast";
 import { useAsync } from "../hooks/useAsync";
+import { useInlineEdit } from "../hooks/useInlineEdit";
 import { Plus, Pencil, Trash2, X, Check, Truck, ArrowRight, FileText, Paperclip } from "lucide-react";
 import { exportShipmentPermitPDF } from "../lib/pdfReport";
 import { DocumentsModal } from "../components/documents/EntityDocuments";
@@ -54,6 +55,27 @@ const EMPTY_FORM = {
   logistics_status: "Permiso de salida aprobado",
   notes: "",
 };
+
+const SHIPMENT_EDIT_FIELDS = [
+  "equipment_type", "equipment_id", "workshop_name", "responsible", "departure_date",
+  "expected_return_date", "actual_return_date", "motive", "equipment_condition", "logistics_status", "notes",
+];
+
+function shipmentEditSnapshot(item) {
+  return {
+    equipment_type: item.equipmentType,
+    equipment_id: String(item.equipmentId),
+    workshop_name: item.workshopName || "",
+    responsible: item.responsible || "",
+    departure_date: item.departureDate || "",
+    expected_return_date: item.expectedReturnDate || "",
+    actual_return_date: item.actualReturnDate || "",
+    motive: item.motive || "",
+    equipment_condition: item.equipmentCondition || "",
+    logistics_status: item.logisticsStatus || "Permiso de salida aprobado",
+    notes: item.notes || "",
+  };
+}
 
 const filterFn = (item, query, _status, shipmentFilter) => {
   const hay = `${item.equipmentCode || ""} ${item.workshopName || ""} ${item.responsible || ""} ${item.motive || ""}`.toLowerCase();
@@ -100,8 +122,7 @@ export function TallerExternoPanel({ user }) {
   const [items, setItems] = useState([]);
   const [motors, setMotors] = useState([]);
   const [turbinas, setTurbinas] = useState([]);
-  const [editId, setEditId] = useState(null);
-  const [editData, setEditData] = useState({});
+  const { editId, editData, setEditData, openEdit, closeEdit, isEditUnchanged, guardEditSave } = useInlineEdit();
   const [deleteId, setDeleteId] = useState(null);
   const [docsId, setDocsId] = useState(null);
   const [advanceConfirm, setAdvanceConfirm] = useState(null);
@@ -224,11 +245,12 @@ export function TallerExternoPanel({ user }) {
   }
 
   async function handleUpdate() {
+    if (!guardEditSave(SHIPMENT_EDIT_FIELDS, showToast)) return;
     const { ok } = await run(
       () => window.proelectricaApi.updateExternalShipment(toPayload(editData, editId)),
       "Envio actualizado."
     );
-    if (ok) { setEditId(null); load(); }
+    if (ok) { closeEdit(); load(); }
   }
 
   async function handleDelete() {
@@ -281,20 +303,7 @@ export function TallerExternoPanel({ user }) {
   }
 
   function startEdit(item) {
-    setEditId(item.id);
-    setEditData({
-      equipment_type: item.equipmentType,
-      equipment_id: String(item.equipmentId),
-      workshop_name: item.workshopName || "",
-      responsible: item.responsible || "",
-      departure_date: item.departureDate || "",
-      expected_return_date: item.expectedReturnDate || "",
-      actual_return_date: item.actualReturnDate || "",
-      motive: item.motive || "",
-      equipment_condition: item.equipmentCondition || "",
-      logistics_status: item.logisticsStatus || "Permiso de salida aprobado",
-      notes: item.notes || "",
-    });
+    openEdit(item.id, shipmentEditSnapshot(item));
   }
 
   async function handleExportPdf(item) {
@@ -507,8 +516,8 @@ export function TallerExternoPanel({ user }) {
                             <Field label="Motivo" className="min-w-0 mb-0 md:col-span-2 xl:col-span-3"><Textarea disabled={formDisabled} value={editData.motive} onChange={(e) => setEditData({ ...editData, motive: e.target.value })}/></Field>
                           </div>
                           <div className="flex flex-wrap gap-2 mt-4">
-                            <Button size="sm" onClick={handleUpdate} disabled={formDisabled} title={mutBlockTitle}><Check size={13} className="mr-1"/>Guardar</Button>
-                            <Button size="sm" variant="secondary" onClick={() => setEditId(null)}><X size={13} className="mr-1"/>Cancelar</Button>
+                            <Button size="sm" onClick={handleUpdate} disabled={formDisabled || isEditUnchanged(SHIPMENT_EDIT_FIELDS)} title={isEditUnchanged(SHIPMENT_EDIT_FIELDS) ? "No hay cambios para guardar" : mutBlockTitle}><Check size={13} className="mr-1"/>Guardar</Button>
+                            <Button size="sm" variant="secondary" onClick={closeEdit}><X size={13} className="mr-1"/>Cancelar</Button>
                           </div>
                         </Td>
                       </Tr>

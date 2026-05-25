@@ -22,6 +22,7 @@ const EXCEL_COLS = [
 ];
 import { useToast } from "../components/ui/Toast";
 import { useAsync } from "../hooks/useAsync";
+import { useInlineEdit } from "../hooks/useInlineEdit";
 import { Plus, Pencil, Trash2, X, Check } from "lucide-react";
 import { useDbHealth } from "../context/DbHealthContext";
 import { canMutateRecords, READ_ONLY_ROLE_TITLE } from "../lib/permissions";
@@ -34,10 +35,20 @@ const filterFn = (item, query) => {
   return !query || hay.includes(query.toLowerCase());
 };
 
+const TECHNICIAN_EDIT_FIELDS = ["fullName", "specialty", "phone", "email"];
+
+function technicianEditSnapshot(item) {
+  return {
+    fullName: item.full_name,
+    specialty: item.specialty || "",
+    phone: item.phone || "",
+    email: item.email || "",
+  };
+}
+
 export function Tecnicos({ user }) {
   const [items, setItems]         = useState([]);
-  const [editId, setEditId]       = useState(null);
-  const [editData, setEditData]   = useState({});
+  const { editId, editData, setEditData, openEdit, closeEdit, isEditUnchanged, guardEditSave } = useInlineEdit();
   const [deleteId, setDeleteId]   = useState(null);
   const [form, setForm]           = useState({ fullName:"", specialty:"", phone:"", email:"" });
   const [showImport, setShowImport] = useState(false);
@@ -63,8 +74,9 @@ export function Tecnicos({ user }) {
   }
 
   async function handleUpdate() {
+    if (!guardEditSave(TECHNICIAN_EDIT_FIELDS, showToast)) return;
     const { ok } = await run(() => window.proelectricaApi.updateTechnician({ id: editId, ...editData, _username: user?.username }), "Tecnico actualizado.");
-    if (ok) { setEditId(null); load(); }
+    if (ok) { closeEdit(); load(); }
   }
 
   async function handleDelete() {
@@ -143,7 +155,7 @@ export function Tecnicos({ user }) {
                         <Td className="text-[#9ab0c7]">{item.email||"—"}</Td>
                         <Td>
                           <div className="flex gap-2">
-                            <Button variant="ghost" size="icon" onClick={()=>{setEditId(item.id);setEditData({fullName:item.full_name,specialty:item.specialty||"",phone:item.phone||"",email:item.email||""})}} disabled={formDisabled} title={mutBlockTitle}><Pencil size={13}/></Button>
+                            <Button variant="ghost" size="icon" onClick={() => openEdit(item.id, technicianEditSnapshot(item))} disabled={formDisabled} title={mutBlockTitle}><Pencil size={13}/></Button>
                             <Button variant="ghost" size="icon" className="hover:text-[#e07070]" onClick={()=>setDeleteId(item.id)} disabled={formDisabled} title={mutBlockTitle}><Trash2 size={13}/></Button>
                           </div>
                         </Td>
@@ -158,8 +170,8 @@ export function Tecnicos({ user }) {
                               <Field label="Email"><Input disabled={formDisabled} type="email" value={editData.email} onChange={(e)=>setEditData({...editData,email:e.target.value})}/></Field>
                             </div>
                             <div className="flex gap-2 mt-2">
-                              <Button size="sm" onClick={handleUpdate} disabled={formDisabled} title={mutBlockTitle}><Check size={13} className="mr-1"/>Guardar</Button>
-                              <Button size="sm" variant="secondary" onClick={()=>setEditId(null)}><X size={13} className="mr-1"/>Cancelar</Button>
+                              <Button size="sm" onClick={handleUpdate} disabled={formDisabled || isEditUnchanged(TECHNICIAN_EDIT_FIELDS)} title={isEditUnchanged(TECHNICIAN_EDIT_FIELDS) ? "No hay cambios para guardar" : mutBlockTitle}><Check size={13} className="mr-1"/>Guardar</Button>
+                              <Button size="sm" variant="secondary" onClick={closeEdit}><X size={13} className="mr-1"/>Cancelar</Button>
                             </div>
                           </Td>
                         </Tr>

@@ -2,6 +2,7 @@ function registerInventoryHandlers({ ipcMain, getDatabase, guards, inventory, lo
   const { denyIfNotAuthenticated, denyIfVisor, secureHandler } = guards;
   const { mapInventoryMovementRow, applyInventoryMovement } = inventory;
   const { buildUpdateDetails } = require("../../../modules/activity/changes");
+  const { isRowUnchanged, normStr, normNum } = require("../../../modules/activity/unchanged");
 
   const INVENTORY_UPDATE_FIELDS = [
     ["part_name", "Repuesto"],
@@ -96,6 +97,15 @@ function registerInventoryHandlers({ ipcMain, getDatabase, guards, inventory, lo
       min_stock: Number(item.minStock || 0),
       location: item.location || "",
     };
+
+    if (isRowUnchanged(before, after, [
+      { beforeKey: "part_name", normalize: normStr },
+      { beforeKey: "sku", normalize: normStr },
+      { beforeKey: "min_stock", normalize: normNum },
+      { beforeKey: "location", normalize: normStr },
+    ])) {
+      return { ok: true, unchanged: true };
+    }
 
     db.prepare(`
       UPDATE inventory_items

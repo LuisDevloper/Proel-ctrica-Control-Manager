@@ -10,6 +10,7 @@ function registerShipmentsHandlers({ ipcMain, getDatabase, guards, shipments, lo
     validateShipmentEquipment,
   } = shipments;
   const { buildUpdateDetails } = require("../../../modules/activity/changes");
+  const { isRowUnchanged, normStr, normNullableId } = require("../../../modules/activity/unchanged");
 
   const SHIPMENT_UPDATE_FIELDS = [
     ["equipment_type", "Tipo equipo"],
@@ -109,17 +110,6 @@ function registerShipmentsHandlers({ ipcMain, getDatabase, guards, shipments, lo
       actualReturn = new Date().toISOString().slice(0, 10);
     }
 
-    const equipmentChanged =
-      equipmentType !== existing.equipment_type || Number(equipmentId) !== Number(existing.equipment_id);
-    if (equipmentChanged) {
-      restoreEquipmentLocationAfterShipmentRemoval(db, existing, existing.id);
-    }
-
-    let previousLocation = existing.previous_operational_location || getEquipmentOperationalLocation(db, existing.equipment_type, existing.equipment_id);
-    if (equipmentChanged) {
-      previousLocation = getEquipmentOperationalLocation(db, equipmentType, equipmentId);
-    }
-
     const after = {
       equipment_type: equipmentType,
       equipment_id: Number(equipmentId),
@@ -133,6 +123,33 @@ function registerShipmentsHandlers({ ipcMain, getDatabase, guards, shipments, lo
       logistics_status: logisticsStatus,
       notes: payload.notes ?? existing.notes ?? "",
     };
+
+    if (isRowUnchanged(existing, after, [
+      { beforeKey: "equipment_type", normalize: normStr },
+      { beforeKey: "equipment_id", normalize: normNullableId },
+      { beforeKey: "workshop_name", normalize: normStr },
+      { beforeKey: "responsible", normalize: normStr },
+      { beforeKey: "departure_date", normalize: normStr },
+      { beforeKey: "expected_return_date", normalize: normStr },
+      { beforeKey: "actual_return_date", normalize: normStr },
+      { beforeKey: "motive", normalize: normStr },
+      { beforeKey: "equipment_condition", normalize: normStr },
+      { beforeKey: "logistics_status", normalize: normStr },
+      { beforeKey: "notes", normalize: normStr },
+    ])) {
+      return { ok: true, unchanged: true };
+    }
+
+    const equipmentChanged =
+      equipmentType !== existing.equipment_type || Number(equipmentId) !== Number(existing.equipment_id);
+    if (equipmentChanged) {
+      restoreEquipmentLocationAfterShipmentRemoval(db, existing, existing.id);
+    }
+
+    let previousLocation = existing.previous_operational_location || getEquipmentOperationalLocation(db, existing.equipment_type, existing.equipment_id);
+    if (equipmentChanged) {
+      previousLocation = getEquipmentOperationalLocation(db, equipmentType, equipmentId);
+    }
 
     db.prepare(`
       UPDATE external_workshop_shipments

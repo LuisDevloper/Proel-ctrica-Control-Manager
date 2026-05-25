@@ -1,6 +1,7 @@
 function registerUsersHandlers({ ipcMain, getDatabase, bcrypt, guards, logActivity, auth }) {
   const { denyIfNotAdmin } = guards;
   const { buildUpdateDetails } = require("../../../modules/activity/changes");
+  const { isRowUnchanged, normStr } = require("../../../modules/activity/unchanged");
 
   function actorUsername() {
     return auth.getAuthSession()?.username || "sistema";
@@ -42,6 +43,9 @@ function registerUsersHandlers({ ipcMain, getDatabase, bcrypt, guards, logActivi
     const db = getDatabase();
     const before = db.prepare("SELECT id, username, role FROM users WHERE id = ?").get(Number(data.id));
     if (!before) return { ok: false, message: "Usuario no encontrado." };
+    if (isRowUnchanged(before, { role: data.role }, [{ beforeKey: "role", normalize: normStr }])) {
+      return { ok: true, unchanged: true };
+    }
     db.prepare("UPDATE users SET role = ? WHERE id = ?").run(data.role, Number(data.id));
     logActivity(
       db,

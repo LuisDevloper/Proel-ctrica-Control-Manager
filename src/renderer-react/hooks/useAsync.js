@@ -36,6 +36,11 @@ export function useAsync() {
           return { ok: false, result, message: result.message };
         }
 
+        if (isResultObject(result) && result.ok === true && result.unchanged === true) {
+          showToast("No hay cambios para guardar.", "info");
+          return { ok: true, result, unchanged: true };
+        }
+
         if (successMsg) showToast(successMsg, "success");
         return { ok: true, result };
       } catch (err) {

@@ -14,8 +14,9 @@
     "dev": "concurrently -k \"npm run vite\" \"wait-on http://localhost:5173 && electron .\"",
     "build:renderer": "vite build",
     "build:icon": "node scripts/make-icon.mjs",
-    "build": "npm run build:icon && npm run build:renderer && electron-builder",
-    "release:github": "npm run build:icon && npm run build:renderer && electron-builder --publish always",
+    "build:installer-assets": "node scripts/make-installer-assets.mjs",
+    "build": "npm run build:icon && npm run build:installer-assets && npm run build:renderer && electron-builder",
+    "release:github": "npm run build:icon && npm run build:installer-assets && npm run build:renderer && node --use-system-ca ./node_modules/electron-builder/cli.js --publish always",
     "rebuild:native": "electron-rebuild -f -w better-sqlite3",
     "start": "electron .",
     "test": "node --test tests/**/*.test.js"
@@ -48,10 +49,17 @@
     },
     "forceCodeSigning": false,
     "nsis": {
-      "installerIcon": "build/icon.ico",
-      "uninstallerIcon": "build/icon.ico",
+      "installerIcon": "build/installer-icon.ico",
+      "uninstallerIcon": "build/installer-icon.ico",
+      "installerSidebar": "build/installer-sidebar.bmp",
+      "installerHeader": "build/installer-header.bmp",
+      "installerLanguages": [
+        "es_ES"
+      ],
+      "shortcutName": "Proélectrica Control Manager",
       "oneClick": false,
-      "allowToChangeInstallationDirectory": true
+      "allowToChangeInstallationDirectory": true,
+      "runAfterFinish": true
     },
     "publish": {
       "provider": "github",

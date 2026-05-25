@@ -159,10 +159,13 @@ function AppContent() {
     <>
         <PendingUpdateReminder />
         {!user && <LoginBackdrop />}
-        {/* Banner de actualizaciones: siempre visible en login y tras entrar (comprobación ~5s al arrancar). */}
-        <div className="sticky top-0 z-50 shrink-0 px-4 pt-3 max-w-5xl mx-auto w-full">
-          <UpdateBanner />
-        </div>
+        {user ? (
+          <div className="sticky top-0 z-50 shrink-0 px-4 pt-3 max-w-5xl mx-auto w-full">
+            <UpdateBanner variant="inline" />
+          </div>
+        ) : (
+          <UpdateBanner variant="overlay" />
+        )}
         <div className={`min-h-screen flex flex-col relative z-10${user ? " animate-pageFadeIn" : ""}`}>
 
         {!user ? (

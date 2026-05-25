@@ -67,7 +67,11 @@ export function Usuarios({ user: currentUser }) {
     if (ok) { setForm(EMPTY_FORM); load(); }
   }
 
-  async function handleRoleChange(userId, role) {
+  async function handleRoleChange(userId, role, currentRole) {
+    if (role === currentRole) {
+      showToast("No hay cambios para guardar.", "info");
+      return;
+    }
     const r = await run(() => window.proelectricaApi.updateUserRole({ id: userId, role }), "Rol actualizado.");
     if (r.ok) load();
   }
@@ -158,7 +162,7 @@ export function Usuarios({ user: currentUser }) {
                           ? <RoleBadge role={u.role} />
                           : <Select
                               value={u.role}
-                              onChange={e => handleRoleChange(u.id, e.target.value)}
+                              onChange={e => handleRoleChange(u.id, e.target.value, u.role)}
                               className="text-xs py-1"
                               disabled={!dbWritable}
                               title={dbTitle}

@@ -181,6 +181,139 @@ html[data-guest-login] body {
   stroke-dashoffset: 0;
 }
 
+/* ── Login: animaciones ligeras (sin stagger ni blur) ── */
+@keyframes loginBackdropIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes loginFadeUp {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes loginErrorShake {
+  0%, 100% { transform: translateX(0); }
+  33% { transform: translateX(-2px); }
+  66% { transform: translateX(2px); }
+}
+
+@keyframes loginSceneExit {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
+
+.login-backdrop {
+  animation: loginBackdropIn 0.45s ease-out forwards;
+}
+
+.login-scene {
+  /* sin perspective 3D */
+}
+
+.login-hero {
+  animation: loginFadeUp 0.42s ease-out both;
+}
+
+.login-hero__glow {
+  opacity: 0.22;
+  transform: scale(1.12);
+}
+
+.login-brand {
+  animation: loginFadeUp 0.38s ease-out 0.06s both;
+}
+
+.login-card {
+  animation: loginFadeUp 0.4s ease-out 0.1s both;
+}
+
+.login-footer {
+  animation: loginFadeUp 0.35s ease-out 0.16s both;
+}
+
+.login-error {
+  animation: loginErrorShake 0.35s ease-out;
+}
+
+.login-scene--success .login-stack {
+  animation: loginSceneExit 0.32s ease-out forwards;
+  pointer-events: none;
+}
+
+@keyframes loginUpdateBannerIn {
+  from {
+    opacity: 0;
+    transform: translateY(calc(-100% - 12px));
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes loginUpdateBannerOut {
+  from {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(calc(-100% - 8px));
+  }
+}
+
+@keyframes loginUpdateBannerExpand {
+  from {
+    opacity: 0.92;
+    transform: scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.login-update-banner {
+  animation: loginUpdateBannerIn 0.55s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.login-update-banner--hide {
+  animation: loginUpdateBannerOut 0.28s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+.login-update-banner__panel--compact {
+  overflow: hidden;
+}
+
+.login-update-banner__panel--expanded {
+  animation: loginUpdateBannerExpand 0.35s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .login-backdrop,
+  .login-hero,
+  .login-brand,
+  .login-card,
+  .login-footer,
+  .login-error,
+  .login-scene--success .login-stack,
+  .login-update-banner,
+  .login-update-banner__panel--expanded {
+    animation: none !important;
+  }
+
+  .login-scene--success .login-stack {
+    opacity: 0;
+  }
+}
+
 @layer base {
   /* ── Tema oscuro (por defecto) ── */
   :root, [data-theme="dark"] {

@@ -2,6 +2,7 @@ function registerMaintenancesHandlers({ ipcMain, getDatabase, guards, equipment,
   const { denyIfNotAuthenticated, denyIfVisor, secureHandler } = guards;
   const { calendarMonthIsoRange } = equipment;
   const { buildUpdateDetails } = require("../../../modules/activity/changes");
+  const { isRowUnchanged, normStr, normNum, normNullableId } = require("../../../modules/activity/unchanged");
 
   const MAINTENANCE_UPDATE_FIELDS = [
     ["motor_id", "Motor"],
@@ -20,6 +21,8 @@ function registerMaintenancesHandlers({ ipcMain, getDatabase, guards, equipment,
       return db.prepare(`
       SELECT
         m.id,
+        m.motor_id,
+        m.technician_id,
         m.maintenance_type,
         m.maintenance_date,
         m.description,
@@ -93,6 +96,18 @@ function registerMaintenancesHandlers({ ipcMain, getDatabase, guards, equipment,
       cost: Number(maintenance.cost || 0),
       status: maintenance.status || "Pendiente",
     };
+
+    if (isRowUnchanged(before, after, [
+      { beforeKey: "motor_id", normalize: normNullableId },
+      { beforeKey: "technician_id", normalize: normNullableId },
+      { beforeKey: "maintenance_type", normalize: normStr },
+      { beforeKey: "maintenance_date", normalize: normStr },
+      { beforeKey: "description", normalize: normStr },
+      { beforeKey: "cost", normalize: normNum },
+      { beforeKey: "status", normalize: normStr },
+    ])) {
+      return { ok: true, unchanged: true };
+    }
 
     db.prepare(`
       UPDATE maintenances

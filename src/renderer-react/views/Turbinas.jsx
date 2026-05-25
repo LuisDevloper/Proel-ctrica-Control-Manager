@@ -10,6 +10,7 @@ import { useFilters } from "../hooks/useFilters";
 import { xlsxExport } from "../lib/excelExport";
 import { useToast } from "../components/ui/Toast";
 import { useAsync } from "../hooks/useAsync";
+import { useInlineEdit } from "../hooks/useInlineEdit";
 import { Plus, Pencil, Trash2, X, Check, Paperclip, Fan } from "lucide-react";
 import { useDbHealth } from "../context/DbHealthContext";
 import { canMutateRecords, READ_ONLY_ROLE_TITLE } from "../lib/permissions";
@@ -51,6 +52,27 @@ const EMPTY_FORM = {
   notes: "",
 };
 
+const TURBINE_EDIT_FIELDS = [
+  "code", "gg", "pt", "bearing_1", "bearing_2", "runtime_retiro", "comentarios_retiro",
+  "operational_location", "status", "motor_id", "notes",
+];
+
+function turbineEditSnapshot(item) {
+  return {
+    code: item.code,
+    gg: item.gg || "",
+    pt: item.pt || "",
+    bearing_1: item.bearing_1 || "",
+    bearing_2: item.bearing_2 || "",
+    runtime_retiro: item.runtime_retiro || "",
+    comentarios_retiro: item.comentarios_retiro || "",
+    operational_location: item.operational_location || "En planta",
+    status: item.status || "Operativo",
+    motor_id: item.motor_id || "",
+    notes: item.notes || "",
+  };
+}
+
 const filterFn = (item, query, status, location) => {
   const hay = `${item.code} ${item.gg || ""} ${item.pt || ""} ${item.motor_code || ""}`.toLowerCase();
   return (!query || hay.includes(query.toLowerCase()))
@@ -61,8 +83,7 @@ const filterFn = (item, query, status, location) => {
 export function TurbinasPanel({ user }) {
   const [items, setItems] = useState([]);
   const [motors, setMotors] = useState([]);
-  const [editId, setEditId] = useState(null);
-  const [editData, setEditData] = useState({});
+  const { editId, editData, setEditData, openEdit, closeEdit, isEditUnchanged, guardEditSave } = useInlineEdit();
   const [deleteId, setDeleteId] = useState(null);
   const [docsTarget, setDocsTarget] = useState(null);
   const [form, setForm] = useState(EMPTY_FORM);
@@ -108,6 +129,7 @@ export function TurbinasPanel({ user }) {
   }
 
   async function handleUpdate() {
+    if (!guardEditSave(TURBINE_EDIT_FIELDS, showToast)) return;
     const payload = {
       id: editId,
       code: editData.code,
@@ -124,7 +146,7 @@ export function TurbinasPanel({ user }) {
       _username: user?.username,
     };
     const { ok, message } = await run(() => window.proelectricaApi.updateTurbina(payload), "Turbina actualizada.");
-    if (ok) { setEditId(null); load(); }
+    if (ok) { closeEdit(); load(); }
     else if (message) showToast(message, "warning");
   }
 
@@ -134,20 +156,7 @@ export function TurbinasPanel({ user }) {
   }
 
   function startEdit(item) {
-    setEditId(item.id);
-    setEditData({
-      code: item.code,
-      gg: item.gg || "",
-      pt: item.pt || "",
-      bearing_1: item.bearing_1 || "",
-      bearing_2: item.bearing_2 || "",
-      runtime_retiro: item.runtime_retiro || "",
-      comentarios_retiro: item.comentarios_retiro || "",
-      operational_location: item.operational_location || "En planta",
-      status: item.status || "Operativo",
-      motor_id: item.motor_id || "",
-      notes: item.notes || "",
-    });
+    openEdit(item.id, turbineEditSnapshot(item));
   }
 
   return (
@@ -271,8 +280,8 @@ export function TurbinasPanel({ user }) {
                             <Field label="Comentarios retiro" className="col-span-3"><Textarea disabled={formDisabled} value={editData.comentarios_retiro} onChange={(e) => setEditData({ ...editData, comentarios_retiro: e.target.value })}/></Field>
                           </div>
                           <div className="flex gap-2 mt-2">
-                            <Button size="sm" onClick={handleUpdate} disabled={formDisabled} title={mutBlockTitle}><Check size={13} className="mr-1"/>Guardar</Button>
-                            <Button size="sm" variant="secondary" onClick={() => setEditId(null)}><X size={13} className="mr-1"/>Cancelar</Button>
+                            <Button size="sm" onClick={handleUpdate} disabled={formDisabled || isEditUnchanged(TURBINE_EDIT_FIELDS)} title={isEditUnchanged(TURBINE_EDIT_FIELDS) ? "No hay cambios para guardar" : mutBlockTitle}><Check size={13} className="mr-1"/>Guardar</Button>
+                            <Button size="sm" variant="secondary" onClick={closeEdit}><X size={13} className="mr-1"/>Cancelar</Button>
                           </div>
                         </Td>
                       </Tr>

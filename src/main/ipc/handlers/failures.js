@@ -1,6 +1,7 @@
 function registerFailuresHandlers({ ipcMain, getDatabase, guards, logActivity }) {
   const { denyIfNotAuthenticated, denyIfVisor, secureHandler } = guards;
   const { buildUpdateDetails } = require("../../../modules/activity/changes");
+  const { isRowUnchanged, normStr, normNullableId } = require("../../../modules/activity/unchanged");
 
   const FAILURE_UPDATE_FIELDS = [
     ["motor_id", "Motor"],
@@ -19,6 +20,8 @@ function registerFailuresHandlers({ ipcMain, getDatabase, guards, logActivity })
       return db.prepare(`
       SELECT
         f.id,
+        f.motor_id,
+        f.technician_id,
         f.failure_type,
         f.priority,
         f.status,
@@ -75,6 +78,18 @@ function registerFailuresHandlers({ ipcMain, getDatabase, guards, logActivity })
       reported_at: failure.reportedAt,
       solution: failure.solution || "",
     };
+
+    const unchanged = isRowUnchanged(before, after, [
+      { beforeKey: "motor_id", normalize: normNullableId },
+      { beforeKey: "technician_id", normalize: normNullableId },
+      { beforeKey: "failure_type", normalize: normStr },
+      { beforeKey: "priority", normalize: normStr },
+      { beforeKey: "status", normalize: normStr },
+      { beforeKey: "reported_at", normalize: normStr },
+      { beforeKey: "solution", normalize: normStr },
+    ]);
+
+    if (unchanged) return { ok: true, unchanged: true };
 
     db.prepare(`
       UPDATE failures

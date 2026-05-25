@@ -1,11 +1,11 @@
 const LOGIN_BACKGROUND = "./login-background.png";
 
-/** Fondo de pantalla completa del login (viewport, no limitado al formulario). */
+/** Fondo de pantalla completa del login (viewport, estático — sin Ken Burns). */
 export function LoginBackdrop() {
   return (
-    <div className="fixed inset-0 z-0 pointer-events-none" aria-hidden>
+    <div className="login-backdrop fixed inset-0 z-0 pointer-events-none" aria-hidden>
       <div
-        className="absolute inset-0 bg-[#0a1018] bg-cover bg-center bg-no-repeat scale-105"
+        className="absolute inset-0 bg-[#0a1018] bg-cover bg-center bg-no-repeat"
         style={{ backgroundImage: `url(${LOGIN_BACKGROUND})` }}
       />
       <div className="absolute inset-0 bg-gradient-to-br from-[#07101dcc] via-[#0a1528b3] to-[#050a12e6]" />
