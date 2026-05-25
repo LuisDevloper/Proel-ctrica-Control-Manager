@@ -13,6 +13,7 @@ function sortItems(items, field, direction) {
 export function useFilters(items, { filterFn, defaultSortField = "id", perPage: defaultPerPage = 10, dateField = null }) {
   const [query, setQuery]         = useState("");
   const [status, setStatus]       = useState("");
+  const [location, setLocation]   = useState("");
   const [sortField, setSortField] = useState(defaultSortField);
   const [sortDir, setSortDir]     = useState("desc");
   const [page, setPage]           = useState(1);
@@ -21,24 +22,25 @@ export function useFilters(items, { filterFn, defaultSortField = "id", perPage: 
   const [perPage, setPerPage]     = useState(defaultPerPage);
 
   const filtered = useMemo(() => {
-    let base = filterFn ? items.filter((item) => filterFn(item, query, status)) : items;
+    let base = filterFn ? items.filter((item) => filterFn(item, query, status, location)) : items;
     if (dateField && dateFrom) base = base.filter(i => (i[dateField] || "") >= dateFrom);
     if (dateField && dateTo)   base = base.filter(i => (i[dateField] || "") <= dateTo);
     return sortItems(base, sortField, sortDir);
-  }, [items, query, status, sortField, sortDir, filterFn, dateField, dateFrom, dateTo]);
+  }, [items, query, status, location, sortField, sortDir, filterFn, dateField, dateFrom, dateTo]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / perPage));
   const safePage   = Math.min(page, totalPages);
   const paged      = filtered.slice((safePage - 1) * perPage, safePage * perPage);
 
   function reset() {
-    setQuery(""); setStatus(""); setSortField(defaultSortField);
+    setQuery(""); setStatus(""); setLocation(""); setSortField(defaultSortField);
     setSortDir("desc"); setPage(1); setDateFrom(""); setDateTo("");
   }
 
   return {
     query,    setQuery:    (v) => { setQuery(v);    setPage(1); },
     status,   setStatus:   (v) => { setStatus(v);   setPage(1); },
+    location, setLocation: (v) => { setLocation(v); setPage(1); },
     sortField, setSortField:(v) => { setSortField(v);setPage(1); },
     sortDir,  setSortDir:  (v) => { setSortDir(v);  setPage(1); },
     dateFrom, setDateFrom: (v) => { setDateFrom(v); setPage(1); },

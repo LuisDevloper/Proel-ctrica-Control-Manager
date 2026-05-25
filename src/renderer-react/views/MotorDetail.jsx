@@ -1,14 +1,17 @@
 import React, { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/Card";
-import { Badge, statusBadgeVariant } from "../components/ui/Badge";
+import { Badge, statusBadgeVariant, OperationalStatusBadge, OperationalLocationBadge } from "../components/ui/Badge";
 import { Button } from "../components/ui/Button";
 import { Table, Thead, Th, Tbody, Tr, Td } from "../components/ui/Table";
 import { SkeletonTable } from "../components/ui/Skeleton";
 import { exportMotorDetailPDF } from "../lib/pdfReport";
-import { ArrowLeft, FileText, Cpu, Wrench, AlertTriangle, DollarSign, Activity } from "lucide-react";
+import { ArrowLeft, FileText, Wrench, AlertTriangle, DollarSign, Activity } from "lucide-react";
+import { ElectricMotorIcon } from "../components/icons/ElectricMotorIcon";
 import { useToast } from "../components/ui/Toast";
 import { PageHeader } from "../components/ui/PageHeader";
 import { EmptyState } from "../components/ui/EmptyState";
+import { EntityDocuments } from "../components/documents/EntityDocuments";
+import { canMutateRecords } from "../lib/permissions";
 
 const fmtCost = (v) => "$" + Number(v || 0).toLocaleString("es-CO");
 const fmtDate = (d) => d || "—";
@@ -22,7 +25,7 @@ function StatMini({ label, value, color = "text-[#eaf2fb]" }) {
   );
 }
 
-export function MotorDetail({ motorId, onBack }) {
+export function MotorDetail({ motorId, onBack, user }) {
   const [data, setData]       = useState(null);
   const [loading, setLoading] = useState(true);
   const [lightbox, setLightbox] = useState(false);
@@ -65,6 +68,7 @@ export function MotorDetail({ motorId, onBack }) {
   }
 
   const { motor, maintenances = [], failures = [] } = data;
+  const canMutate = canMutateRecords(user?.role);
   const totalCost    = maintenances.reduce((s, m) => s + Number(m.cost || 0), 0);
   const pendingFails = failures.filter(f => f.status !== "Resuelta").length;
   const completedMtn = maintenances.filter(m => m.status === "Completado").length;
@@ -73,11 +77,11 @@ export function MotorDetail({ motorId, onBack }) {
     ["Codigo",          motor.code],
     ["Marca",           motor.brand],
     ["Modelo",          motor.model || "—"],
-    ["N° Serie",        motor.serial_number || "—"],
     ["Potencia",        motor.power ? `${motor.power} kW` : "—"],
     ["Voltaje",         motor.voltage ? `${motor.voltage} V` : "—"],
     ["RPM",             motor.rpm || "—"],
-    ["Ubicacion",       motor.location || "—"],
+    ["Ubicacion operativa", motor.operational_location || "En planta"],
+    ["Detalle ubicacion",   motor.location || "—"],
     ["Instalacion",     fmtDate(motor.installed_at)],
     ["Observaciones",   motor.notes || "—"],
   ];
@@ -89,11 +93,12 @@ export function MotorDetail({ motorId, onBack }) {
       </Button>
       <PageHeader
         title={`Motor ${motor.code}`}
-        description={`${motor.brand} ${motor.model || ""} · ${motor.location || "Sin ubicacion"}`}
-        icon={Cpu}
+        description={`${motor.brand} ${motor.model || ""} · ${motor.operational_location || "En planta"}`}
+        icon={ElectricMotorIcon}
         actions={
           <>
-            <Badge variant={statusBadgeVariant(motor.status)}>{motor.status}</Badge>
+            <OperationalLocationBadge location={motor.operational_location} />
+            <OperationalStatusBadge status={motor.status} />
             <Button variant="secondary" size="sm" onClick={() => exportMotorDetailPDF(motor, maintenances, failures)}>
               <FileText size={13} className="mr-1" /> PDF
             </Button>
@@ -146,7 +151,7 @@ export function MotorDetail({ motorId, onBack }) {
 
       {/* Ficha técnica */}
       <Card>
-        <CardHeader><CardTitle className="flex items-center gap-2"><Cpu size={14}/> Ficha tecnica</CardTitle></CardHeader>
+        <CardHeader><CardTitle className="flex items-center gap-2"><ElectricMotorIcon size={14}/> Ficha tecnica</CardTitle></CardHeader>
         <CardContent>
           <div className="flex gap-6">
             {motor.photo && (
@@ -195,13 +200,7 @@ export function MotorDetail({ motorId, onBack }) {
                       <Td><Badge variant={statusBadgeVariant(m.maintenance_type)}>{m.maintenance_type}</Badge></Td>
                       <Td className="text-[#9ab0c7]">{m.maintenance_date}</Td>
                       <Td>
-                        <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${
-                          m.status === "Completado"  ? "bg-[#29a16a22] text-[#29a16a] border border-[#29a16a44]" :
-                          m.status === "En progreso" ? "bg-[#2f8dff22] text-[#2f8dff] border border-[#2f8dff44]" :
-                                                       "bg-[#e0a91f22] text-[#e0a91f] border border-[#e0a91f44]"
-                        }`}>
-                          {m.status || "Pendiente"}
-                        </span>
+                        <OperationalStatusBadge status={m.status} />
                       </Td>
                       <Td className="text-[#9ab0c7]">{m.technician_name || "—"}</Td>
                       <Td className="font-medium text-[#29a16a]">{fmtCost(m.cost)}</Td>
@@ -211,6 +210,23 @@ export function MotorDetail({ motorId, onBack }) {
                 </Tbody>
               </Table>
           }
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <FileText size={14}/> Documentacion tecnica
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <EntityDocuments
+            entityType="motor"
+            entityId={motorId}
+            title="Archivos del motor"
+            canMutate={canMutate}
+            username={user?.username}
+          />
         </CardContent>
       </Card>
 

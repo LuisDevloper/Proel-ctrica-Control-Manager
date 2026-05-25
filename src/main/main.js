@@ -1,4 +1,5 @@
 const { app, BrowserWindow, screen, ipcMain } = require("electron");
+const { buildApplicationMenu } = require("./menu");
 const path = require("path");
 const fs = require("fs");
 const { registerIpcHandlers } = require("./ipc");
@@ -172,6 +173,11 @@ function setupAutoUpdater() {
 if (gotTheLock) {
   app.whenReady().then(async () => {
     try {
+      buildApplicationMenu({
+        getMainWindow: () => BrowserWindow.getAllWindows()[0],
+        isDev,
+      });
+
       await initializeDatabase();
       registerIpcHandlers();
       startBackupScheduler();

@@ -11,6 +11,8 @@ export function FilterBar({
   statusOptions = [], status, onStatusChange,
   sortOptions = [], sortField, sortDir, onSortFieldChange, onSortDirChange,
   onExport, exportCount = -1, onClear,
+  locationOptions = [], location, onLocationChange,
+  locationPlaceholder = "Ubicacion",
   // Rango de fechas
   dateFrom, dateTo, onDateFromChange, onDateToChange,
   // Paginación
@@ -78,6 +80,16 @@ export function FilterBar({
             <Select value={status} onChange={(e) => onStatusChange(e.target.value)} className="w-40">
               <option value="">Todos</option>
               {statusOptions.map((opt) => <option key={opt} value={opt}>{opt}</option>)}
+            </Select>
+          )}
+
+          {locationOptions.length > 0 && (
+            <Select value={location} onChange={(e) => onLocationChange(e.target.value)} className="w-48" title={locationPlaceholder}>
+              {locationOptions.map((opt) => {
+                const value = typeof opt === "string" ? opt : opt.value;
+                const label = typeof opt === "string" ? (opt || "Todas") : opt.label;
+                return <option key={value || "__all__"} value={value}>{label}</option>;
+              })}
             </Select>
           )}
 

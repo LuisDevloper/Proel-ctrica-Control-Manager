@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/Card";
 import { Button } from "../components/ui/Button";
 import { Input, Select, Textarea, Field } from "../components/ui/Input";
-import { Badge, statusBadgeVariant } from "../components/ui/Badge";
+import { Badge, statusBadgeVariant, OperationalStatusBadge } from "../components/ui/Badge";
 import { FilterBar } from "../components/layout/FilterBar";
 import { Pager } from "../components/layout/Pager";
 import { ConfirmModal } from "../components/ui/Modal";
@@ -24,12 +24,13 @@ import { useToast } from "../components/ui/Toast";
 import { useAsync } from "../hooks/useAsync";
 import { exportMaintenancesPDF } from "../lib/pdfReport";
 import { CurrencyInput } from "../components/ui/CurrencyInput";
-import { Plus, Pencil, Trash2, X, Check, FileText, CheckCircle2, Wrench } from "lucide-react";
+import { Plus, Pencil, Trash2, X, Check, FileText, CheckCircle2, Wrench, Paperclip } from "lucide-react";
 import { useDbHealth } from "../context/DbHealthContext";
 import { canMutateRecords, READ_ONLY_ROLE_TITLE } from "../lib/permissions";
 import { PageHeader } from "../components/ui/PageHeader";
 import { ReadOnlyBanner } from "../components/ui/ReadOnlyBanner";
 import { EmptyState } from "../components/ui/EmptyState";
+import { DocumentsModal } from "../components/documents/EntityDocuments";
 
 const filterFn = (item, query, status) => {
   const hay = `${item.motor_code||""} ${item.technician_name||""}`.toLowerCase();
@@ -42,16 +43,7 @@ const fmtCost = (v) => {
 };
 
 function StatusBadge({ status }) {
-  const styles = {
-    "Pendiente":   "bg-[#e0a91f22] text-[#e0a91f] border border-[#e0a91f44]",
-    "Completado":  "bg-[#29a16a22] text-[#29a16a] border border-[#29a16a44]",
-    "En progreso": "bg-[#2f8dff22] text-[#2f8dff] border border-[#2f8dff44]",
-  };
-  return (
-    <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${styles[status] || styles["Pendiente"]}`}>
-      {status || "Pendiente"}
-    </span>
-  );
+  return <OperationalStatusBadge status={status} />;
 }
 
 export function Mantenimientos({ user }) {
@@ -61,7 +53,9 @@ export function Mantenimientos({ user }) {
   const [editId, setEditId]       = useState(null);
   const [editData, setEditData]   = useState({});
   const [deleteId, setDeleteId]   = useState(null);
+  const [docsTarget, setDocsTarget] = useState(null);
   const [form, setForm]           = useState({ motorId:"", technicianId:"", maintenanceType:"Preventivo", maintenanceDate:"", description:"", cost:"" });
+  const [quoteFile, setQuoteFile] = useState(null);
   const { showToast }             = useToast();
   const { run }                   = useAsync();
   const { dbWritable }            = useDbHealth();
@@ -78,10 +72,76 @@ export function Mantenimientos({ user }) {
 
   useEffect(() => { load(); }, [load]);
 
+  function guessMimeFromName(name) {
+    const ext = String(name || "").toLowerCase().split(".").pop();
+    if (ext === "pdf") return "application/pdf";
+    if (ext === "png") return "image/png";
+    if (ext === "webp") return "image/webp";
+    if (ext === "jpg" || ext === "jpeg") return "image/jpeg";
+    return "application/pdf";
+  }
+
+  function handleQuoteFile(e) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 15 * 1024 * 1024) {
+      showToast("La cotizacion no debe superar 15 MB.", "warning");
+      e.target.value = "";
+      return;
+    }
+    const mime = file.type || guessMimeFromName(file.name);
+    const allowed = ["application/pdf", "image/jpeg", "image/png", "image/webp"];
+    if (!allowed.includes(mime)) {
+      showToast("Formato no permitido. Use PDF, JPG, PNG o WEBP.", "warning");
+      e.target.value = "";
+      return;
+    }
+    setQuoteFile(file);
+  }
+
+  function readFileBase64(file) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        const dataUrl = reader.result;
+        const base64 = String(dataUrl).split(",")[1];
+        resolve(base64);
+      };
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+  }
+
   async function handleSave() {
     if (!form.motorId || !form.maintenanceDate) { showToast("Motor y fecha son obligatorios.", "warning"); return; }
-    const { ok } = await run(() => window.proelectricaApi.createMaintenance({ ...form, _username: user?.username }), "Mantenimiento registrado.");
-    if (ok) { setForm({ motorId:"", technicianId:"", maintenanceType:"Preventivo", maintenanceDate:"", description:"", cost:"" }); load(); }
+    const { ok, result } = await run(
+      () => window.proelectricaApi.createMaintenance({ ...form, _username: user?.username }),
+      "Mantenimiento registrado."
+    );
+    if (!ok) return;
+
+    if (quoteFile && result?.id) {
+      try {
+        const dataBase64 = await readFileBase64(quoteFile);
+        const up = await window.proelectricaApi.uploadDocument({
+          entityType: "maintenance",
+          entityId: result.id,
+          docType: "cotizacion",
+          fileName: quoteFile.name,
+          mimeType: quoteFile.type || guessMimeFromName(quoteFile.name),
+          dataBase64,
+          username: user?.username,
+        });
+        if (up?.ok) showToast("Cotizacion adjuntada al mantenimiento.", "success");
+        else if (up?.message) showToast(up.message, "warning");
+      } catch {
+        showToast("Mantenimiento guardado, pero no se pudo adjuntar la cotizacion.", "warning");
+      }
+    }
+
+    setForm({ motorId:"", technicianId:"", maintenanceType:"Preventivo", maintenanceDate:"", description:"", cost:"" });
+    setQuoteFile(null);
+    load();
   }
 
   async function handleUpdate() {
@@ -142,6 +202,41 @@ export function Mantenimientos({ user }) {
             <Field label="Fecha*"><Input disabled={formDisabled} type="date" value={form.maintenanceDate} onChange={(e)=>setForm({...form,maintenanceDate:e.target.value})}/></Field>
             <Field label="Costo"><CurrencyInput disabled={formDisabled} value={form.cost} onChange={(v)=>setForm({...form,cost:v})}/></Field>
             <Field label="Descripcion"><Textarea disabled={formDisabled} placeholder="Descripcion del trabajo" value={form.description} onChange={(e)=>setForm({...form,description:e.target.value})}/></Field>
+            <Field label="Cotizacion (opcional)" className="col-span-2">
+              <div className="flex flex-col gap-2">
+                <div className="flex flex-wrap items-center gap-3">
+                  {!formDisabled ? (
+                    <label className="inline-flex items-center gap-2 cursor-pointer text-sm text-[#2f8dff] hover:text-[#5fb3ff] transition-colors">
+                      <Paperclip size={14} />
+                      {quoteFile ? "Cambiar archivo" : "Adjuntar cotizacion"}
+                      <input
+                        type="file"
+                        accept=".pdf,.jpg,.jpeg,.png,.webp,application/pdf,image/*"
+                        className="hidden"
+                        onChange={handleQuoteFile}
+                      />
+                    </label>
+                  ) : (
+                    <span className="text-xs text-[#6a7d94]">Solo lectura</span>
+                  )}
+                  {quoteFile && (
+                    <>
+                      <span className="text-xs text-[#9ab0c7] truncate max-w-[280px]" title={quoteFile.name}>{quoteFile.name}</span>
+                      {!formDisabled && (
+                        <button
+                          type="button"
+                          onClick={() => setQuoteFile(null)}
+                          className="text-xs text-[#9ab0c7] hover:text-[#e07070] cursor-pointer"
+                        >
+                          Quitar
+                        </button>
+                      )}
+                    </>
+                  )}
+                </div>
+                <p className="text-xs text-[#7a9bb8]">PDF, JPG, PNG o WEBP — max. 15 MB. Se vincula al guardar el mantenimiento.</p>
+              </div>
+            </Field>
           </div>
           <Button className="mt-2" onClick={handleSave} disabled={formDisabled} title={mutBlockTitle}>Guardar mantenimiento</Button>
         </CardContent>
@@ -173,7 +268,7 @@ export function Mantenimientos({ user }) {
           {filters.paged.length === 0
             ? <EmptyState message="No hay mantenimientos para mostrar. Ajusta los filtros o registra uno nuevo." />
             : <Table>
-                <Thead><tr><Th>Tipo</Th><Th>Motor</Th><Th>Tecnico</Th><Th>Fecha</Th><Th>Costo</Th><Th>Estado</Th><Th>Acciones</Th></tr></Thead>
+                <Thead><tr><Th>Tipo</Th><Th>Motor</Th><Th>Tecnico</Th><Th>Fecha</Th><Th>Costo</Th><Th>Estado</Th><Th>Docs</Th><Th>Acciones</Th></tr></Thead>
                 <Tbody>
                   {filters.paged.map(item=>(
                     <React.Fragment key={item.id}>
@@ -184,6 +279,18 @@ export function Mantenimientos({ user }) {
                         <Td className="text-[#9ab0c7]">{item.maintenance_date}</Td>
                         <Td>{fmtCost(item.cost)}</Td>
                         <Td><StatusBadge status={item.status} /></Td>
+                        <Td>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-7 px-2 text-xs"
+                            title="Documentos adjuntos"
+                            onClick={() => setDocsTarget({ id: item.id, label: `${item.maintenance_type} — ${item.motor_code}` })}
+                          >
+                            <Paperclip size={13} className="mr-1" />
+                            {Number(item.document_count) > 0 ? item.document_count : "0"}
+                          </Button>
+                        </Td>
                         <Td>
                           <div className="flex gap-2">
                             {item.status !== "Completado" && (
@@ -198,7 +305,7 @@ export function Mantenimientos({ user }) {
                       </Tr>
                       {editId===item.id&&(
                         <Tr className="bg-[#0d1e30]">
-                          <Td colSpan={7}>
+                          <Td colSpan={8}>
                             <div className="grid grid-cols-2 gap-3 py-1">
                               <Field label="Tipo"><Select disabled={formDisabled} value={editData.maintenanceType} onChange={(e)=>setEditData({...editData,maintenanceType:e.target.value})}><option>Preventivo</option><option>Correctivo</option></Select></Field>
                               <Field label="Fecha"><Input disabled={formDisabled} type="date" value={editData.maintenanceDate} onChange={(e)=>setEditData({...editData,maintenanceDate:e.target.value})}/></Field>
@@ -229,6 +336,17 @@ export function Mantenimientos({ user }) {
       </Card>
 
       <ConfirmModal open={!!deleteId} onClose={()=>setDeleteId(null)} onConfirm={handleDelete} message="Se eliminara este mantenimiento de forma permanente."/>
+
+      <DocumentsModal
+        open={!!docsTarget}
+        onClose={() => setDocsTarget(null)}
+        entityType="maintenance"
+        entityId={docsTarget?.id}
+        title={`Documentos — ${docsTarget?.label || ""}`}
+        canMutate={canMutate}
+        username={user?.username}
+        onChange={load}
+      />
     </div>
   );
 }

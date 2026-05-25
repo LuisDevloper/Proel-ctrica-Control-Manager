@@ -10,8 +10,8 @@ const IMPORT_MAX_ROWS = 200;
 const TEMPLATES = {
   motors: {
     label: "Motores",
-    cols: ["Codigo", "Marca", "Modelo", "N° Serie", "Potencia (kW)", "Voltaje (V)", "RPM", "Ubicacion", "Fecha instalacion", "Estado", "Observaciones"],
-    example: ["MOT-001", "Siemens", "1LA7", "SN12345", "15", "440", "1800", "Planta Norte", "2024-01-15", "Operativo", ""],
+    cols: ["Codigo", "Marca", "Modelo", "Potencia (kW)", "Voltaje (V)", "RPM", "Ubicacion", "Fecha instalacion", "Estado", "Observaciones"],
+    example: ["MOT-001", "Siemens", "1LA7", "15", "440", "1800", "Planta Norte", "2024-01-15", "Operativo", ""],
   },
   technicians: {
     label: "Técnicos",

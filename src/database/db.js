@@ -33,6 +33,7 @@ async function initializeDatabase() {
       power TEXT,
       rpm TEXT,
       location TEXT,
+      operational_location TEXT NOT NULL DEFAULT 'En planta',
       status TEXT,
       installed_at TEXT,
       notes TEXT,
@@ -98,6 +99,79 @@ async function initializeDatabase() {
       location TEXT,
       created_at TEXT NOT NULL
     );
+
+    CREATE TABLE IF NOT EXISTS inventory_movements (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      inventory_item_id INTEGER NOT NULL,
+      movement_type TEXT NOT NULL,
+      quantity INTEGER NOT NULL,
+      stock_before INTEGER NOT NULL,
+      stock_after INTEGER NOT NULL,
+      reference_type TEXT,
+      reference_id INTEGER,
+      reference_label TEXT,
+      notes TEXT,
+      created_by TEXT,
+      created_at TEXT NOT NULL,
+      FOREIGN KEY (inventory_item_id) REFERENCES inventory_items(id)
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_inv_movements_item ON inventory_movements(inventory_item_id);
+    CREATE INDEX IF NOT EXISTS idx_inv_movements_date ON inventory_movements(created_at);
+
+    CREATE TABLE IF NOT EXISTS documents (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      entity_type TEXT NOT NULL,
+      entity_id INTEGER NOT NULL,
+      doc_type TEXT NOT NULL,
+      file_name TEXT NOT NULL,
+      mime_type TEXT NOT NULL,
+      file_path TEXT NOT NULL,
+      file_size INTEGER NOT NULL,
+      uploaded_by TEXT,
+      created_at TEXT NOT NULL
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_documents_entity ON documents(entity_type, entity_id);
+
+    CREATE TABLE IF NOT EXISTS turbinas (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      code TEXT NOT NULL UNIQUE,
+      gg TEXT,
+      pt TEXT,
+      bearing_1 TEXT,
+      bearing_2 TEXT,
+      runtime_retiro TEXT,
+      comentarios_retiro TEXT,
+      operational_location TEXT NOT NULL DEFAULT 'En planta',
+      status TEXT NOT NULL DEFAULT 'Operativo',
+      motor_id INTEGER,
+      notes TEXT,
+      created_at TEXT NOT NULL,
+      FOREIGN KEY (motor_id) REFERENCES motors(id)
+    );
+
+    CREATE TABLE IF NOT EXISTS external_workshop_shipments (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      equipment_type TEXT NOT NULL,
+      equipment_id INTEGER NOT NULL,
+      workshop_name TEXT NOT NULL,
+      responsible TEXT,
+      departure_date TEXT NOT NULL,
+      expected_return_date TEXT,
+      actual_return_date TEXT,
+      motive TEXT,
+      equipment_condition TEXT,
+      logistics_status TEXT NOT NULL DEFAULT 'Permiso de salida aprobado',
+      previous_operational_location TEXT,
+      notes TEXT,
+      created_by TEXT,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_shipments_equipment ON external_workshop_shipments(equipment_type, equipment_id);
+    CREATE INDEX IF NOT EXISTS idx_shipments_status ON external_workshop_shipments(logistics_status);
   `);
 
   runMigrations();
@@ -139,6 +213,16 @@ function runMigrations() {
   if (!motorCols.includes("photo")) {
     db.exec("ALTER TABLE motors ADD COLUMN photo TEXT");
     logInfo("database.migration_motors_photo");
+  }
+  if (!motorCols.includes("operational_location")) {
+    db.exec("ALTER TABLE motors ADD COLUMN operational_location TEXT NOT NULL DEFAULT 'En planta'");
+    db.exec("UPDATE motors SET operational_location = 'En planta' WHERE operational_location IS NULL OR operational_location = ''");
+    logInfo("database.migration_motors_operational_location");
+  }
+  const shipmentCols = db.prepare("PRAGMA table_info(external_workshop_shipments)").all().map(c => c.name);
+  if (!shipmentCols.includes("previous_operational_location")) {
+    db.exec("ALTER TABLE external_workshop_shipments ADD COLUMN previous_operational_location TEXT");
+    logInfo("database.migration_shipments_previous_location");
   }
 }
 

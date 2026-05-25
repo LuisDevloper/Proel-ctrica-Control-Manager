@@ -1,11 +1,10 @@
 # Modulos de negocio
 
-Este directorio queda reservado para encapsular logica por dominio:
+Logica de dominio extraida de los handlers IPC:
 
-- `motors`
-- `maintenances`
-- `failures`
-- `technicians`
-- `inventory`
+- `equipment/` — constantes y canonicalizacion de estados/ubicaciones
+- `shipments/` — envios a taller externo y sincronizacion de ubicacion
+- `import/` — parseo e importacion desde Excel
+- `inventory/` — movimientos de inventario
 
-Cada modulo debe contener validaciones, reglas de negocio y operaciones de datos, evitando sobrecargar los handlers IPC.
+Los handlers IPC viven en `src/main/ipc/handlers/` y delegan en estos modulos.

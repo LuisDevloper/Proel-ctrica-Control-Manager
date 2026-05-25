@@ -33,7 +33,7 @@ export function AppLogo({ className, size = "md" }) {
       src="./logo.png"
       alt="Proelectrica"
       className={cn("object-contain shrink-0", className)}
-      style={size === "sm" ? { height: "28px" } : size === "md" ? { height: "40px" } : size === "lg" ? { height: "64px" } : { height: "112px" }}
+      style={size === "sm" ? { height: "28px" } : size === "md" ? { height: "40px" } : size === "lg" ? { height: "64px" } : { height: "150px" }}
       onError={() => setFailed(true)}
     />
   );

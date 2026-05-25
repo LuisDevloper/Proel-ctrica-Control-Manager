@@ -3,8 +3,8 @@ import { cn } from "../../lib/utils";
 
 export function Table({ children, className }) {
   return (
-    <div className="overflow-x-auto rounded-xl border border-[var(--border)] bg-[var(--panel-deep)]/40">
-      <table className={cn("w-full border-collapse text-sm", className)}>
+    <div className="w-full overflow-x-auto rounded-xl border border-[var(--border)] bg-[var(--panel-deep)]/40">
+      <table className={cn("w-full min-w-full table-fixed border-collapse text-sm", className)}>
         {children}
       </table>
     </div>
@@ -46,9 +46,9 @@ export function Tr({ children, className }) {
   );
 }
 
-export function Td({ children, className }) {
+export function Td({ children, className, ...props }) {
   return (
-    <td className={cn("px-4 py-3 text-[var(--text)] align-middle", className)}>
+    <td className={cn("px-4 py-3 text-[var(--text)] align-middle", className)} {...props}>
       {children}
     </td>
   );

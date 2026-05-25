@@ -1,7 +1,7 @@
 import React, { useState, useCallback, lazy, Suspense, useEffect } from "react";
 import { ToastProvider } from "./components/ui/Toast";
 import { useTheme } from "./context/ThemeContext";
-import { DbHealthProvider } from "./context/DbHealthContext";
+import { DbHealthProvider, useDbHealth } from "./context/DbHealthContext";
 import { SplashScreen } from "./components/ui/SplashScreen";
 import { Sidebar, NAV_ITEMS } from "./components/layout/Sidebar";
 import { NotificationBell } from "./components/ui/NotificationBell";
@@ -9,6 +9,8 @@ import { UpdateBanner } from "./components/ui/UpdateBanner";
 import { DbConnectionBanner } from "./components/layout/DbConnectionBanner";
 import { PendingUpdateReminder } from "./components/layout/PendingUpdateReminder";
 import { Login } from "./views/Login";
+import { LoginBackdrop } from "./components/ui/LoginBackdrop";
+import { useToast } from "./components/ui/Toast";
 
 // Carga diferida — cada vista se descarga solo cuando se navega a ella
 const Dashboard      = lazy(() => import("./views/Dashboard").then(m => ({ default: m.Dashboard })));
@@ -30,8 +32,10 @@ const VIEWS = {
 };
 
 
-export default function App() {
+function AppContent() {
   const { theme, toggle: toggleTheme } = useTheme();
+  const { showToast } = useToast();
+  const { refresh: dbRefresh } = useDbHealth();
   const [user, setUser]             = useState(null);
   const [view, setView]             = useState("dashboard");
   const [collapsed, setCollapsed]   = useState(false);
@@ -59,6 +63,78 @@ export default function App() {
     return () => window.removeEventListener("keydown", onKey);
   }, [user, user?.role]);
 
+  useEffect(() => {
+    const api = window.proelectricaApi;
+    if (!api?.onMenuAction) return;
+    const unsub = api.onMenuAction(async ({ action, view, adminOnly }) => {
+      switch (action) {
+        case "navigate": {
+          if (!user) {
+            showToast("Inicia sesion para navegar.", "warning");
+            return;
+          }
+          if (adminOnly && user.role !== "ADMIN") {
+            showToast("Solo administradores pueden acceder a esta seccion.", "warning");
+            return;
+          }
+          if (view && VIEWS[view]) setView(view);
+          break;
+        }
+        case "logout":
+          if (user) handleLogout();
+          break;
+        case "theme-toggle":
+          toggleTheme();
+          break;
+        case "backup": {
+          if (!user) {
+            showToast("Inicia sesion para crear una copia de seguridad.", "warning");
+            return;
+          }
+          const res = await api.backupDb();
+          if (res?.ok) showToast("Copia de seguridad guardada.", "success");
+          else if (res?.message && res.message !== "Cancelado") showToast(res.message, "warning");
+          break;
+        }
+        case "restore": {
+          if (!user) {
+            showToast("Inicia sesion para restaurar la base de datos.", "warning");
+            return;
+          }
+          const res = await api.restoreDb();
+          if (res?.ok) {
+            showToast("Base de datos restaurada. Reinicia la aplicacion si ves datos antiguos.", "success");
+            dbRefresh?.();
+          } else if (res?.message && res.message !== "Cancelado") {
+            showToast(res.message, "warning");
+          }
+          break;
+        }
+        case "check-updates": {
+          if (import.meta.env?.DEV) {
+            showToast("Las actualizaciones solo estan disponibles en la version instalada.", "info");
+            return;
+          }
+          const res = await api.checkForUpdates?.();
+          if (res?.ok && res.updateAvailable) showToast("Hay una actualizacion disponible.", "info");
+          else if (res?.ok) showToast("Ya tienes la ultima version.", "success");
+          else if (res?.reason === "dev") showToast("Modo desarrollo: sin comprobacion de actualizaciones.", "info");
+          else showToast(res?.message || "No se pudo comprobar actualizaciones.", "warning");
+          break;
+        }
+        default:
+          break;
+      }
+    });
+    return unsub;
+  }, [user, toggleTheme, showToast, dbRefresh]);
+
+  useEffect(() => {
+    if (!splashDone) return;
+    document.documentElement.toggleAttribute("data-guest-login", !user);
+    return () => document.documentElement.removeAttribute("data-guest-login");
+  }, [splashDone, user]);
+
   function handleLogout() {
     setFadingOut(true);
     setTimeout(async () => {
@@ -80,21 +156,21 @@ export default function App() {
   const ViewComponent = VIEWS[view] || Dashboard;
 
   return (
-    <ToastProvider>
-      <DbHealthProvider>
+    <>
         <PendingUpdateReminder />
-        <div className="min-h-screen flex flex-col animate-pageFadeIn">
-        {/* Un solo listener de actualizaciones: sigue montado en login y tras entrar (la comprobacion es ~5s al arrancar). */}
-        <div className="shrink-0 px-4 pt-3 max-w-5xl mx-auto w-full">
+        {!user && <LoginBackdrop />}
+        {/* Banner de actualizaciones: siempre visible en login y tras entrar (comprobación ~5s al arrancar). */}
+        <div className="sticky top-0 z-50 shrink-0 px-4 pt-3 max-w-5xl mx-auto w-full">
           <UpdateBanner />
         </div>
+        <div className={`min-h-screen flex flex-col relative z-10${user ? " animate-pageFadeIn" : ""}`}>
 
         {!user ? (
           <>
             <div className="shrink-0 px-4 max-w-5xl mx-auto w-full">
               <DbConnectionBanner />
             </div>
-            <div className="flex-1 min-h-0">
+            <div className="flex-1 min-h-0 flex flex-col">
               <Login onLogin={setUser} />
             </div>
           </>
@@ -140,6 +216,15 @@ export default function App() {
           </div>
         )}
       </div>
+    </>
+  );
+}
+
+export default function App() {
+  return (
+    <ToastProvider>
+      <DbHealthProvider>
+        <AppContent />
       </DbHealthProvider>
     </ToastProvider>
   );

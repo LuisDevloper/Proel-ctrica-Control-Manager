@@ -1,11 +1,13 @@
 import React, { useEffect, useState } from "react";
-import { Download, RefreshCw, CheckCircle, X, Loader2 } from "lucide-react";
+import { Download, RefreshCw, CheckCircle, X, Loader2, ScrollText } from "lucide-react";
 import { cn } from "../../lib/utils";
+import { Modal } from "./Modal";
+import { VersionReleaseNotes } from "../settings/VersionHistory";
 
 export function UpdateBanner() {
   const [state, setState] = useState(null);
-  // state: null | { event, version?, percent?, message? }
-
+  const [releaseModal, setReleaseModal] = useState(null);
+  const [currentVersion, setCurrentVersion] = useState(null);
   useEffect(() => {
     if (!window.proelectricaApi?.onUpdaterEvent) return;
     const unsub = window.proelectricaApi.onUpdaterEvent((data) => {
@@ -43,6 +45,16 @@ export function UpdateBanner() {
     return unsub;
   }, []);
 
+  useEffect(() => {
+    let cancelled = false;
+    window.proelectricaApi?.getAppInfo?.()
+      .then((info) => { if (!cancelled) setCurrentVersion(info?.version); })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, []);
+
+  const showReleaseNotes = (version) => setReleaseModal(version);
+
   if (!state) return null;
 
   const { event, version, percent, message } = state;
@@ -50,8 +62,8 @@ export function UpdateBanner() {
   const configs = {
     checking: {
       icon: Loader2,
-      bg: "bg-[var(--panel-deep)]/80 border-[var(--border)]/60",
-      text: "text-[var(--muted)]",
+      bg: "bg-[#0d1825]/95 border-[#2f8dff]/35 backdrop-blur-md shadow-[0_4px_24px_#00000066]",
+      text: "text-[#c5d8ef]",
       msg: "Comprobando actualizaciones…",
       showClose: false,
     },
@@ -89,13 +101,13 @@ export function UpdateBanner() {
   const cfg = configs[event];
   if (!cfg) return null;
   const Icon = cfg.icon;
-  const discrete = event === "checking";
+  const canShowNotes = version && (event === "available" || event === "downloaded");
 
   return (
+    <>
     <div
       className={cn(
-        "flex items-center gap-3 rounded-xl border font-medium mb-3 transition-all",
-        discrete ? "px-3 py-1.5 text-[11px] gap-2 opacity-90" : "px-4 py-2.5 text-xs",
+        "flex items-center gap-3 rounded-xl border font-medium mb-3 transition-all px-4 py-2.5 text-xs",
         cfg.bg, cfg.text
       )}
       role={
@@ -132,6 +144,16 @@ export function UpdateBanner() {
         </button>
       )}
 
+      {canShowNotes && (
+        <button
+          type="button"
+          onClick={() => showReleaseNotes(version)}
+          className="px-3 py-1 rounded-lg bg-white/5 hover:bg-white/10 text-current transition-colors cursor-pointer border border-white/10 text-xs font-semibold inline-flex items-center gap-1"
+        >
+          <ScrollText size={12} /> Novedades
+        </button>
+      )}
+
       {cfg.showClose && (
         <button
           onClick={() => setState(null)}
@@ -141,5 +163,15 @@ export function UpdateBanner() {
         </button>
       )}
     </div>
+
+    <Modal
+      open={!!releaseModal}
+      onClose={() => setReleaseModal(null)}
+      title={releaseModal ? `Novedades de la version ${releaseModal}` : ""}
+      className="max-w-lg"
+    >
+      <VersionReleaseNotes version={releaseModal} currentVersion={currentVersion} />
+    </Modal>
+    </>
   );
 }

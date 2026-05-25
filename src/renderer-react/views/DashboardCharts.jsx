@@ -8,37 +8,58 @@ import {
   AreaChart, Area, LabelList
 } from "recharts";
 
-const MOTOR_COLORS = {
+const EQUIPMENT_COLORS = {
   "Operativo":         "#29a16a",
   "En mantenimiento":  "#e0a91f",
+  "En almacen":        "#2f8dff",
   "Fuera de servicio": "#c94a4a"
 };
 
-const MOTOR_STATUS_ORDER = ["Operativo", "En mantenimiento", "Fuera de servicio"];
+const EQUIPMENT_STATUS_ORDER = ["Operativo", "En mantenimiento", "En almacen", "Fuera de servicio"];
 
-function buildMotorStatusSeries(raw) {
-  const map = Object.fromEntries(
-    (raw || []).map((r) => [r.status, Number(r.count) || 0])
-  );
-  return MOTOR_STATUS_ORDER.map((status) => ({
-    name: status,
-    value: map[status] || 0,
-  })).filter((d) => d.value > 0);
+function countByStatus(raw) {
+  return (raw || []).reduce((s, r) => s + (Number(r.count) || 0), 0);
 }
 
-function buildMotorStatusLegend(raw) {
-  const map = Object.fromEntries(
-    (raw || []).map((r) => [r.status, Number(r.count) || 0])
-  );
-  const total = MOTOR_STATUS_ORDER.reduce((s, st) => s + (map[st] || 0), 0);
-  return MOTOR_STATUS_ORDER.map((status) => {
-    const value = map[status] || 0;
+function reconcileTurbinasStatus(raw, totalFromStats) {
+  const rows = [...(raw || [])];
+  const listed = countByStatus(rows);
+  const expected = Number(totalFromStats);
+  if (!Number.isFinite(expected) || expected <= listed) return rows;
+  const extra = expected - listed;
+  const operativo = rows.find((r) => r.status === "Operativo");
+  if (operativo) operativo.count = Number(operativo.count) + extra;
+  else rows.push({ status: "Operativo", count: extra });
+  return rows;
+}
+
+function mergeEquipmentStatusCounts(motorsRaw, turbinasRaw) {
+  const map = Object.fromEntries(EQUIPMENT_STATUS_ORDER.map((status) => [status, 0]));
+  for (const row of [...(motorsRaw || []), ...(turbinasRaw || [])]) {
+    const status = row.status;
+    if (status in map) map[status] += Number(row.count) || 0;
+    else map[status] = (map[status] || 0) + (Number(row.count) || 0);
+  }
+  return EQUIPMENT_STATUS_ORDER.map((status) => ({ status, count: map[status] || 0 }));
+}
+
+function buildEquipmentStatusSeries(merged) {
+  return (merged || [])
+    .map((r) => ({ name: r.status, value: Number(r.count) || 0 }))
+    .filter((d) => d.value > 0);
+}
+
+function buildEquipmentStatusLegend(merged) {
+  const total = (merged || []).reduce((s, r) => s + (Number(r.count) || 0), 0);
+  return EQUIPMENT_STATUS_ORDER.map((status) => {
+    const row = (merged || []).find((r) => r.status === status);
+    const value = Number(row?.count) || 0;
     const pct = total > 0 ? Math.round((value / total) * 100) : 0;
-    return { status, value, pct, color: MOTOR_COLORS[status] };
+    return { status, value, pct, color: EQUIPMENT_COLORS[status] };
   });
 }
 
-function TooltipMotorStatus({ active, payload }) {
+function TooltipEquipmentStatus({ active, payload }) {
   if (!active || !payload?.length) return null;
   const item = payload[0];
   const name = item.name;
@@ -48,14 +69,14 @@ function TooltipMotorStatus({ active, payload }) {
   return (
     <div style={{ background: "#111d2c", border: "1px solid #2a3d57", borderRadius: 8, padding: "8px 14px", fontSize: 12 }}>
       <p style={{ color: "#eaf2fb", fontWeight: 600, marginBottom: 4 }}>{name}</p>
-      <p style={{ color: MOTOR_COLORS[name] || "#9ab0c7" }}>
-        {value} motor{value !== 1 ? "es" : ""} ({pct}%)
+      <p style={{ color: EQUIPMENT_COLORS[name] || "#9ab0c7" }}>
+        {value} equipo{value !== 1 ? "s" : ""} ({pct}%)
       </p>
     </div>
   );
 }
 
-function MotorStatusCenterLabel({ viewBox, total }) {
+function EquipmentStatusCenterLabel({ viewBox, total }) {
   const { cx, cy } = viewBox || {};
   if (cx == null || cy == null) return null;
   return (
@@ -64,7 +85,7 @@ function MotorStatusCenterLabel({ viewBox, total }) {
         {total}
       </tspan>
       <tspan x={cx} dy="1.35em" fill="#9ab0c7" fontSize={11}>
-        {total === 1 ? "motor" : "motores"}
+        {total === 1 ? "equipo" : "equipos"}
       </tspan>
     </text>
   );
@@ -72,7 +93,7 @@ function MotorStatusCenterLabel({ viewBox, total }) {
 
 function MotorStatusLegend({ items }) {
   return (
-    <ul className="grid grid-cols-3 gap-2 mt-3 pt-3 border-t border-[var(--border-soft)] list-none m-0 p-0">
+    <ul className="grid grid-cols-2 lg:grid-cols-4 gap-2 mt-3 pt-3 border-t border-[var(--border-soft)] list-none m-0 p-0">
       {items.map(({ status, value, pct, color }) => (
         <li key={status} className="flex flex-col items-center gap-1 text-center min-w-0 px-1">
           <span className="flex items-center gap-1.5 w-full justify-center">
@@ -148,28 +169,37 @@ function TooltipCostos({ active, payload }) {
 }
 
 /** Bloque pesado (Recharts) cargado en chunk separado desde Dashboard. */
-export function DashboardCharts({ charts }) {
+export function DashboardCharts({ charts, stats, periodLabel, loading = false }) {
   const { theme } = useTheme();
   const tickColor  = theme === "light" ? "#475569" : "#9ab0c7";
   const gridColor  = theme === "light" ? "#e2e8f0" : "#1e2f44";
   const labelColor = theme === "light" ? "#64748b" : "#9ab0c7";
 
   const motorStatusRaw = charts?.motorsByStatus || [];
-  const motorTotal = motorStatusRaw.reduce((s, r) => s + (Number(r.count) || 0), 0);
-  const pieData = buildMotorStatusSeries(motorStatusRaw).map((d) => ({ ...d, total: motorTotal }));
-  const motorLegend = buildMotorStatusLegend(motorStatusRaw);
+  const turbinaStatusRaw = reconcileTurbinasStatus(
+    charts?.turbinasByStatus,
+    stats?.totalTurbinas
+  );
+  const equipmentStatusMerged = mergeEquipmentStatusCounts(motorStatusRaw, turbinaStatusRaw);
+  const motorTotal = Number(stats?.totalMotors) || countByStatus(motorStatusRaw);
+  const turbinaTotal = Number(stats?.totalTurbinas) || countByStatus(turbinaStatusRaw);
+  const equipmentTotal = motorTotal + turbinaTotal;
+  const pieData = buildEquipmentStatusSeries(equipmentStatusMerged).map((d) => ({ ...d, total: equipmentTotal }));
+  const equipmentLegend = buildEquipmentStatusLegend(equipmentStatusMerged);
   const barData  = (charts?.maintenancesByMonth || []).map(r => ({ mes: fmtMonth(r.month), mesFull: fmtMonthFull(r.month), total: r.count }));
   const lineData = (charts?.failuresByMonth || []).map(r => ({ mes: fmtMonth(r.month), mesFull: fmtMonthFull(r.month), fallas: r.count }));
   const costData = (charts?.costByMotor || []).map(r => ({ motor: r.motor, total: Number(r.total || 0) }));
+  const label = periodLabel || charts?.periodLabel || charts?.year || new Date().getFullYear();
 
   return (
+    <div className={loading ? "opacity-60 pointer-events-none transition-opacity" : "transition-opacity"}>
     <>
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         <Card>
-          <CardHeader><CardTitle>Estado de motores</CardTitle></CardHeader>
+          <CardHeader><CardTitle>Estado de equipos</CardTitle></CardHeader>
           <CardContent>
-            {motorTotal === 0
-              ? <EmptyState message="No hay motores registrados." className="py-10" />
+            {equipmentTotal === 0
+              ? <EmptyState message="No hay motores ni turbinas registrados." className="py-10" />
               : (
                 <>
                   <ResponsiveContainer width="100%" height={200}>
@@ -180,20 +210,23 @@ export function DashboardCharts({ charts }) {
                         cy="50%"
                         innerRadius={52}
                         outerRadius={78}
-                        paddingAngle={2}
+                        paddingAngle={pieData.length > 1 ? 2 : 0}
                         dataKey="value"
                         stroke="#0a0f14"
                         strokeWidth={2}
                       >
                         {pieData.map((entry, i) => (
-                          <Cell key={i} fill={MOTOR_COLORS[entry.name] || "#4a6a8a"} />
+                          <Cell key={i} fill={EQUIPMENT_COLORS[entry.name] || "#4a6a8a"} />
                         ))}
-                        <Label content={(props) => <MotorStatusCenterLabel {...props} total={motorTotal} />} position="center" />
+                        <Label content={(props) => <EquipmentStatusCenterLabel {...props} total={equipmentTotal} />} position="center" />
                       </Pie>
-                      <Tooltip content={<TooltipMotorStatus />} />
+                      <Tooltip content={<TooltipEquipmentStatus />} />
                     </PieChart>
                   </ResponsiveContainer>
-                  <MotorStatusLegend items={motorLegend} />
+                  <p className="text-center text-[11px] text-[var(--muted)] -mt-1 mb-1">
+                    Motores: {motorTotal} · Turbinas: {turbinaTotal}
+                  </p>
+                  <MotorStatusLegend items={equipmentLegend} />
                 </>
               )
             }
@@ -201,10 +234,10 @@ export function DashboardCharts({ charts }) {
         </Card>
 
         <Card>
-          <CardHeader><CardTitle>Mantenimientos por mes</CardTitle></CardHeader>
+          <CardHeader><CardTitle>Mantenimientos por mes ({label})</CardTitle></CardHeader>
           <CardContent>
-            {barData.length === 0
-              ? <p className="text-sm text-[#9ab0c7]">Sin datos en los ultimos 12 meses.</p>
+            {barData.every((row) => row.total === 0)
+              ? <p className="text-sm text-[#9ab0c7]">Sin mantenimientos registrados en {label}.</p>
               : <ResponsiveContainer width="100%" height={220}>
                   <BarChart data={barData} barSize={22}>
                     <CartesianGrid strokeDasharray="3 3" stroke={gridColor} vertical={false} />
@@ -219,10 +252,10 @@ export function DashboardCharts({ charts }) {
         </Card>
 
         <Card>
-          <CardHeader><CardTitle>Fallas en el tiempo</CardTitle></CardHeader>
+          <CardHeader><CardTitle>Fallas en el tiempo ({label})</CardTitle></CardHeader>
           <CardContent>
-            {lineData.length === 0
-              ? <p className="text-sm text-[#9ab0c7]">Sin datos en los ultimos 12 meses.</p>
+            {lineData.every((row) => row.fallas === 0)
+              ? <p className="text-sm text-[#9ab0c7]">Sin fallas registradas en {label}.</p>
               : <ResponsiveContainer width="100%" height={220}>
                   <AreaChart data={lineData}>
                     <defs>
@@ -245,7 +278,7 @@ export function DashboardCharts({ charts }) {
 
       {costData.length > 0 && (
         <Card>
-          <CardHeader><CardTitle>Costo acumulado por motor</CardTitle></CardHeader>
+          <CardHeader><CardTitle>Costo acumulado por motor ({label})</CardTitle></CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={Math.max(80, costData.length * 48 + 40)}>
               <BarChart data={costData} layout="vertical" margin={{ left: 0, right: 80, top: 4, bottom: 4 }} barSize={22}>
@@ -272,5 +305,6 @@ export function DashboardCharts({ charts }) {
         </Card>
       )}
     </>
+    </div>
   );
 }

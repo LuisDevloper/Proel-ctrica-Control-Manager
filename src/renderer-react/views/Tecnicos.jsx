@@ -9,7 +9,8 @@ import { Table, Thead, Th, Tbody, Tr, Td } from "../components/ui/Table";
 import { useFilters } from "../hooks/useFilters";
 import { xlsxExport } from "../lib/excelExport";
 import { ImportModal } from "../components/ui/ImportModal";
-import { FileSpreadsheet } from "lucide-react";
+import { FileSpreadsheet, FileText } from "lucide-react";
+import { exportTechniciansPDF } from "../lib/pdfReport";
 
 const EXCEL_COLS = [
   { key: "id",           header: "ID",              width: 8  },
@@ -98,9 +99,24 @@ export function Tecnicos({ user }) {
         <CardHeader>
           <div className="flex items-center justify-between">
             <CardTitle>Lista de tecnicos</CardTitle>
-            <Button variant="ghost" size="sm" className="border border-[#2a3d57] text-[#9ab0c7]" onClick={() => setShowImport(true)} disabled={formDisabled} title={mutBlockTitle}>
-              <FileSpreadsheet size={13} className="mr-1" /> Importar Excel
-            </Button>
+            <div className="flex gap-2">
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={() => {
+                  if (!filters.filtered.length) {
+                    showToast("No hay datos para exportar.", "warning");
+                    return;
+                  }
+                  exportTechniciansPDF(filters.filtered);
+                }}
+              >
+                <FileText size={13} className="mr-1" /> PDF
+              </Button>
+              <Button variant="ghost" size="sm" className="border border-[#2a3d57] text-[#9ab0c7]" onClick={() => setShowImport(true)} disabled={formDisabled} title={mutBlockTitle}>
+                <FileSpreadsheet size={13} className="mr-1" /> Importar Excel
+              </Button>
+            </div>
           </div>
         </CardHeader>
         <CardContent>

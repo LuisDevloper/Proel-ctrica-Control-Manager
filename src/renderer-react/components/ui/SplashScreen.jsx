@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import { AppLogo } from "./AppLogo";
+import { BrandMark } from "./BrandMark";
 
 export function SplashScreen({ onFinish }) {
   const [phase, setPhase] = useState("in"); // "in" | "idle" | "out"
@@ -84,11 +85,7 @@ export function SplashScreen({ onFinish }) {
           <AppLogo size="xl" />
         </div>
 
-        {/* Nombre */}
-        <div className="text-center">
-          <h1 className="text-2xl font-bold text-white tracking-tight">Proélectrica</h1>
-          <p className="text-xs text-[#7a9bb8] tracking-widest uppercase mt-1">Control Manager</p>
-        </div>
+        <BrandMark size="md" variant="display" showRule />
 
         {/* Barra de progreso */}
         <div className="w-56 flex flex-col items-center gap-2">

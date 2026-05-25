@@ -8,8 +8,9 @@ import { useAsync } from "../hooks/useAsync";
 import { useDbHealth } from "../context/DbHealthContext";
 import { useAccessibility } from "../context/AccessibilityContext";
 import { canMutateRecords, READ_ONLY_ROLE_TITLE } from "../lib/permissions";
-import { KeyRound, Info, Database, Monitor, Download, Upload, AlertTriangle, RefreshCw, Type, Settings } from "lucide-react";
+import { KeyRound, Info, Database, Monitor, Download, Upload, AlertTriangle, RefreshCw, Type, Settings, History } from "lucide-react";
 import { PageHeader } from "../components/ui/PageHeader";
+import { VersionHistory } from "../components/settings/VersionHistory";
 
 /** Compat: respuesta antigua del proceso principal (solo `platform`) o renderer recargado sin reiniciar Electron. */
 function platformToOsName(platform) {
@@ -206,6 +207,21 @@ export function Configuracion({ user }) {
           <Button variant="secondary" type="button" onClick={handleCheckUpdates}>
             <RefreshCw size={14} className="mr-2" /> Buscar actualizaciones
           </Button>
+        </CardContent>
+      </Card>
+
+      {/* Historial de versiones */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <History size={15} className="text-[#9ab0c7]" /> Historial de versiones
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <p className="text-sm text-[#9ab0c7] mb-3">
+            Consulta que incluye cada version de SIGEMT instalada en este equipo.
+          </p>
+          <VersionHistory currentVersion={appInfo?.version} />
         </CardContent>
       </Card>
 

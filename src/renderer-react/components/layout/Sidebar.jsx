@@ -1,11 +1,13 @@
 import React, { useEffect, useState } from "react";
 import {
-  LayoutDashboard, Cpu, Wrench, AlertTriangle, Users, Package, LogOut,
+  LayoutDashboard, Wrench, AlertTriangle, Users, Package, LogOut,
   PanelLeftClose, PanelLeftOpen, Settings, CalendarDays, Sun, Moon, UserCog, Activity
 } from "lucide-react";
 import { cn } from "../../lib/utils";
 import { AppLogo } from "../ui/AppLogo";
+import { BrandMark } from "../ui/BrandMark";
 import { useDbHealth } from "../../context/DbHealthContext";
+import { ElectricMotorIcon } from "../icons/ElectricMotorIcon";
 
 function LogoutModal({ open, onConfirm, onCancel }) {
   useEffect(() => {
@@ -60,7 +62,7 @@ function LogoutModal({ open, onConfirm, onCancel }) {
 
 export const NAV_ITEMS = [
   { view: "dashboard",      label: "Dashboard",       icon: LayoutDashboard },
-  { view: "motores",        label: "Motores",          icon: Cpu },
+  { view: "motores",        label: "Equipos",          icon: ElectricMotorIcon },
   { view: "mantenimientos", label: "Mantenimientos",   icon: Wrench },
   { view: "fallas",         label: "Fallas",           icon: AlertTriangle },
   { view: "tecnicos",       label: "Tecnicos",         icon: Users },
@@ -103,8 +105,7 @@ export function Sidebar({ currentView, onNavigate, user, onLogout, collapsed, on
       {!collapsed && (
         <div className="pb-3 border-b border-[#2a3d57]">
           <AppLogo size="md" className="mb-2" />
-          <h2 className="text-base font-bold text-[#eaf2fb] leading-tight">Proélectrica</h2>
-          <p className="text-xs text-[#9ab0c7] mt-0.5">Control Manager</p>
+          <BrandMark size="sm" variant="compact" titleAs="h2" className="text-left" />
           {user && (
             <p className="text-xs text-[#9ab0c7] mt-2 pt-2 border-t border-[#2a3d57]">
               {user.username}

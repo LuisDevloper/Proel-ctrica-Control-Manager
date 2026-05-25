@@ -5,7 +5,7 @@ import { Table, Thead, Th, Tbody, Tr, Td } from "../components/ui/Table";
 import { useFilters } from "../hooks/useFilters";
 import { FilterBar } from "../components/layout/FilterBar";
 import { Pager } from "../components/layout/Pager";
-import { Activity, User, Edit, Trash2, Plus, Upload, RotateCcw, RefreshCw } from "lucide-react";
+import { Activity, User, Edit, Trash2, Plus, Upload, RotateCcw, RefreshCw, LogIn, LogOut, Database } from "lucide-react";
 import { PageHeader } from "../components/ui/PageHeader";
 import { EmptyState } from "../components/ui/EmptyState";
 
@@ -14,13 +14,44 @@ const ACTION_ICONS = {
   UPDATE:   { icon: Edit,        color: "text-[#2f8dff]", bg: "bg-[#2f8dff]/10 border-[#2f8dff]/30" },
   DELETE:   { icon: Trash2,      color: "text-[#e05c5c]", bg: "bg-[#e05c5c]/10 border-[#e05c5c]/30" },
   IMPORT:   { icon: Upload,      color: "text-[#e0a91f]", bg: "bg-[#e0a91f]/10 border-[#e0a91f]/30" },
+  UPLOAD:   { icon: Upload,      color: "text-[#5fb3ff]", bg: "bg-[#5fb3ff]/10 border-[#5fb3ff]/30" },
+  LOGIN:    { icon: LogIn,       color: "text-[#39d48f]", bg: "bg-[#39d48f]/10 border-[#39d48f]/30" },
+  LOGOUT:   { icon: LogOut,      color: "text-[#9ab0c7]", bg: "bg-[#2a3d57]/40 border-[#2a3d57]" },
+  BACKUP:   { icon: Database,    color: "text-[#a78bfa]", bg: "bg-[#a78bfa]/10 border-[#a78bfa]/30" },
   RESTORE:  { icon: RotateCcw,   color: "text-[#a78bfa]", bg: "bg-[#a78bfa]/10 border-[#a78bfa]/30" },
+  ENTRADA:  { icon: Plus,        color: "text-[#29a16a]", bg: "bg-[#29a16a]/10 border-[#29a16a]/30" },
+  SALIDA:   { icon: Trash2,      color: "text-[#e0a91f]", bg: "bg-[#e0a91f]/10 border-[#e0a91f]/30" },
+  AJUSTE:   { icon: Edit,        color: "text-[#2f8dff]", bg: "bg-[#2f8dff]/10 border-[#2f8dff]/30" },
   DEFAULT:  { icon: Activity,    color: "text-[#9ab0c7]", bg: "bg-[#2a3d57]/40 border-[#2a3d57]" },
 };
 
+const ACTION_LABELS = {
+  CREATE: "Creacion",
+  UPDATE: "Edicion",
+  DELETE: "Eliminacion",
+  IMPORT: "Importacion",
+  UPLOAD: "Subida",
+  LOGIN: "Inicio sesion",
+  LOGOUT: "Cierre sesion",
+  BACKUP: "Copia seguridad",
+  RESTORE: "Restauracion",
+  ENTRADA: "Entrada stock",
+  SALIDA: "Salida stock",
+  AJUSTE: "Ajuste stock",
+};
+
 const ENTITY_LABELS = {
-  motors: "Motor", technicians: "Técnico", maintenances: "Mantenimiento",
-  failures: "Falla", users: "Usuario", inventory: "Inventario",
+  motors: "Motor",
+  turbinas: "Turbina",
+  technicians: "Tecnico",
+  maintenances: "Mantenimiento",
+  failures: "Falla",
+  users: "Usuario",
+  inventory_items: "Inventario",
+  inventory_movements: "Movimiento inventario",
+  documents: "Documento",
+  external_shipments: "Taller externo",
+  auth: "Autenticacion",
   db: "Base de datos",
 };
 
@@ -29,7 +60,7 @@ function ActionBadge({ action }) {
   const Icon = cfg.icon;
   return (
     <span className={`inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full border ${cfg.bg} ${cfg.color} font-medium`}>
-      <Icon size={10} /> {action}
+      <Icon size={10} /> {ACTION_LABELS[action] || action}
     </span>
   );
 }
@@ -83,7 +114,7 @@ export function ActividadLog() {
     <div className="flex flex-col gap-4 animate-pageFadeIn">
       <PageHeader
         title="Registro de actividad"
-        description="Auditoria de acciones realizadas en el sistema"
+        description="Auditoria de acciones y cambios realizados en el sistema"
         icon={Activity}
         actions={
           <Button variant="ghost" size="sm" className="border border-[var(--border)] text-[var(--muted)]" onClick={load}>
@@ -169,7 +200,11 @@ export function ActividadLog() {
                         {ENTITY_LABELS[item.entity] || item.entity}
                         {item.entity_id ? <span className="text-[#4a6a8a] ml-1">#{item.entity_id}</span> : null}
                       </Td>
-                      <Td className="text-xs text-[#9ab0c7] max-w-[260px] truncate">{item.details || "—"}</Td>
+                      <Td className="text-xs text-[#9ab0c7] max-w-md">
+                        <span className="block whitespace-pre-wrap break-words leading-relaxed" title={item.details || undefined}>
+                          {item.details || "—"}
+                        </span>
+                      </Td>
                     </Tr>
                   ))}
                 </Tbody>
