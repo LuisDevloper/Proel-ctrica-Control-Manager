@@ -6,6 +6,16 @@ import semver from "semver";
  */
 export const CHANGELOG = [
   {
+    version: "1.4.4",
+    date: "2026-05-21",
+    title: "Actualizaciones mas claras",
+    highlights: [
+      "Novedades de versiones nuevas visibles durante la actualizacion (changelog remoto desde GitHub)",
+      "Aviso de comprobacion de actualizaciones mas legible: permanece visible al buscar y confirma si ya tienes la ultima version",
+      "Correccion de version en instalador para evitar builds con numero incorrecto",
+    ],
+  },
+  {
     version: "1.4.3",
     date: "2026-05-21",
     title: "Dashboard, marca e interfaz refinada",

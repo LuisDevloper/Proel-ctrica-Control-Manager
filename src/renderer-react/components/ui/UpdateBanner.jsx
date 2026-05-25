@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
   Download,
   RefreshCw,
@@ -14,11 +14,15 @@ import { Modal } from "./Modal";
 import { VersionReleaseNotes } from "../settings/VersionHistory";
 
 const IMPORTANT_EVENTS = new Set(["available", "downloaded", "error"]);
+const MIN_CHECKING_MS = 1400;
+const UP_TO_DATE_VISIBLE_MS = 2400;
 
 function compactLabel(event, version, percent) {
   switch (event) {
     case "checking":
       return "Comprobando actualizaciones…";
+    case "up-to-date":
+      return "Ya tienes la ultima version";
     case "available":
       return `Nueva versión ${version}`;
     case "downloading":
@@ -40,17 +44,55 @@ export function UpdateBanner({ variant = "inline" }) {
   const [currentVersion, setCurrentVersion] = useState(null);
   const [expanded, setExpanded] = useState(false);
   const [visible, setVisible] = useState(false);
+  const checkingStartedRef = useRef(0);
+  const dismissTimerRef = useRef(null);
+  const upToDateTimerRef = useRef(null);
+
+  function clearDismissTimer() {
+    if (dismissTimerRef.current != null) {
+      window.clearTimeout(dismissTimerRef.current);
+      dismissTimerRef.current = null;
+    }
+  }
+
+  function clearUpToDateTimer() {
+    if (upToDateTimerRef.current != null) {
+      window.clearTimeout(upToDateTimerRef.current);
+      upToDateTimerRef.current = null;
+    }
+  }
+
+  function scheduleDismiss(delayMs) {
+    clearDismissTimer();
+    dismissTimerRef.current = window.setTimeout(() => setState(null), delayMs);
+  }
+
+  useEffect(() => () => {
+    clearDismissTimer();
+    clearUpToDateTimer();
+  }, []);
 
   useEffect(() => {
     if (!window.proelectricaApi?.onUpdaterEvent) return;
     const unsub = window.proelectricaApi.onUpdaterEvent((data) => {
       if (data.event === "checking") {
+        clearDismissTimer();
+        checkingStartedRef.current = Date.now();
         setState({ event: "checking" });
-        setExpanded(false);
+        if (isOverlay) setExpanded(true);
         return;
       }
       if (data.event === "up-to-date") {
-        setState((prev) => (prev?.event === "checking" ? null : prev));
+        clearDismissTimer();
+        clearUpToDateTimer();
+        const elapsed = Date.now() - checkingStartedRef.current;
+        const wait = checkingStartedRef.current ? Math.max(0, MIN_CHECKING_MS - elapsed) : 0;
+        upToDateTimerRef.current = window.setTimeout(() => {
+          upToDateTimerRef.current = null;
+          setState({ event: "up-to-date" });
+          if (isOverlay) setExpanded(true);
+          scheduleDismiss(UP_TO_DATE_VISIBLE_MS);
+        }, wait);
         return;
       }
       if (data.event === "error") {
@@ -76,6 +118,8 @@ export function UpdateBanner({ variant = "inline" }) {
           return;
         }
       }
+      clearDismissTimer();
+      clearUpToDateTimer();
       setState(data);
       if (isOverlay && IMPORTANT_EVENTS.has(data.event)) {
         setExpanded(true);
@@ -101,7 +145,7 @@ export function UpdateBanner({ variant = "inline" }) {
   useEffect(() => {
     if (state || !renderState) return;
     setVisible(false);
-    const id = window.setTimeout(() => setRenderState(null), 300);
+    const id = window.setTimeout(() => setRenderState(null), 450);
     return () => window.clearTimeout(id);
   }, [state, renderState]);
 
@@ -118,6 +162,13 @@ export function UpdateBanner({ variant = "inline" }) {
       text: "text-[#c5d8ef]",
       msg: "Comprobando actualizaciones…",
       showClose: false,
+    },
+    "up-to-date": {
+      icon: CheckCircle,
+      bg: "border-[color-mix(in_srgb,var(--success)_42%,var(--glass-border))]",
+      text: "text-[#5edc9e]",
+      msg: "Ya tienes la ultima version.",
+      showClose: true,
     },
     available: {
       icon: Download,
@@ -154,10 +205,11 @@ export function UpdateBanner({ variant = "inline" }) {
   if (!cfg) return null;
   const Icon = cfg.icon;
   const canShowNotes = version && (event === "available" || event === "downloaded");
-  const canCollapse = isOverlay && (IMPORTANT_EVENTS.has(event) || event === "downloading");
+  const canCollapse = isOverlay && (IMPORTANT_EVENTS.has(event) || event === "downloading" || event === "checking" || event === "up-to-date");
   const showCompact = isOverlay && !expanded;
 
   function handleDismiss() {
+    clearDismissTimer();
     setState(null);
   }
 
