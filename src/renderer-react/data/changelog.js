@@ -6,6 +6,17 @@ import semver from "semver";
  */
 export const CHANGELOG = [
   {
+    version: "1.4.2",
+    date: "2026-05-21",
+    title: "Edicion mas clara y login refinado",
+    highlights: [
+      "No guardar registros sin cambios en motores, fallas, mantenimientos, inventario, turbinas, taller externo, tecnicos y roles",
+      "Login con mostrar/ocultar contrasena, aviso de Bloq Mayus y animaciones mas ligeras",
+      "Banner de actualizaciones flotante en login (no mueve el formulario)",
+      "Instalador Windows con sidebar e iconos personalizados Proélectrica",
+    ],
+  },
+  {
     version: "1.4.1",
     date: "2026-05-21",
     title: "Login, marca y pantalla de inicio",

@@ -7,12 +7,14 @@ describe("changelog", () => {
       "../src/renderer-react/data/changelog.js"
     );
 
+    assert.ok(getChangelogEntry("1.4.2"));
     assert.ok(getChangelogEntry("1.4.1"));
     assert.ok(getChangelogEntry("1.4.0"));
     assert.equal(getChangelogEntry("9.9.9"), null);
+    assert.ok(isVersionNewer("1.4.2", "1.4.1"));
     assert.ok(isVersionNewer("1.4.1", "1.4.0"));
     assert.ok(isVersionNewer("1.4.0", "1.3.0"));
     assert.ok(!isVersionNewer("1.3.0", "1.4.0"));
-    assert.ok(getChangelogSorted()[0].version === "1.4.1");
+    assert.ok(getChangelogSorted()[0].version === "1.4.2");
   });
 });
