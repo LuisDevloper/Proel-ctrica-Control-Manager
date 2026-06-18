@@ -26,20 +26,22 @@ import { OperationalStatusBadge, OperationalLocationBadge } from "../components/
 import { DocumentsModal } from "../components/documents/EntityDocuments";
 
 const EXCEL_COLS = [
-  { key: "code", header: "Codigo", width: 14 },
-  { key: "gg", header: "GG", width: 12 },
-  { key: "pt", header: "PT", width: 12 },
-  { key: "bearing_1", header: "Rodamiento 1", width: 18 },
-  { key: "bearing_2", header: "Rodamiento 2", width: 18 },
+  { key: "code",          header: "Codigo",          width: 14 },
+  { key: "serial_number", header: "Numero de serie", width: 20 },
+  { key: "gg",            header: "GG",              width: 12 },
+  { key: "pt",            header: "PT",              width: 12 },
+  { key: "bearing_1",     header: "Rodamiento 1",    width: 18 },
+  { key: "bearing_2",     header: "Rodamiento 2",    width: 18 },
   { key: "operational_location", header: "Ubicacion", width: 18 },
-  { key: "status", header: "Estado", width: 16 },
-  { key: "motor_code", header: "Motor vinculado", width: 16 },
+  { key: "status",        header: "Estado",          width: 16 },
+  { key: "motor_code",    header: "Motor vinculado", width: 16 },
   { key: "runtime_retiro", header: "Runtime retiro", width: 16 },
-  { key: "notes", header: "Notas", width: 28 },
+  { key: "notes",         header: "Notas",           width: 28 },
 ];
 
 const EMPTY_FORM = {
   code: "",
+  serial_number: "",
   gg: "",
   pt: "",
   bearing_1: "",
@@ -53,13 +55,14 @@ const EMPTY_FORM = {
 };
 
 const TURBINE_EDIT_FIELDS = [
-  "code", "gg", "pt", "bearing_1", "bearing_2", "runtime_retiro", "comentarios_retiro",
+  "code", "serial_number", "gg", "pt", "bearing_1", "bearing_2", "runtime_retiro", "comentarios_retiro",
   "operational_location", "status", "motor_id", "notes",
 ];
 
 function turbineEditSnapshot(item) {
   return {
     code: item.code,
+    serial_number: item.serial_number || "",
     gg: item.gg || "",
     pt: item.pt || "",
     bearing_1: item.bearing_1 || "",
@@ -111,6 +114,7 @@ export function TurbinasPanel({ user }) {
     if (!form.code) { showToast("El codigo es obligatorio.", "warning"); return; }
     const payload = {
       code: form.code,
+      serialNumber: form.serial_number,
       gg: form.gg,
       pt: form.pt,
       bearing1: form.bearing_1,
@@ -133,6 +137,7 @@ export function TurbinasPanel({ user }) {
     const payload = {
       id: editId,
       code: editData.code,
+      serialNumber: editData.serial_number,
       gg: editData.gg,
       pt: editData.pt,
       bearing1: editData.bearing_1,
@@ -172,6 +177,7 @@ export function TurbinasPanel({ user }) {
         <CardContent>
           <div className="grid grid-cols-3 gap-3">
             <Field label="Codigo*"><Input disabled={formDisabled} placeholder="Ej: TUR-001" value={form.code} onChange={(e) => setForm({ ...form, code: e.target.value })} /></Field>
+            <Field label="Numero de serie"><Input disabled={formDisabled} placeholder="Ej: SN-67890" value={form.serial_number} onChange={(e) => setForm({ ...form, serial_number: e.target.value })} /></Field>
             <Field label="GG"><Input disabled={formDisabled} placeholder="GG" value={form.gg} onChange={(e) => setForm({ ...form, gg: e.target.value })} /></Field>
             <Field label="PT"><Input disabled={formDisabled} placeholder="PT" value={form.pt} onChange={(e) => setForm({ ...form, pt: e.target.value })} /></Field>
             <Field label="Rodamiento #1"><Input disabled={formDisabled} value={form.bearing_1} onChange={(e) => setForm({ ...form, bearing_1: e.target.value })} /></Field>
@@ -256,6 +262,7 @@ export function TurbinasPanel({ user }) {
                         <Td colSpan={8}>
                           <div className="grid grid-cols-3 gap-3 py-1">
                             <Field label="Codigo"><Input disabled={formDisabled} value={editData.code} onChange={(e) => setEditData({ ...editData, code: e.target.value })}/></Field>
+                            <Field label="Numero de serie"><Input disabled={formDisabled} placeholder="Ej: SN-67890" value={editData.serial_number} onChange={(e) => setEditData({ ...editData, serial_number: e.target.value })}/></Field>
                             <Field label="GG"><Input disabled={formDisabled} value={editData.gg} onChange={(e) => setEditData({ ...editData, gg: e.target.value })}/></Field>
                             <Field label="PT"><Input disabled={formDisabled} value={editData.pt} onChange={(e) => setEditData({ ...editData, pt: e.target.value })}/></Field>
                             <Field label="Rodamiento #1"><Input disabled={formDisabled} value={editData.bearing_1} onChange={(e) => setEditData({ ...editData, bearing_1: e.target.value })}/></Field>

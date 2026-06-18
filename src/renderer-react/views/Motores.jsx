@@ -11,17 +11,18 @@ import { useFilters } from "../hooks/useFilters";
 import { xlsxExport } from "../lib/excelExport";
 
 const EXCEL_COLS = [
-  { key: "code",         header: "Codigo",          width: 14 },
-  { key: "brand",        header: "Marca",           width: 18 },
-  { key: "model",        header: "Modelo",          width: 18 },
-  { key: "power",        header: "Potencia (kW)",   width: 16 },
-  { key: "voltage",      header: "Voltaje (V)",     width: 14 },
-  { key: "rpm",          header: "RPM",             width: 12 },
-  { key: "status",       header: "Estado",          width: 18 },
+  { key: "code",          header: "Codigo",             width: 14 },
+  { key: "brand",         header: "Marca",              width: 18 },
+  { key: "model",         header: "Modelo",             width: 18 },
+  { key: "serial_number", header: "Numero de serie",    width: 20 },
+  { key: "power",         header: "Potencia (kW)",      width: 16 },
+  { key: "voltage",       header: "Voltaje (V)",        width: 14 },
+  { key: "rpm",           header: "RPM",                width: 12 },
+  { key: "status",        header: "Estado",             width: 18 },
   { key: "operational_location", header: "Ubicacion operativa", width: 22 },
-  { key: "location",     header: "Detalle ubicacion", width: 24 },
-  { key: "installed_at", header: "Instalacion",     width: 16 },
-  { key: "notes",        header: "Observaciones",   width: 34 },
+  { key: "location",      header: "Detalle ubicacion",  width: 24 },
+  { key: "installed_at",  header: "Instalacion",        width: 16 },
+  { key: "notes",         header: "Observaciones",      width: 34 },
 ];
 import { useToast } from "../components/ui/Toast";
 import { useAsync } from "../hooks/useAsync";
@@ -92,12 +93,12 @@ const filterFn = (item, query, status, location) => {
 };
 
 const EMPTY_FORM = {
-  code: "", brand: "", model: "", power: "", voltage: "", rpm: "",
+  code: "", brand: "", model: "", serial_number: "", power: "", voltage: "", rpm: "",
   location: "", operational_location: "En planta", status: "Operativo", installed_at: "", notes: "", photo: null,
 };
 
 const MOTOR_EDIT_FIELDS = [
-  "code", "brand", "model", "power", "voltage", "rpm", "location",
+  "code", "brand", "model", "serial_number", "power", "voltage", "rpm", "location",
   "operational_location", "status", "installed_at", "notes", "photo",
 ];
 
@@ -106,6 +107,7 @@ function motorEditSnapshot(motor) {
     code: motor.code,
     brand: motor.brand,
     model: motor.model || "",
+    serial_number: motor.serial_number || "",
     power: motor.power || "",
     voltage: motor.voltage || "",
     rpm: motor.rpm || "",
@@ -230,6 +232,7 @@ export function Motores({ user }) {
             <Field label="Codigo*"><Input disabled={formDisabled} placeholder="Ej: MOT-001" value={form.code} onChange={(e) => setForm({...form, code: e.target.value})} /></Field>
             <Field label="Marca*"><Input disabled={formDisabled} placeholder="Ej: Siemens" value={form.brand} onChange={(e) => setForm({...form, brand: e.target.value})} /></Field>
             <Field label="Modelo"><Input disabled={formDisabled} placeholder="Ej: 1LA7" value={form.model} onChange={(e) => setForm({...form, model: e.target.value})} /></Field>
+            <Field label="Numero de serie"><Input disabled={formDisabled} placeholder="Ej: SN-12345" value={form.serial_number} onChange={(e) => setForm({...form, serial_number: e.target.value})} /></Field>
             <Field label="Potencia (kW)"><Input disabled={formDisabled} placeholder="Ej: 15" type="number" value={form.power} onChange={(e) => setForm({...form, power: e.target.value})} /></Field>
             <Field label="Voltaje (V)"><Input disabled={formDisabled} placeholder="Ej: 440" type="number" value={form.voltage} onChange={(e) => setForm({...form, voltage: e.target.value})} /></Field>
             <Field label="RPM"><Input disabled={formDisabled} placeholder="Ej: 1800" type="number" value={form.rpm} onChange={(e) => setForm({...form, rpm: e.target.value})} /></Field>
@@ -333,6 +336,7 @@ export function Motores({ user }) {
                               <Field label="Codigo"><Input disabled={formDisabled} value={editData.code} onChange={(e)=>setEditData({...editData,code:e.target.value})}/></Field>
                               <Field label="Marca"><Input disabled={formDisabled} value={editData.brand} onChange={(e)=>setEditData({...editData,brand:e.target.value})}/></Field>
                               <Field label="Modelo"><Input disabled={formDisabled} value={editData.model} onChange={(e)=>setEditData({...editData,model:e.target.value})}/></Field>
+                              <Field label="Numero de serie"><Input disabled={formDisabled} placeholder="Ej: SN-12345" value={editData.serial_number} onChange={(e)=>setEditData({...editData,serial_number:e.target.value})}/></Field>
                               <Field label="Potencia (kW)"><Input disabled={formDisabled} type="number" value={editData.power} onChange={(e)=>setEditData({...editData,power:e.target.value})}/></Field>
                               <Field label="Voltaje (V)"><Input disabled={formDisabled} type="number" value={editData.voltage} onChange={(e)=>setEditData({...editData,voltage:e.target.value})}/></Field>
                               <Field label="RPM"><Input disabled={formDisabled} type="number" value={editData.rpm} onChange={(e)=>setEditData({...editData,rpm:e.target.value})}/></Field>

@@ -1,6 +1,6 @@
 {
   "name": "proelectrica-control-manager",
-  "version": "1.4.4",
+  "version": "1.4.5",
   "description": "Aplicacion de escritorio para control de motores y mantenimientos industriales.",
   "main": "src/main/main.js",
   "author": "Proelectrica",
@@ -19,7 +19,8 @@
     "release:github": "npm run build:icon && npm run build:installer-assets && npm run build:renderer && node --use-system-ca ./node_modules/electron-builder/cli.js --publish always",
     "rebuild:native": "electron-rebuild -f -w better-sqlite3",
     "start": "electron .",
-    "test": "node --test tests/**/*.test.js"
+    "test": "node --test tests/**/*.test.js",
+    "dataverse:template": "node scripts/generate-dataverse-template.mjs"
   },
   "build": {
     "appId": "com.proelectrica.controlmanager",

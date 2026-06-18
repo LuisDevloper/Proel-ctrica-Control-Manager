@@ -6,6 +6,7 @@ function registerTurbinasHandlers({ ipcMain, getDatabase, guards, equipment, log
 
   const TURBINE_UPDATE_FIELDS = [
     ["code", "Codigo"],
+    ["serial_number", "Numero de serie"],
     ["gg", "GG"],
     ["pt", "PT"],
     ["bearing_1", "Rodamiento 1"],
@@ -59,11 +60,12 @@ function registerTurbinasHandlers({ ipcMain, getDatabase, guards, equipment, log
     try {
       db.prepare(`
         INSERT INTO turbinas (
-          code, gg, pt, bearing_1, bearing_2, runtime_retiro, comentarios_retiro,
+          code, serial_number, gg, pt, bearing_1, bearing_2, runtime_retiro, comentarios_retiro,
           operational_location, status, motor_id, notes, created_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `).run(
         turbine.code,
+        turbine.serialNumber || turbine.serial_number || "",
         turbine.gg || "",
         turbine.pt || "",
         turbine.bearing1 || turbine.bearing_1 || "",
@@ -100,6 +102,7 @@ function registerTurbinasHandlers({ ipcMain, getDatabase, guards, equipment, log
 
     const after = {
       code: turbine.code,
+      serial_number: turbine.serialNumber || turbine.serial_number || "",
       gg: turbine.gg || "",
       pt: turbine.pt || "",
       bearing_1: turbine.bearing1 || turbine.bearing_1 || "",
@@ -114,6 +117,7 @@ function registerTurbinasHandlers({ ipcMain, getDatabase, guards, equipment, log
 
     if (isRowUnchanged(before, after, [
       { beforeKey: "code", normalize: normStr },
+      { beforeKey: "serial_number", normalize: normStr },
       { beforeKey: "gg", normalize: normStr },
       { beforeKey: "pt", normalize: normStr },
       { beforeKey: "bearing_1", normalize: normStr },
@@ -131,12 +135,13 @@ function registerTurbinasHandlers({ ipcMain, getDatabase, guards, equipment, log
     try {
       db.prepare(`
         UPDATE turbinas
-        SET code = ?, gg = ?, pt = ?, bearing_1 = ?, bearing_2 = ?,
+        SET code = ?, serial_number = ?, gg = ?, pt = ?, bearing_1 = ?, bearing_2 = ?,
             runtime_retiro = ?, comentarios_retiro = ?,
             operational_location = ?, status = ?, motor_id = ?, notes = ?
         WHERE id = ?
       `).run(
         after.code,
+        after.serial_number,
         after.gg,
         after.pt,
         after.bearing_1,

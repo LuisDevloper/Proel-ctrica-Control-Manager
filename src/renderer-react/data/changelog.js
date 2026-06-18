@@ -6,6 +6,15 @@ import semver from "semver";
  */
 export const CHANGELOG = [
   {
+    version: "1.4.5",
+    date: "2026-06-18",
+    title: "Numero de serie en motores y turbinas",
+    highlights: [
+      "Campo Numero de serie agregado en el modulo de Motores (formulario, edicion, detalle y exportacion Excel)",
+      "Campo Numero de serie agregado en el modulo de Turbinas (formulario, edicion y exportacion Excel)",
+    ],
+  },
+  {
     version: "1.4.4",
     date: "2026-05-21",
     title: "Actualizaciones mas claras",

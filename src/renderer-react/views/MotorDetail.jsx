@@ -77,6 +77,7 @@ export function MotorDetail({ motorId, onBack, user }) {
     ["Codigo",          motor.code],
     ["Marca",           motor.brand],
     ["Modelo",          motor.model || "—"],
+    ["Numero de serie", motor.serial_number || "—"],
     ["Potencia",        motor.power ? `${motor.power} kW` : "—"],
     ["Voltaje",         motor.voltage ? `${motor.voltage} V` : "—"],
     ["RPM",             motor.rpm || "—"],

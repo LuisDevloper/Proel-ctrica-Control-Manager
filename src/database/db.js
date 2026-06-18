@@ -224,6 +224,11 @@ function runMigrations() {
     db.exec("ALTER TABLE external_workshop_shipments ADD COLUMN previous_operational_location TEXT");
     logInfo("database.migration_shipments_previous_location");
   }
+  const turbinaCols = db.prepare("PRAGMA table_info(turbinas)").all().map(c => c.name);
+  if (!turbinaCols.includes("serial_number")) {
+    db.exec("ALTER TABLE turbinas ADD COLUMN serial_number TEXT");
+    logInfo("database.migration_turbinas_serial_number");
+  }
 }
 
 async function saveDatabase() {
