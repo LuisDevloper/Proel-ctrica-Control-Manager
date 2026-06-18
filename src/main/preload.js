@@ -48,6 +48,7 @@ contextBridge.exposeInMainWorld("proelectricaApi", {
   parseExcel:       (opts)  => ipcRenderer.invoke("import:parse-excel", opts),
   importMotors:     (data)  => ipcRenderer.invoke("import:save-motors", data),
   importTechnicians:(data)  => ipcRenderer.invoke("import:save-technicians", data),
+  importTurbinas:   (data)  => ipcRenderer.invoke("import:save-turbinas", data),
   // Registro de actividad
   getActivityLog: (opts) => ipcRenderer.invoke("activity:list", opts),
   // Backup / Restore

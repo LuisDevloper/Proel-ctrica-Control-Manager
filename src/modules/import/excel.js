@@ -68,11 +68,30 @@ const TECH_IMPORT_HEADER_TO_KEY = {
   especialidad: "Especialidad",
 };
 
+const TURBINA_IMPORT_HEADER_TO_KEY = {
+  codigo: "Codigo",
+  "numero de serie": "Numero de serie",
+  "no. serie": "Numero de serie",
+  serie: "Numero de serie",
+  gg: "GG",
+  pt: "PT",
+  "rodamiento 1": "Rodamiento 1",
+  "rodamiento 2": "Rodamiento 2",
+  "ubicacion operativa": "Ubicacion operativa",
+  ubicacion: "Ubicacion operativa",
+  estado: "Estado",
+  "motor vinculado": "Motor vinculado",
+  motor: "Motor vinculado",
+  "runtime retiro": "Runtime retiro",
+  notas: "Notas",
+};
+
 function mapImportHeaderCell(entity, headerCell) {
   const n = normImportHeader(headerCell);
   if (!n) return null;
   if (entity === "motors") return MOTOR_IMPORT_HEADER_TO_KEY[n] || null;
   if (entity === "technicians") return TECH_IMPORT_HEADER_TO_KEY[n] || null;
+  if (entity === "turbinas") return TURBINA_IMPORT_HEADER_TO_KEY[n] || null;
   return null;
 }
 
@@ -91,6 +110,10 @@ function buildImportRowFromVals(vals, canon, entity) {
     const code = normImportHeader(obj.Codigo);
     if (code === "codigo") return null;
     if (!(obj.Codigo || "").trim() && !(obj.Marca || "").trim()) return null;
+  } else if (entity === "turbinas") {
+    const code = normImportHeader(obj.Codigo);
+    if (code === "codigo") return null;
+    if (!(obj.Codigo || "").trim()) return null;
   } else {
     const name = normImportHeader(obj.Nombre);
     if (name === "nombre") return null;
@@ -111,23 +134,18 @@ function parseExcelSheetForImport(ws, entity) {
     const vals = raw[i];
     if (!vals.length || vals.every((c) => !c)) continue;
     const c0 = normImportHeader(vals[0]);
-    if (entity === "motors" && c0 === "codigo") {
-      headerIdx = i;
-      break;
-    }
-    if (entity === "technicians" && c0 === "nombre") {
-      headerIdx = i;
-      break;
-    }
+    if (entity === "motors" && c0 === "codigo") { headerIdx = i; break; }
+    if (entity === "technicians" && c0 === "nombre") { headerIdx = i; break; }
+    if (entity === "turbinas" && c0 === "codigo") { headerIdx = i; break; }
   }
 
   if (headerIdx < 0) {
     return {
       ok: false,
       message:
-        entity === "motors"
-          ? "No se encontro la fila de encabezados (primera columna debe ser «Codigo»). Descargue la plantilla desde la app: los titulos van en las filas superiores, los encabezados en la fila correcta."
-          : "No se encontro la fila de encabezados (primera columna debe ser «Nombre»). Use la plantilla descargada desde la app.",
+        entity === "technicians"
+          ? "No se encontro la fila de encabezados (primera columna debe ser «Nombre»). Use la plantilla descargada desde la app."
+          : "No se encontro la fila de encabezados (primera columna debe ser «Codigo»). Descargue la plantilla desde la app.",
     };
   }
 
@@ -137,6 +155,10 @@ function parseExcelSheetForImport(ws, entity) {
   if (entity === "motors") {
     if (!canon.includes("Codigo") || !canon.includes("Marca")) {
       return { ok: false, message: "Faltan columnas obligatorias Codigo y Marca en la fila de encabezados." };
+    }
+  } else if (entity === "turbinas") {
+    if (!canon.includes("Codigo")) {
+      return { ok: false, message: "Falta la columna obligatoria Codigo en la fila de encabezados." };
     }
   } else if (!canon.includes("Nombre")) {
     return { ok: false, message: "Falta la columna obligatoria Nombre en la fila de encabezados." };
@@ -242,9 +264,49 @@ function importTechniciansFromRows(db, rows, username, logActivity) {
   return { ok: true, inserted, skipped };
 }
 
+function importTurbinasFromRows(db, rows, username, logActivity) {
+  let inserted = 0;
+  let skipped = 0;
+  let statusAdjusted = 0;
+  const stmt = db.prepare(`
+    INSERT OR IGNORE INTO turbinas
+      (code, serial_number, gg, pt, bearing_1, bearing_2, operational_location, status, runtime_retiro, notes, created_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `);
+  const insertMany = db.transaction((items) => {
+    for (const r of items) {
+      const code = r["Codigo"] || r["codigo"] || r["CODIGO"] || "";
+      if (!code) { skipped++; continue; }
+      const estadoRaw = r["Estado"] || r["estado"] || "";
+      const { status: statusVal, adjusted } = canonicalMotorStatus(estadoRaw);
+      if (adjusted) statusAdjusted++;
+      const ubicRaw = r["Ubicacion operativa"] || r["Ubicacion"] || r["ubicacion"] || "";
+      const info = stmt.run(
+        code,
+        r["Numero de serie"] || r["No. Serie"] || r["serie"] || "",
+        r["GG"] || r["gg"] || "",
+        r["PT"] || r["pt"] || "",
+        r["Rodamiento 1"] || r["rodamiento_1"] || "",
+        r["Rodamiento 2"] || r["rodamiento_2"] || "",
+        canonicalOperationalLocation(ubicRaw),
+        statusVal,
+        r["Runtime retiro"] || r["runtime_retiro"] || "",
+        r["Notas"] || r["notas"] || "",
+        new Date().toISOString()
+      );
+      if (info.changes > 0) inserted++;
+      else skipped++;
+    }
+  });
+  insertMany(rows);
+  logActivity(db, username, "IMPORT", "turbinas", null, `${inserted} turbinas importadas, ${skipped} omitidas`);
+  return { ok: true, inserted, skipped, statusAdjusted };
+}
+
 module.exports = {
   IMPORT_MAX_ROWS,
   parseExcelSheetForImport,
   importMotorsFromRows,
   importTechniciansFromRows,
+  importTurbinasFromRows,
 };

@@ -105,16 +105,17 @@ export function exportMotoresPDF(motors) {
 
   // Definir todas las columnas posibles
   const ALL_COLS = [
-    { header: "Codigo",      key: "code",          fmt: m => m.code || "" },
-    { header: "Marca",       key: "brand",         fmt: m => m.brand || "" },
-    { header: "Modelo",      key: "model",         fmt: m => m.model || "" },
-    { header: "Potencia",    key: "power",         fmt: m => m.power ? `${m.power} kW` : "" },
-    { header: "Voltaje",     key: "voltage",       fmt: m => m.voltage ? `${m.voltage} V` : "" },
-    { header: "RPM",         key: "rpm",           fmt: m => m.rpm || "" },
-    { header: "Ubicacion",   key: "location",      fmt: m => m.location || "" },
-    { header: "Estado",      key: "status",        fmt: m => m.status || "" },
-    { header: "Instalacion", key: "installed_at",  fmt: m => m.installed_at || "" },
-    { header: "Observaciones",key: "notes",        fmt: m => m.notes || "" },
+    { header: "Codigo",          key: "code",          fmt: m => m.code || "" },
+    { header: "Marca",           key: "brand",         fmt: m => m.brand || "" },
+    { header: "Modelo",          key: "model",         fmt: m => m.model || "" },
+    { header: "No. Serie",       key: "serial_number", fmt: m => m.serial_number || "" },
+    { header: "Potencia",        key: "power",         fmt: m => m.power ? `${m.power} kW` : "" },
+    { header: "Voltaje",         key: "voltage",       fmt: m => m.voltage ? `${m.voltage} V` : "" },
+    { header: "RPM",             key: "rpm",           fmt: m => m.rpm || "" },
+    { header: "Ubicacion",       key: "location",      fmt: m => m.location || "" },
+    { header: "Estado",          key: "status",        fmt: m => m.status || "" },
+    { header: "Instalacion",     key: "installed_at",  fmt: m => m.installed_at || "" },
+    { header: "Observaciones",   key: "notes",         fmt: m => m.notes || "" },
   ];
 
   // Solo columnas que tengan al menos un valor no vacío
@@ -129,6 +130,37 @@ export function exportMotoresPDF(motors) {
 
   addFooter(doc);
   doc.save(`motores_${new Date().toISOString().slice(0,10)}.pdf`);
+}
+
+export function exportTurbinasPDF(turbinas) {
+  const doc = new jsPDF({ orientation: "landscape" });
+  addHeader(doc, "REGISTRO DE TURBINAS", `Total: ${turbinas.length} turbinas — ${new Date().toLocaleDateString("es-CO")}`);
+
+  const ALL_COLS = [
+    { header: "Codigo",       fmt: t => t.code || "" },
+    { header: "No. Serie",    fmt: t => t.serial_number || "" },
+    { header: "GG",           fmt: t => t.gg || "" },
+    { header: "PT",           fmt: t => t.pt || "" },
+    { header: "Rodamiento 1", fmt: t => t.bearing_1 || "" },
+    { header: "Rodamiento 2", fmt: t => t.bearing_2 || "" },
+    { header: "Ubicacion",    fmt: t => t.operational_location || "" },
+    { header: "Estado",       fmt: t => t.status || "" },
+    { header: "Motor vinc.",  fmt: t => t.motor_code || "" },
+    { header: "Runtime retiro", fmt: t => t.runtime_retiro || "" },
+    { header: "Notas",        fmt: t => (t.notes || "").slice(0, 40) },
+  ];
+
+  const cols = ALL_COLS.filter(c => turbinas.some(t => !!c.fmt(t)));
+
+  autoTable(doc, {
+    startY: 38,
+    head: [cols.map(c => c.header)],
+    body: turbinas.map(t => cols.map(c => c.fmt(t))),
+    ...tableStyles,
+  });
+
+  addFooter(doc);
+  doc.save(`turbinas_${new Date().toISOString().slice(0, 10)}.pdf`);
 }
 
 export function exportMaintenancesPDF(maintenances) {
@@ -247,16 +279,17 @@ export function exportMotorDetailPDF(motor, maintenances, failures) {
   doc.line(14, 42, 196, 42);
 
   const infoEnd = infoGrid(doc, [
-    ["Codigo",       motor.code],
-    ["Marca",        motor.brand],
-    ["Modelo",       motor.model],
-    ["Potencia",     motor.power ? `${motor.power} kW` : null],
-    ["Voltaje",      motor.voltage ? `${motor.voltage} V` : null],
-    ["RPM",          motor.rpm],
-    ["Ubicacion",    motor.location],
-    ["Estado",       motor.status],
-    ["Instalacion",  motor.installed_at],
-    ["Observaciones",motor.notes],
+    ["Codigo",          motor.code],
+    ["Marca",           motor.brand],
+    ["Modelo",          motor.model],
+    ["Numero de serie", motor.serial_number],
+    ["Potencia",        motor.power ? `${motor.power} kW` : null],
+    ["Voltaje",         motor.voltage ? `${motor.voltage} V` : null],
+    ["RPM",             motor.rpm],
+    ["Ubicacion",       motor.location],
+    ["Estado",          motor.status],
+    ["Instalacion",     motor.installed_at],
+    ["Observaciones",   motor.notes],
   ].filter(([, v]) => v), 46);
 
   // Mantenimientos

@@ -8,10 +8,11 @@ import { ConfirmModal } from "../components/ui/Modal";
 import { Table, Thead, Th, Tbody, Tr, Td } from "../components/ui/Table";
 import { useFilters } from "../hooks/useFilters";
 import { xlsxExport } from "../lib/excelExport";
+import { exportTurbinasPDF } from "../lib/pdfReport";
 import { useToast } from "../components/ui/Toast";
 import { useAsync } from "../hooks/useAsync";
 import { useInlineEdit } from "../hooks/useInlineEdit";
-import { Plus, Pencil, Trash2, X, Check, Paperclip, Fan } from "lucide-react";
+import { Plus, Pencil, Trash2, X, Check, Paperclip, Fan, FileText, FileSpreadsheet } from "lucide-react";
 import { useDbHealth } from "../context/DbHealthContext";
 import { canMutateRecords, READ_ONLY_ROLE_TITLE } from "../lib/permissions";
 import { ReadOnlyBanner } from "../components/ui/ReadOnlyBanner";
@@ -24,6 +25,7 @@ import {
 } from "../lib/equipment";
 import { OperationalStatusBadge, OperationalLocationBadge } from "../components/ui/Badge";
 import { DocumentsModal } from "../components/documents/EntityDocuments";
+import { ImportModal } from "../components/ui/ImportModal";
 
 const EXCEL_COLS = [
   { key: "code",          header: "Codigo",          width: 14 },
@@ -89,6 +91,7 @@ export function TurbinasPanel({ user }) {
   const { editId, editData, setEditData, openEdit, closeEdit, isEditUnchanged, guardEditSave } = useInlineEdit();
   const [deleteId, setDeleteId] = useState(null);
   const [docsTarget, setDocsTarget] = useState(null);
+  const [showImport, setShowImport] = useState(false);
   const [form, setForm] = useState(EMPTY_FORM);
   const { showToast } = useToast();
   const { run } = useAsync();
@@ -207,7 +210,19 @@ export function TurbinasPanel({ user }) {
       </Card>
 
       <Card>
-        <CardHeader><CardTitle className="flex items-center gap-2"><Fan size={15}/> Lista de turbinas</CardTitle></CardHeader>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <CardTitle className="flex items-center gap-2"><Fan size={15}/> Lista de turbinas</CardTitle>
+            <div className="flex gap-2">
+              <Button variant="ghost" size="sm" className="border border-[#2a3d57] text-[#9ab0c7]" onClick={() => setShowImport(true)} disabled={formDisabled} title={mutBlockTitle}>
+                <FileSpreadsheet size={13} className="mr-1" /> Importar Excel
+              </Button>
+              <Button variant="ghost" size="sm" className="border border-[#2a3d57] text-[#9ab0c7]" onClick={() => { if (!filters.filtered.length) { showToast("No hay datos para exportar.", "warning"); return; } exportTurbinasPDF(filters.filtered); }}>
+                <FileText size={13} className="mr-1" /> PDF
+              </Button>
+            </div>
+          </div>
+        </CardHeader>
         <CardContent>
           <FilterBar
             searchPlaceholder="Buscar por codigo, GG, PT o motor"
@@ -303,6 +318,8 @@ export function TurbinasPanel({ user }) {
       </Card>
 
       <ConfirmModal open={!!deleteId} onClose={() => setDeleteId(null)} onConfirm={handleDelete} message="Se eliminara esta turbina de forma permanente." />
+
+      <ImportModal open={showImport} entity="turbinas" user={user} onClose={() => setShowImport(false)} onSuccess={() => { setShowImport(false); load(); }} />
 
       <DocumentsModal
         open={!!docsTarget}

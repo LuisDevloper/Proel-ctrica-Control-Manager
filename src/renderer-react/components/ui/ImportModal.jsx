@@ -18,6 +18,11 @@ const TEMPLATES = {
     cols: ["Nombre", "Telefono", "Email", "Especialidad"],
     example: ["Juan Pérez", "3001234567", "juan@correo.com", "Electrica"],
   },
+  turbinas: {
+    label: "Turbinas",
+    cols: ["Codigo", "Numero de serie", "GG", "PT", "Rodamiento 1", "Rodamiento 2", "Ubicacion operativa", "Estado", "Runtime retiro", "Notas"],
+    example: ["TUR-001", "SN-67890", "GG-01", "PT-01", "6310", "6311", "En planta", "Operativo", "", ""],
+  },
 };
 
 /** Fila que la IPC aceptará (Codigo+Marca o Nombre). */
@@ -26,6 +31,10 @@ function rowIsImportable(entity, r) {
     const code = String(r.Codigo ?? r.codigo ?? r.CODIGO ?? "").trim();
     const brand = String(r.Marca ?? r.marca ?? r.MARCA ?? "").trim();
     return !!(code && brand);
+  }
+  if (entity === "turbinas") {
+    const code = String(r.Codigo ?? r.codigo ?? r.CODIGO ?? "").trim();
+    return !!code;
   }
   const name = String(r.Nombre ?? r.nombre ?? r.NOMBRE ?? "").trim();
   return !!name;
@@ -93,6 +102,8 @@ export function ImportModal({ open, entity, user, onClose, onSuccess }) {
       showToast(
         entity === "motors"
           ? "Ninguna fila tiene Codigo y Marca obligatorios. Completa el Excel o quita filas vacías."
+          : entity === "turbinas"
+          ? "Ninguna fila tiene Codigo obligatorio. Completa el Excel o quita filas vacías."
           : "Ninguna fila tiene Nombre obligatorio.",
         "warning"
       );
@@ -101,6 +112,8 @@ export function ImportModal({ open, entity, user, onClose, onSuccess }) {
     setLoading(true);
     const fn = entity === "motors"
       ? window.proelectricaApi.importMotors
+      : entity === "turbinas"
+      ? window.proelectricaApi.importTurbinas
       : window.proelectricaApi.importTechnicians;
     const res = await fn({ rows: rowsToSend, username: user?.username });
     setLoading(false);
@@ -239,7 +252,7 @@ export function ImportModal({ open, entity, user, onClose, onSuccess }) {
                 <p className="text-xs text-[#4a6a8a] mt-3">
                   • Si usa la plantilla de la app, los encabezados están en la fila bajo las instrucciones (columna A = Codigo).<br/>
                   • En archivos simples, la primera fila puede ser solo encabezados: Codigo, Marca, …<br/>
-                  • El campo <strong className="text-[#9ab0c7]">{entity === "motors" ? "Codigo + Marca" : "Nombre"}</strong> es obligatorio.<br/>
+                  • El campo <strong className="text-[#9ab0c7]">{entity === "motors" ? "Codigo + Marca" : entity === "turbinas" ? "Codigo" : "Nombre"}</strong> es obligatorio.<br/>
                   • Registros con codigo duplicado serán omitidos.<br/>
                   • Máximo <strong className="text-[#9ab0c7]">{IMPORT_MAX_ROWS}</strong> filas de datos por archivo; si el Excel tiene más, solo se procesan las primeras {IMPORT_MAX_ROWS}.<br/>
                   • Estados válidos en columna Estado: <strong className="text-[#9ab0c7]">Operativo</strong>, <strong className="text-[#9ab0c7]">En mantenimiento</strong>, <strong className="text-[#9ab0c7]">Fuera de servicio</strong>. Cualquier otro texto se guardará como Operativo y se avisará al finalizar.
@@ -295,7 +308,7 @@ export function ImportModal({ open, entity, user, onClose, onSuccess }) {
                 <CheckCircle2 size={14} className="shrink-0" />
                 <span>
                   {importable === totalRows
-                    ? `${importable} registro(s) listo(s) para importar (${entity === "motors" ? "Codigo y Marca" : "Nombre"} completo).`
+                    ? `${importable} registro(s) listo(s) para importar (${entity === "motors" ? "Codigo y Marca" : entity === "turbinas" ? "Codigo" : "Nombre"} completo).`
                     : `${importable} registro(s) listo(s) para importar de ${totalRows} fila(s) en el archivo.${incomplete > 0 ? ` ${incomplete} fila(s) sin datos obligatorios no se importarán.` : ""}`}
                 </span>
               </div>

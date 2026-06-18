@@ -6,6 +6,7 @@ function registerImportHandlers({ ipcMain, dialog, getDatabase, guards, excelImp
     parseExcelSheetForImport,
     importMotorsFromRows,
     importTechniciansFromRows,
+    importTurbinasFromRows,
   } = excelImport;
 
   ipcMain.handle("import:parse-excel", async (_event, { entity }) => {
@@ -55,6 +56,13 @@ function registerImportHandlers({ ipcMain, dialog, getDatabase, guards, excelImp
     if (denied) return denied;
     const db = getDatabase();
     return importTechniciansFromRows(db, rows, resolveActivityActor(auth), logActivity);
+  });
+
+  ipcMain.handle("import:save-turbinas", async (_event, { rows }) => {
+    const denied = denyIfVisor();
+    if (denied) return denied;
+    const db = getDatabase();
+    return importTurbinasFromRows(db, rows, resolveActivityActor(auth), logActivity);
   });
 }
 

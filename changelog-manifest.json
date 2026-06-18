@@ -1,6 +1,16 @@
 {
-  "generatedAt": "2026-06-18T15:00:00.000Z",
+  "generatedAt": "2026-06-18T16:30:00.000Z",
   "entries": [
+    {
+      "version": "1.4.6",
+      "date": "2026-06-18",
+      "title": "Importar y exportar turbinas mejorado",
+      "highlights": [
+        "Boton Importar Excel en el modulo de Turbinas (con plantilla descargable)",
+        "Boton PDF en Turbinas: exporta listado completo con numero de serie, GG, PT, rodamientos y estado",
+        "Numero de serie incluido en exportacion PDF de motores (lista y ficha de detalle)"
+      ]
+    },
     {
       "version": "1.4.5",
       "date": "2026-06-18",
