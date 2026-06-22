@@ -6,6 +6,29 @@ import semver from "semver";
  */
 export const CHANGELOG = [
   {
+    version: "1.6.0",
+    date: "2026-06-22",
+    title: "Documentos compartidos y validacion avanzada",
+    highlights: [
+      "Documentos e imagenes adjuntos ahora visibles desde todos los PCs — se almacenan en la nube (Neon)",
+      "Migracion automatica de datos locales al actualizar desde cualquier PC con historial previo",
+      "Validacion de formularios mejorada en todos los modulos (previene errores de datos en la base de datos)",
+      "Correccion: notificaciones de alerta ya muestran el mensaje completo sin recortar el texto",
+      "Configuracion: seccion de Backup actualizada para reflejar que Neon gestiona los respaldos automaticamente",
+    ],
+  },
+  {
+    version: "1.5.0",
+    date: "2026-06-19",
+    title: "Base de datos en la nube — multi-PC",
+    highlights: [
+      "Migracion a PostgreSQL en la nube (Neon) — los datos se sincronizan entre todos los equipos de la empresa",
+      "Todos los PCs con la app instalada comparten los mismos datos en tiempo real",
+      "No se requiere PC servidor local — la base de datos vive en internet de forma segura",
+      "Backups automaticos gestionados por Neon (sin configuracion adicional)",
+    ],
+  },
+  {
     version: "1.4.6",
     date: "2026-06-18",
     title: "Importar y exportar turbinas mejorado",

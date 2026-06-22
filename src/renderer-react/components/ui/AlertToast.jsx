@@ -79,9 +79,9 @@ export function AlertToast({
 
       <div className="pcm-alert__body min-w-0">
         <p className="pcm-alert__label">{cfg.label}</p>
-        <p className="pcm-alert__title truncate">{parsed.title}</p>
+        <p className="pcm-alert__title">{parsed.title}</p>
         {parsed.detail ? (
-          <p className="pcm-alert__detail truncate">{parsed.detail}</p>
+          <p className="pcm-alert__detail">{parsed.detail}</p>
         ) : null}
       </div>
 

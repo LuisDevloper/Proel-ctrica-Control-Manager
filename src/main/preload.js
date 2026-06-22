@@ -77,6 +77,7 @@ contextBridge.exposeInMainWorld("proelectricaApi", {
   getPendingInstall: () => ipcRenderer.invoke("updater:getPendingInstall"),
   getUpdaterReleaseNotes: (version) => ipcRenderer.invoke("updater:getReleaseNotes", version),
   installUpdate: () => ipcRenderer.send("updater:install-now"),
+  getMigrationStatus: () => ipcRenderer.invoke("migration:getStatus"),
   onMenuAction: (cb) => {
     const handler = (_, data) => cb(data);
     ipcRenderer.on("app:menu-action", handler);

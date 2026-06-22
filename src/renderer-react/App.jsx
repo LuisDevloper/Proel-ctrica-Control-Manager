@@ -135,6 +135,21 @@ function AppContent() {
     return () => document.documentElement.removeAttribute("data-guest-login");
   }, [splashDone, user]);
 
+  // Notificar al usuario si se migraron datos locales a la nube en este inicio
+  useEffect(() => {
+    if (!splashDone) return;
+    const api = window.proelectricaApi;
+    if (!api?.getMigrationStatus) return;
+    api.getMigrationStatus().then((stats) => {
+      if (!stats) return;
+      const total = Object.values(stats).reduce((s, n) => s + (n || 0), 0);
+      showToast(
+        `Datos locales migrados a la nube correctamente (${total} registros).`,
+        "success"
+      );
+    }).catch(() => {});
+  }, [splashDone]);
+
   function handleLogout() {
     setFadingOut(true);
     setTimeout(async () => {

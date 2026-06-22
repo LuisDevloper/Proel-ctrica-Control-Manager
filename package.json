@@ -1,6 +1,6 @@
 {
   "name": "proelectrica-control-manager",
-  "version": "1.4.6",
+  "version": "1.6.0",
   "description": "Aplicacion de escritorio para control de motores y mantenimientos industriales.",
   "main": "src/main/main.js",
   "author": "Proelectrica",
@@ -11,13 +11,15 @@
   },
   "scripts": {
     "vite": "vite",
-    "dev": "concurrently -k \"npm run vite\" \"wait-on http://localhost:5173 && electron .\"",
+    "dev": "concurrently -k \"npm run vite\" \"npm run electron:wait\"",
+    "electron:wait": "wait-on http://localhost:5173 && electron .",
     "build:renderer": "node scripts/export-changelog-manifest.mjs && vite build",
     "build:icon": "node scripts/sync-logo-assets.mjs && node scripts/make-icon.mjs",
     "build:installer-assets": "node scripts/sync-logo-assets.mjs && node scripts/make-installer-assets.mjs",
-    "build": "npm run build:icon && npm run build:installer-assets && npm run build:renderer && electron-builder",
-    "release:github": "npm run build:icon && npm run build:installer-assets && npm run build:renderer && node --use-system-ca ./node_modules/electron-builder/cli.js --publish always",
     "rebuild:native": "electron-rebuild -f -w better-sqlite3",
+    "build": "npm run rebuild:native && npm run build:icon && npm run build:installer-assets && npm run build:renderer && electron-builder",
+    "release:github": "npm run rebuild:native && npm run build:icon && npm run build:installer-assets && npm run build:renderer && node --use-system-ca ./node_modules/electron-builder/cli.js --publish always",
+    "db:init": "node scripts/init-db.mjs",
     "start": "electron .",
     "test": "node --test tests/**/*.test.js",
     "dataverse:template": "node scripts/generate-dataverse-template.mjs"
@@ -74,7 +76,7 @@
     "@tailwindcss/vite": "^4.3.0",
     "@vitejs/plugin-react": "^6.0.1",
     "bcryptjs": "^3.0.3",
-    "better-sqlite3": "^12.9.0",
+    "better-sqlite3": "^11.10.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "electron-store": "^8.2.0",
@@ -83,13 +85,15 @@
     "jspdf": "^2.5.2",
     "jspdf-autotable": "^3.8.4",
     "lucide-react": "^1.14.0",
+    "pg": "^8.13.3",
     "react": "^19.2.6",
     "react-dom": "^19.2.6",
     "recharts": "^3.8.1",
     "semver": "^7.8.0",
     "tailwind-merge": "^3.6.0",
     "tailwindcss": "^4.3.0",
-    "vite": "^8.0.12"
+    "vite": "^8.0.12",
+    "zod": "^4.4.3"
   },
   "devDependencies": {
     "@electron/rebuild": "^4.0.4",

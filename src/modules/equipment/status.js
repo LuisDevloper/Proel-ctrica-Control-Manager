@@ -1,10 +1,6 @@
 const { MOTOR_ALLOWED_STATUSES } = require("./constants");
 const { canonicalMotorStatus, canonicalOperationalLocation } = require("./canonical");
 
-/**
- * Estado operativo mostrado en dashboard y reportes.
- * Combina el campo status, ubicacion operativa y mantenimientos abiertos.
- */
 function resolveEffectiveEquipmentStatus({ status, operationalLocation, hasOpenMaintenance = false }) {
   const { status: canonical } = canonicalMotorStatus(status);
   if (canonical === "Fuera de servicio" || canonical === "En almacen") return canonical;
@@ -27,28 +23,29 @@ function countInMaintenance(rows) {
   return rows.filter((row) => resolveEffectiveEquipmentStatus(row) === "En mantenimiento").length;
 }
 
-function syncMotorStatusWithMaintenances(db, motorId) {
+async function syncMotorStatusWithMaintenances(db, motorId) {
   const id = Number(motorId);
   if (!Number.isFinite(id) || id <= 0) return;
 
-  const motor = db.prepare("SELECT id, status FROM motors WHERE id = ?").get(id);
+  const motor = await db.prepare("SELECT id, status FROM motors WHERE id = ?").get(id);
   if (!motor) return;
 
-  const openCount = db.prepare(`
+  const openRow = await db.prepare(`
     SELECT COUNT(*) AS c FROM maintenances
     WHERE motor_id = ? AND status != 'Completado'
-  `).get(id).c;
+  `).get(id);
+  const openCount = Number(openRow.c);
 
   const current = canonicalMotorStatus(motor.status).status;
   if (openCount > 0) {
     if (current === "Operativo") {
-      db.prepare("UPDATE motors SET status = 'En mantenimiento' WHERE id = ?").run(id);
+      await db.prepare("UPDATE motors SET status = 'En mantenimiento' WHERE id = ?").run(id);
     }
     return;
   }
 
   if (current === "En mantenimiento") {
-    db.prepare("UPDATE motors SET status = 'Operativo' WHERE id = ?").run(id);
+    await db.prepare("UPDATE motors SET status = 'Operativo' WHERE id = ?").run(id);
   }
 }
 

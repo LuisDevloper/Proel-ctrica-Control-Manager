@@ -1,6 +1,7 @@
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import { formatEquipmentCondition } from "./equipment";
+import logoUrl from "/logo.png";
 
 // Paleta para impresión (fondo blanco)
 const HEADER_BG   = [15,  40,  80];   // azul oscuro — cabecera
@@ -38,15 +39,12 @@ function addHeader(doc, title, subtitle) {
   // Acento lateral
   doc.setFillColor(...ACCENT);
   doc.rect(0, 0, 4, 32, "F");
-  // Marca
-  doc.setFontSize(15);
-  doc.setTextColor(...HEADER_TEXT);
-  doc.setFont("helvetica", "bold");
-  doc.text("PROELECTRICA", 12, 13);  // jsPDF no soporta tildes en fuentes base — se muestra sin tilde en PDF
-  doc.setFontSize(7);
-  doc.setFont("helvetica", "normal");
-  doc.setTextColor(180, 200, 230);
-  doc.text("Control Manager", 12, 19);
+  // Logo
+  try {
+    doc.addImage(logoUrl, "PNG", 7, 4, 22, 22);
+  } catch (_) {
+    // Si falla la carga del logo, continúa sin él
+  }
   // Título centrado
   doc.setFontSize(13);
   doc.setTextColor(...HEADER_TEXT);

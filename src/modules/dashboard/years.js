@@ -27,17 +27,17 @@ function formatDashboardPeriod(year, month) {
   return `${name.charAt(0).toUpperCase()}${name.slice(1)} ${year}`;
 }
 
-function getAvailableYears(db) {
-  const rows = db.prepare(`
+async function getAvailableYears(db) {
+  const rows = await db.prepare(`
     SELECT year FROM (
-      SELECT DISTINCT strftime('%Y', maintenance_date) AS year
+      SELECT DISTINCT TO_CHAR(maintenance_date::date, 'YYYY') AS year
       FROM maintenances
       WHERE maintenance_date IS NOT NULL AND trim(maintenance_date) != ''
       UNION
-      SELECT DISTINCT strftime('%Y', reported_at) AS year
+      SELECT DISTINCT TO_CHAR(reported_at::date, 'YYYY') AS year
       FROM failures
       WHERE reported_at IS NOT NULL AND trim(reported_at) != ''
-    )
+    ) sub
     WHERE year IS NOT NULL
     ORDER BY year DESC
   `).all();

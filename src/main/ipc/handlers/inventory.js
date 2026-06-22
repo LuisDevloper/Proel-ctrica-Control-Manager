@@ -3,6 +3,7 @@ function registerInventoryHandlers({ ipcMain, getDatabase, guards, inventory, lo
   const { mapInventoryMovementRow, applyInventoryMovement } = inventory;
   const { buildUpdateDetails } = require("../../../modules/activity/changes");
   const { isRowUnchanged, normStr, normNum } = require("../../../modules/activity/unchanged");
+  const { validate, validateId, schemas } = require("../schemas");
 
   const INVENTORY_UPDATE_FIELDS = [
     ["part_name", "Repuesto"],
@@ -13,9 +14,9 @@ function registerInventoryHandlers({ ipcMain, getDatabase, guards, inventory, lo
 
   ipcMain.handle(
     "inventory:list",
-    secureHandler(denyIfNotAuthenticated, () => {
+    secureHandler(denyIfNotAuthenticated, async () => {
       const db = getDatabase();
-      return db.prepare(`
+      return await db.prepare(`
       SELECT i.*,
         (SELECT COUNT(*) FROM inventory_movements m WHERE m.inventory_item_id = i.id) AS movement_count
       FROM inventory_items i
@@ -26,7 +27,10 @@ function registerInventoryHandlers({ ipcMain, getDatabase, guards, inventory, lo
 
   ipcMain.handle(
     "inventory:movements:list",
-    secureHandler(denyIfNotAuthenticated, (_event, { itemId, limit = 200 } = {}) => {
+    secureHandler(denyIfNotAuthenticated, async (_event, opts) => {
+      const invalid = validate(schemas.inventoryMovementsListSchema, opts ?? {});
+      if (invalid) return invalid;
+      const { itemId, limit = 200 } = opts ?? {};
       const db = getDatabase();
       let sql = `
       SELECT m.*, i.part_name, i.sku
@@ -40,24 +44,28 @@ function registerInventoryHandlers({ ipcMain, getDatabase, guards, inventory, lo
       }
       sql += " ORDER BY m.id DESC LIMIT ?";
       params.push(Math.min(Number(limit) || 200, 500));
-      return db.prepare(sql).all(...params).map(mapInventoryMovementRow);
+      const rows = await db.prepare(sql).all(...params);
+      return rows.map(mapInventoryMovementRow);
     })
   );
 
   ipcMain.handle("inventory:movements:create", async (_event, payload) => {
     const denied = denyIfVisor();
     if (denied) return denied;
+    const invalid = validate(schemas.inventoryMovementCreateSchema, payload);
+    if (invalid) return invalid;
     const db = getDatabase();
-    const tx = db.transaction(() => applyInventoryMovement(db, payload, logActivity));
-    return tx();
+    return await applyInventoryMovement(db, payload, logActivity);
   });
 
   ipcMain.handle("inventory:create", async (_event, item) => {
     const denied = denyIfVisor();
     if (denied) return denied;
+    const invalid = validate(schemas.inventoryCreateSchema, item);
+    if (invalid) return invalid;
     const db = getDatabase();
     const initialQty = Math.max(0, Number(item.quantity || 0));
-    const result = db.prepare(`
+    const result = await db.prepare(`
       INSERT INTO inventory_items (part_name, sku, quantity, min_stock, location, created_at)
       VALUES (?, ?, ?, ?, ?, ?)
     `).run(
@@ -70,7 +78,7 @@ function registerInventoryHandlers({ ipcMain, getDatabase, guards, inventory, lo
     );
     const newId = result.lastInsertRowid;
     if (initialQty > 0) {
-      applyInventoryMovement(db, {
+      await applyInventoryMovement(db, {
         inventoryItemId: newId,
         movementType: "entrada",
         quantity: initialQty,
@@ -80,15 +88,17 @@ function registerInventoryHandlers({ ipcMain, getDatabase, guards, inventory, lo
         _username: item._username,
       }, logActivity);
     }
-    logActivity(db, item._username, "CREATE", "inventory_items", newId, item.partName);
+    await logActivity(db, item._username, "CREATE", "inventory_items", newId, item.partName);
     return { ok: true, id: newId };
   });
 
   ipcMain.handle("inventory:update", async (_event, item) => {
     const denied = denyIfVisor();
     if (denied) return denied;
+    const invalid = validate(schemas.inventoryUpdateSchema, item);
+    if (invalid) return invalid;
     const db = getDatabase();
-    const before = db.prepare("SELECT * FROM inventory_items WHERE id = ?").get(Number(item.id));
+    const before = await db.prepare("SELECT * FROM inventory_items WHERE id = ?").get(Number(item.id));
     if (!before) return { ok: false, message: "Repuesto no encontrado." };
 
     const after = {
@@ -107,13 +117,13 @@ function registerInventoryHandlers({ ipcMain, getDatabase, guards, inventory, lo
       return { ok: true, unchanged: true };
     }
 
-    db.prepare(`
+    await db.prepare(`
       UPDATE inventory_items
       SET part_name = ?, sku = ?, min_stock = ?, location = ?
       WHERE id = ?
     `).run(after.part_name, after.sku, after.min_stock, after.location, Number(item.id));
 
-    logActivity(
+    await logActivity(
       db,
       item._username,
       "UPDATE",
@@ -132,11 +142,13 @@ function registerInventoryHandlers({ ipcMain, getDatabase, guards, inventory, lo
   ipcMain.handle("inventory:delete", async (_event, id) => {
     const denied = denyIfVisor();
     if (denied) return denied;
+    const invalid = validateId(id);
+    if (invalid) return invalid;
     const db = getDatabase();
-    const row = db.prepare("SELECT part_name FROM inventory_items WHERE id = ?").get(Number(id));
-    db.prepare("DELETE FROM inventory_movements WHERE inventory_item_id = ?").run(Number(id));
-    db.prepare("DELETE FROM inventory_items WHERE id = ?").run(Number(id));
-    logActivity(db, null, "DELETE", "inventory_items", id, row?.part_name || "");
+    const row = await db.prepare("SELECT part_name FROM inventory_items WHERE id = ?").get(Number(id));
+    await db.prepare("DELETE FROM inventory_movements WHERE inventory_item_id = ?").run(Number(id));
+    await db.prepare("DELETE FROM inventory_items WHERE id = ?").run(Number(id));
+    await logActivity(db, null, "DELETE", "inventory_items", id, row?.part_name || "");
     return { ok: true };
   });
 }

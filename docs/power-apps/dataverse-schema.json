@@ -1,0 +1,467 @@
+{
+  "solution": {
+    "name": "Proelectrica Control Manager",
+    "prefix": "pcm",
+    "publisher": "Proelectrica",
+    "appType": "Canvas",
+    "dataSource": "Dataverse"
+  },
+  "choiceSets": {
+    "estado_equipo": [
+      "Operativo",
+      "En mantenimiento",
+      "En almacen",
+      "Fuera de servicio"
+    ],
+    "ubicacion_operativa": [
+      "En planta",
+      "Afuera",
+      "Taller externo",
+      "Almacen",
+      "En mantenimiento"
+    ],
+    "estado_mantenimiento": [
+      "Pendiente",
+      "En progreso",
+      "Completado"
+    ],
+    "tipo_mantenimiento": [
+      "Preventivo",
+      "Correctivo"
+    ],
+    "prioridad_falla": [
+      "Alta",
+      "Media",
+      "Baja"
+    ],
+    "estado_falla": [
+      "Pendiente",
+      "En proceso",
+      "Resuelta"
+    ],
+    "tipo_equipo_envio": [
+      "Motor",
+      "Turbina"
+    ],
+    "estado_logistica": [
+      "Permiso de salida aprobado",
+      "Equipo en transito",
+      "Entrada registrada",
+      "Equipo entregado"
+    ],
+    "tipo_documento": [
+      "Cotizacion",
+      "Informe tecnico",
+      "Orden de trabajo",
+      "Otro"
+    ]
+  },
+  "tables": {
+    "pcm_motor": {
+      "displayName": "Motor",
+      "sheetName": "Motores",
+      "columns": [
+        {
+          "logicalName": "pcm_codigo",
+          "displayName": "Codigo",
+          "dataType": "Texto",
+          "required": true
+        },
+        {
+          "logicalName": "pcm_marca",
+          "displayName": "Marca",
+          "dataType": "Texto",
+          "required": true
+        },
+        {
+          "logicalName": "pcm_modelo",
+          "displayName": "Modelo",
+          "dataType": "Texto",
+          "required": false
+        },
+        {
+          "logicalName": "pcm_serie",
+          "displayName": "Numero de serie",
+          "dataType": "Texto",
+          "required": false
+        },
+        {
+          "logicalName": "pcm_voltaje",
+          "displayName": "Voltaje (V)",
+          "dataType": "Numero",
+          "required": false
+        },
+        {
+          "logicalName": "pcm_potencia",
+          "displayName": "Potencia (kW)",
+          "dataType": "Numero",
+          "required": false
+        },
+        {
+          "logicalName": "pcm_rpm",
+          "displayName": "RPM",
+          "dataType": "Numero",
+          "required": false
+        },
+        {
+          "logicalName": "pcm_ubicacion_detalle",
+          "displayName": "Detalle ubicacion",
+          "dataType": "Texto",
+          "required": false
+        },
+        {
+          "logicalName": "pcm_ubicacion_operativa",
+          "displayName": "Ubicacion operativa",
+          "dataType": "Choice:ubicacion_operativa",
+          "required": false
+        },
+        {
+          "logicalName": "pcm_estado",
+          "displayName": "Estado",
+          "dataType": "Choice:estado_equipo",
+          "required": false
+        },
+        {
+          "logicalName": "pcm_fecha_instalacion",
+          "displayName": "Fecha instalacion",
+          "dataType": "Fecha",
+          "required": false
+        },
+        {
+          "logicalName": "pcm_notas",
+          "displayName": "Notas",
+          "dataType": "Texto largo",
+          "required": false
+        }
+      ]
+    },
+    "pcm_turbina": {
+      "displayName": "Turbina",
+      "sheetName": "Turbinas",
+      "columns": [
+        {
+          "logicalName": "pcm_codigo",
+          "displayName": "Codigo",
+          "dataType": "Texto",
+          "required": true
+        },
+        {
+          "logicalName": "pcm_gg",
+          "displayName": "GG",
+          "dataType": "Texto",
+          "required": false
+        },
+        {
+          "logicalName": "pcm_pt",
+          "displayName": "PT",
+          "dataType": "Texto",
+          "required": false
+        },
+        {
+          "logicalName": "pcm_rodamiento_1",
+          "displayName": "Rodamiento 1",
+          "dataType": "Texto",
+          "required": false
+        },
+        {
+          "logicalName": "pcm_rodamiento_2",
+          "displayName": "Rodamiento 2",
+          "dataType": "Texto",
+          "required": false
+        },
+        {
+          "logicalName": "pcm_runtime_retiro",
+          "displayName": "Runtime retiro",
+          "dataType": "Texto",
+          "required": false
+        },
+        {
+          "logicalName": "pcm_comentarios_retiro",
+          "displayName": "Comentarios retiro",
+          "dataType": "Texto largo",
+          "required": false
+        },
+        {
+          "logicalName": "pcm_ubicacion_operativa",
+          "displayName": "Ubicacion operativa",
+          "dataType": "Choice:ubicacion_operativa",
+          "required": false
+        },
+        {
+          "logicalName": "pcm_estado",
+          "displayName": "Estado",
+          "dataType": "Choice:estado_equipo",
+          "required": false
+        },
+        {
+          "logicalName": "pcm_motor_codigo",
+          "displayName": "Motor vinculado (codigo)",
+          "dataType": "Lookup texto",
+          "required": false
+        },
+        {
+          "logicalName": "pcm_notas",
+          "displayName": "Notas",
+          "dataType": "Texto largo",
+          "required": false
+        }
+      ]
+    },
+    "pcm_tecnico": {
+      "displayName": "Tecnico",
+      "sheetName": "Tecnicos",
+      "columns": [
+        {
+          "logicalName": "pcm_nombre_completo",
+          "displayName": "Nombre completo",
+          "dataType": "Texto",
+          "required": true
+        },
+        {
+          "logicalName": "pcm_telefono",
+          "displayName": "Telefono",
+          "dataType": "Texto",
+          "required": false
+        },
+        {
+          "logicalName": "pcm_email",
+          "displayName": "Correo",
+          "dataType": "Texto",
+          "required": false
+        },
+        {
+          "logicalName": "pcm_especialidad",
+          "displayName": "Especialidad",
+          "dataType": "Texto",
+          "required": false
+        }
+      ]
+    },
+    "pcm_mantenimiento": {
+      "displayName": "Mantenimiento",
+      "sheetName": "Mantenimientos",
+      "columns": [
+        {
+          "logicalName": "pcm_motor_codigo",
+          "displayName": "Motor (codigo)",
+          "dataType": "Lookup texto",
+          "required": true
+        },
+        {
+          "logicalName": "pcm_tecnico_nombre",
+          "displayName": "Tecnico (nombre)",
+          "dataType": "Lookup texto",
+          "required": false
+        },
+        {
+          "logicalName": "pcm_tipo",
+          "displayName": "Tipo",
+          "dataType": "Choice:tipo_mantenimiento",
+          "required": false
+        },
+        {
+          "logicalName": "pcm_fecha",
+          "displayName": "Fecha",
+          "dataType": "Fecha",
+          "required": true
+        },
+        {
+          "logicalName": "pcm_descripcion",
+          "displayName": "Descripcion",
+          "dataType": "Texto largo",
+          "required": false
+        },
+        {
+          "logicalName": "pcm_repuestos",
+          "displayName": "Repuestos usados",
+          "dataType": "Texto largo",
+          "required": false
+        },
+        {
+          "logicalName": "pcm_costo",
+          "displayName": "Costo",
+          "dataType": "Moneda",
+          "required": false
+        },
+        {
+          "logicalName": "pcm_estado",
+          "displayName": "Estado",
+          "dataType": "Choice:estado_mantenimiento",
+          "required": false
+        },
+        {
+          "logicalName": "pcm_notas",
+          "displayName": "Notas",
+          "dataType": "Texto largo",
+          "required": false
+        }
+      ]
+    },
+    "pcm_falla": {
+      "displayName": "Falla",
+      "sheetName": "Fallas",
+      "columns": [
+        {
+          "logicalName": "pcm_motor_codigo",
+          "displayName": "Motor (codigo)",
+          "dataType": "Lookup texto",
+          "required": true
+        },
+        {
+          "logicalName": "pcm_tecnico_nombre",
+          "displayName": "Tecnico (nombre)",
+          "dataType": "Lookup texto",
+          "required": false
+        },
+        {
+          "logicalName": "pcm_tipo",
+          "displayName": "Tipo de falla",
+          "dataType": "Texto",
+          "required": true
+        },
+        {
+          "logicalName": "pcm_prioridad",
+          "displayName": "Prioridad",
+          "dataType": "Choice:prioridad_falla",
+          "required": false
+        },
+        {
+          "logicalName": "pcm_estado",
+          "displayName": "Estado",
+          "dataType": "Choice:estado_falla",
+          "required": false
+        },
+        {
+          "logicalName": "pcm_fecha_reporte",
+          "displayName": "Fecha reporte",
+          "dataType": "Fecha",
+          "required": true
+        },
+        {
+          "logicalName": "pcm_solucion",
+          "displayName": "Solucion",
+          "dataType": "Texto largo",
+          "required": false
+        },
+        {
+          "logicalName": "pcm_notas",
+          "displayName": "Notas",
+          "dataType": "Texto largo",
+          "required": false
+        }
+      ]
+    },
+    "pcm_envio_taller": {
+      "displayName": "Envio taller externo",
+      "sheetName": "EnviosTaller",
+      "columns": [
+        {
+          "logicalName": "pcm_tipo_equipo",
+          "displayName": "Tipo equipo",
+          "dataType": "Choice:tipo_equipo_envio",
+          "required": false
+        },
+        {
+          "logicalName": "pcm_equipo_codigo",
+          "displayName": "Codigo equipo",
+          "dataType": "Lookup texto",
+          "required": true
+        },
+        {
+          "logicalName": "pcm_taller",
+          "displayName": "Taller externo",
+          "dataType": "Texto",
+          "required": true
+        },
+        {
+          "logicalName": "pcm_responsable",
+          "displayName": "Responsable",
+          "dataType": "Texto",
+          "required": false
+        },
+        {
+          "logicalName": "pcm_fecha_salida",
+          "displayName": "Fecha salida",
+          "dataType": "Fecha",
+          "required": true
+        },
+        {
+          "logicalName": "pcm_retorno_estimado",
+          "displayName": "Retorno estimado",
+          "dataType": "Fecha",
+          "required": false
+        },
+        {
+          "logicalName": "pcm_retorno_real",
+          "displayName": "Retorno real",
+          "dataType": "Fecha",
+          "required": false
+        },
+        {
+          "logicalName": "pcm_motivo",
+          "displayName": "Motivo",
+          "dataType": "Texto largo",
+          "required": false
+        },
+        {
+          "logicalName": "pcm_estado_equipo",
+          "displayName": "Estado fisico equipo",
+          "dataType": "Texto",
+          "required": false
+        },
+        {
+          "logicalName": "pcm_estado_logistica",
+          "displayName": "Estado logistica",
+          "dataType": "Choice:estado_logistica",
+          "required": false
+        },
+        {
+          "logicalName": "pcm_notas",
+          "displayName": "Notas",
+          "dataType": "Texto largo",
+          "required": false
+        }
+      ]
+    }
+  },
+  "relationships": [
+    {
+      "from": "pcm_turbina",
+      "column": "pcm_motor_codigo",
+      "to": "pcm_motor",
+      "toColumn": "pcm_codigo"
+    },
+    {
+      "from": "pcm_mantenimiento",
+      "column": "pcm_motor_codigo",
+      "to": "pcm_motor",
+      "toColumn": "pcm_codigo"
+    },
+    {
+      "from": "pcm_mantenimiento",
+      "column": "pcm_tecnico_nombre",
+      "to": "pcm_tecnico",
+      "toColumn": "pcm_nombre_completo"
+    },
+    {
+      "from": "pcm_falla",
+      "column": "pcm_motor_codigo",
+      "to": "pcm_motor",
+      "toColumn": "pcm_codigo"
+    },
+    {
+      "from": "pcm_falla",
+      "column": "pcm_tecnico_nombre",
+      "to": "pcm_tecnico",
+      "toColumn": "pcm_nombre_completo"
+    }
+  ],
+  "importOrder": [
+    "pcm_tecnico",
+    "pcm_motor",
+    "pcm_turbina",
+    "pcm_mantenimiento",
+    "pcm_falla",
+    "pcm_envio_taller"
+  ]
+}

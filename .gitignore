@@ -1,5 +1,6 @@
 node_modules/
 dist/
+dist-release/
 release/
 renderer-dist/
 *.log
@@ -7,3 +8,4 @@ renderer-dist/
 *.db-shm
 *.db-wal
 userData/
+src/database/config.js

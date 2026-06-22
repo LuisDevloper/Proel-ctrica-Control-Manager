@@ -3,7 +3,8 @@ const { buildApplicationMenu } = require("./menu");
 const path = require("path");
 const fs = require("fs");
 const { registerIpcHandlers } = require("./ipc");
-const { initializeDatabase } = require("../database/db");
+const { initializeDatabase, getDatabase } = require("../database/db");
+const { autoMigrateIfNeeded } = require("../database/autoMigrate");
 const { startBackupScheduler, stopBackupScheduler } = require("../services/backup");
 const { logInfo, logError } = require("../services/logger");
 const semver = require("semver");
@@ -31,7 +32,8 @@ let packagedAutoUpdater = null;
 
 // Estado persistente de la ventana (sin dependencias externas)
 const Store = require("electron-store");
-const windowStore = new Store({ name: "window-state" });
+const windowStore    = new Store({ name: "window-state" });
+const migrationStore = new Store({ name: "migration-state" });
 /** Actualizacion descargada pendiente de instalar (recordatorio al reiniciar). */
 const updaterStateStore = new Store({ name: "updater-state" });
 
@@ -208,6 +210,14 @@ if (gotTheLock) {
       });
 
       await initializeDatabase();
+
+      // Migrar datos locales de SQLite → Neon (solo la primera vez por PC)
+      const migrationResult = await autoMigrateIfNeeded(app, migrationStore, getDatabase());
+      if (migrationResult.ok) {
+        logInfo("auto_migrate.done", migrationResult.stats);
+        migrationStore.set("lastMigrationStats", migrationResult.stats);
+      }
+
       registerIpcHandlers();
       startBackupScheduler();
       createMainWindow();
@@ -246,6 +256,13 @@ if (gotTheLock) {
           return null;
         }
         return { version: pending };
+      });
+
+      ipcMain.handle("migration:getStatus", () => {
+        const stats = migrationStore.get("lastMigrationStats");
+        if (!stats) return null;
+        migrationStore.delete("lastMigrationStats");
+        return stats;
       });
 
       ipcMain.handle("updater:getReleaseNotes", (_event, version) => {

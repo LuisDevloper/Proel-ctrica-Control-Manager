@@ -48,21 +48,21 @@ function registerImportHandlers({ ipcMain, dialog, getDatabase, guards, excelImp
     const denied = denyIfVisor();
     if (denied) return denied;
     const db = getDatabase();
-    return importMotorsFromRows(db, rows, resolveActivityActor(auth), logActivity);
+    return await importMotorsFromRows(db, rows, resolveActivityActor(auth), logActivity);
   });
 
   ipcMain.handle("import:save-technicians", async (_event, { rows }) => {
     const denied = denyIfVisor();
     if (denied) return denied;
     const db = getDatabase();
-    return importTechniciansFromRows(db, rows, resolveActivityActor(auth), logActivity);
+    return await importTechniciansFromRows(db, rows, resolveActivityActor(auth), logActivity);
   });
 
   ipcMain.handle("import:save-turbinas", async (_event, { rows }) => {
     const denied = denyIfVisor();
     if (denied) return denied;
     const db = getDatabase();
-    return importTurbinasFromRows(db, rows, resolveActivityActor(auth), logActivity);
+    return await importTurbinasFromRows(db, rows, resolveActivityActor(auth), logActivity);
   });
 }
 

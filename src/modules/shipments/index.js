@@ -8,24 +8,24 @@ function canonicalLogisticsStatus(raw) {
   return canonicalFromList(raw, LOGISTICS_STATUS_OPTIONS, "Permiso de salida aprobado");
 }
 
-function syncEquipmentLocationFromShipment(db, equipmentType, equipmentId, logisticsStatus) {
+async function syncEquipmentLocationFromShipment(db, equipmentType, equipmentId, logisticsStatus) {
   if (!SHIPMENT_EQUIPMENT_TYPES.includes(equipmentType)) return;
   const table = equipmentType === "motor" ? "motors" : "turbinas";
   if (["Permiso de salida aprobado", "Equipo en transito"].includes(logisticsStatus)) {
-    db.prepare(`UPDATE ${table} SET operational_location = 'Taller externo' WHERE id = ?`).run(Number(equipmentId));
+    await db.prepare(`UPDATE ${table} SET operational_location = 'Taller externo' WHERE id = ?`).run(Number(equipmentId));
   } else if (["Entrada registrada", "Equipo entregado"].includes(logisticsStatus)) {
-    db.prepare(`UPDATE ${table} SET operational_location = 'En planta' WHERE id = ?`).run(Number(equipmentId));
+    await db.prepare(`UPDATE ${table} SET operational_location = 'En planta' WHERE id = ?`).run(Number(equipmentId));
   }
 }
 
-function getEquipmentOperationalLocation(db, equipmentType, equipmentId) {
+async function getEquipmentOperationalLocation(db, equipmentType, equipmentId) {
   if (!SHIPMENT_EQUIPMENT_TYPES.includes(equipmentType)) return "En planta";
   const table = equipmentType === "motor" ? "motors" : "turbinas";
-  const row = db.prepare(`SELECT operational_location FROM ${table} WHERE id = ?`).get(Number(equipmentId));
+  const row = await db.prepare(`SELECT operational_location FROM ${table} WHERE id = ?`).get(Number(equipmentId));
   return canonicalOperationalLocation(row?.operational_location || "En planta");
 }
 
-function getOpenShipmentForEquipment(db, equipmentType, equipmentId, excludeId = null) {
+async function getOpenShipmentForEquipment(db, equipmentType, equipmentId, excludeId = null) {
   let sql = `
     SELECT id, logistics_status FROM external_workshop_shipments
     WHERE equipment_type = ? AND equipment_id = ?
@@ -37,10 +37,10 @@ function getOpenShipmentForEquipment(db, equipmentType, equipmentId, excludeId =
     params.push(Number(excludeId));
   }
   sql += " ORDER BY id DESC LIMIT 1";
-  return db.prepare(sql).get(...params);
+  return await db.prepare(sql).get(...params);
 }
 
-function restoreEquipmentLocationAfterShipmentRemoval(db, shipmentRow, excludeShipmentId = null) {
+async function restoreEquipmentLocationAfterShipmentRemoval(db, shipmentRow, excludeShipmentId = null) {
   if (!shipmentRow) return;
   const {
     equipment_type: equipmentType,
@@ -50,19 +50,19 @@ function restoreEquipmentLocationAfterShipmentRemoval(db, shipmentRow, excludeSh
   } = shipmentRow;
   if (!SHIPMENT_EQUIPMENT_TYPES.includes(equipmentType)) return;
 
-  const otherOpen = getOpenShipmentForEquipment(db, equipmentType, equipmentId, excludeShipmentId);
+  const otherOpen = await getOpenShipmentForEquipment(db, equipmentType, equipmentId, excludeShipmentId);
   if (otherOpen) {
-    syncEquipmentLocationFromShipment(db, equipmentType, equipmentId, otherOpen.logistics_status);
+    await syncEquipmentLocationFromShipment(db, equipmentType, equipmentId, otherOpen.logistics_status);
     return;
   }
 
-  const current = getEquipmentOperationalLocation(db, equipmentType, equipmentId);
+  const current = await getEquipmentOperationalLocation(db, equipmentType, equipmentId);
   const shipmentWasOpen = !["Entrada registrada", "Equipo entregado"].includes(logisticsStatus);
   if (!shipmentWasOpen && current !== "Taller externo") return;
 
   const table = equipmentType === "motor" ? "motors" : "turbinas";
   const restore = canonicalOperationalLocation(previousLoc || "En planta");
-  db.prepare(`UPDATE ${table} SET operational_location = ? WHERE id = ?`).run(restore, Number(equipmentId));
+  await db.prepare(`UPDATE ${table} SET operational_location = ? WHERE id = ?`).run(restore, Number(equipmentId));
 }
 
 function shipmentListSelect() {
@@ -107,12 +107,12 @@ function mapShipmentRow(row) {
   };
 }
 
-function validateShipmentEquipment(db, equipmentType, equipmentId) {
+async function validateShipmentEquipment(db, equipmentType, equipmentId) {
   if (!SHIPMENT_EQUIPMENT_TYPES.includes(equipmentType)) {
     return { ok: false, message: "Tipo de equipo no valido." };
   }
   const table = equipmentType === "motor" ? "motors" : "turbinas";
-  const row = db.prepare(`SELECT id, code FROM ${table} WHERE id = ?`).get(Number(equipmentId));
+  const row = await db.prepare(`SELECT id, code FROM ${table} WHERE id = ?`).get(Number(equipmentId));
   if (!row) return { ok: false, message: "Equipo no encontrado." };
   return { ok: true, row };
 }

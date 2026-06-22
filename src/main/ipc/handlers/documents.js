@@ -15,75 +15,65 @@ function registerDocumentsHandlers({
     DOC_TYPES,
     ENTITY_TYPES,
     isAllowedUpload,
-    saveDocumentFile,
-    readDocumentFile,
-    deleteDocumentFile,
+    buildStorageKey,
+    storeFileData,
+    readFileData,
     deleteDocumentsForEntity,
-    ensureStorageRoot,
-    getStorageRoot,
   } = documents;
-
-  ensureStorageRoot();
 
   function mapDocumentRow(row) {
     return {
-      id: row.id,
-      entityType: row.entity_type,
-      entityId: row.entity_id,
-      docType: row.doc_type,
-      fileName: row.file_name,
-      mimeType: row.mime_type,
-      fileSize: row.file_size,
-      uploadedBy: row.uploaded_by,
-      createdAt: row.created_at,
+      id:          row.id,
+      entityType:  row.entity_type,
+      entityId:    row.entity_id,
+      docType:     row.doc_type,
+      fileName:    row.file_name,
+      mimeType:    row.mime_type,
+      fileSize:    row.file_size,
+      uploadedBy:  row.uploaded_by,
+      createdAt:   row.created_at,
     };
   }
 
-  function getDocumentById(db, id) {
-    return db.prepare("SELECT * FROM documents WHERE id = ?").get(Number(id));
+  async function getDocumentById(db, id) {
+    return await db.prepare("SELECT * FROM documents WHERE id = ?").get(Number(id));
   }
 
-  function replaceExistingSignedPermit(db, entityType, entityId, docType) {
+  /** Si ya existe un permiso firmado para el mismo envío, lo elimina antes de subir el nuevo. */
+  async function replaceExistingSignedPermit(db, entityType, entityId, docType) {
     if (entityType !== "external_shipment" || docType !== "permiso_firmado") return;
-    const rows = db.prepare(`
-      SELECT id, file_path FROM documents
+    await db.prepare(`
+      DELETE FROM documents
       WHERE entity_type = ? AND entity_id = ? AND doc_type = ?
-    `).all(entityType, Number(entityId), docType);
-    for (const row of rows) {
-      deleteDocumentFile(row.file_path);
-      db.prepare("DELETE FROM documents WHERE id = ?").run(row.id);
-    }
+    `).run(entityType, Number(entityId), docType);
   }
 
-  function insertDocumentRecord(db, {
-    entityType,
-    entityId,
-    docType,
-    fileName,
-    mimeType,
-    buffer,
-  }) {
-    if (!ENTITY_TYPES.includes(entityType)) return { ok: false, message: "Tipo de entidad no valido." };
-    if (!DOC_TYPES.includes(docType)) return { ok: false, message: "Tipo de documento no valido." };
-    if (!isAllowedUpload(fileName, mimeType)) {
+  /**
+   * Inserta el registro del documento en la BD y guarda el binario como BYTEA en Neon.
+   */
+  async function insertDocumentRecord(db, { entityType, entityId, docType, fileName, mimeType, buffer }) {
+    if (!ENTITY_TYPES.includes(entityType))
+      return { ok: false, message: "Tipo de entidad no valido." };
+    if (!DOC_TYPES.includes(docType))
+      return { ok: false, message: "Tipo de documento no valido." };
+    if (!isAllowedUpload(fileName, mimeType))
       return { ok: false, message: "Formato no permitido. Use PDF, JPG, PNG o WEBP." };
-    }
-    if (buffer.length > MAX_FILE_BYTES) {
+    if (buffer.length > MAX_FILE_BYTES)
       return { ok: false, message: "El archivo supera el limite de 15 MB." };
-    }
     if (entityType === "external_shipment" && docType === "permiso_firmado") {
-      if (mimeType !== "application/pdf" && !String(fileName).toLowerCase().endsWith(".pdf")) {
+      if (mimeType !== "application/pdf" && !String(fileName).toLowerCase().endsWith(".pdf"))
         return { ok: false, message: "El permiso firmado debe ser un archivo PDF." };
-      }
     }
 
-    replaceExistingSignedPermit(db, entityType, entityId, docType);
+    await replaceExistingSignedPermit(db, entityType, entityId, docType);
 
-    const relativePath = saveDocumentFile(entityType, entityId, fileName, buffer);
-    const actor = auth.getAuthSession()?.username || null;
-    const result = db.prepare(`
+    const storageKey = buildStorageKey(entityType, entityId, fileName);
+    const actor      = auth.getAuthSession()?.username || null;
+
+    const result = await db.prepare(`
       INSERT INTO documents (
-        entity_type, entity_id, doc_type, file_name, mime_type, file_path, file_size, uploaded_by, created_at
+        entity_type, entity_id, doc_type, file_name, mime_type,
+        file_path, file_size, uploaded_by, created_at
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).run(
       entityType,
@@ -91,56 +81,52 @@ function registerDocumentsHandlers({
       docType,
       fileName,
       mimeType,
-      relativePath,
+      storageKey,
       buffer.length,
       actor,
       new Date().toISOString()
     );
 
-    logActivity(db, null, "UPLOAD", "documents", result.lastInsertRowid, `${docType} — ${fileName}`);
-    const row = getDocumentById(db, result.lastInsertRowid);
+    const newId = result.lastInsertRowid;
+
+    // Guardar el binario en la columna file_data (BYTEA)
+    await storeFileData(db, newId, buffer);
+
+    await logActivity(db, null, "UPLOAD", "documents", newId, `${docType} — ${fileName}`);
+    const row = await getDocumentById(db, newId);
     return { ok: true, document: mapDocumentRow(row) };
   }
 
-  ipcMain.handle("documents:list", (_event, { entityType, entityId } = {}) => {
+  // ── Handlers ─────────────────────────────────────────────────────────────
+
+  ipcMain.handle("documents:list", async (_event, { entityType, entityId } = {}) => {
     const denied = denyIfNotAuthenticated();
     if (denied) return denied;
     if (!ENTITY_TYPES.includes(entityType)) return { ok: false, message: "Tipo de entidad no valido." };
     const db = getDatabase();
-    const rows = db.prepare(`
-      SELECT * FROM documents
+    // No seleccionamos file_data (puede ser grande); se pide al abrir
+    const rows = await db.prepare(`
+      SELECT id, entity_type, entity_id, doc_type, file_name, mime_type,
+             file_path, file_size, uploaded_by, created_at
+      FROM documents
       WHERE entity_type = ? AND entity_id = ?
       ORDER BY id DESC
     `).all(entityType, Number(entityId));
     return { ok: true, items: rows.map(mapDocumentRow) };
   });
 
-  ipcMain.handle("documents:upload", (_event, payload = {}) => {
+  ipcMain.handle("documents:upload", async (_event, payload = {}) => {
     const denied = denyIfVisor();
     if (denied) return denied;
-    const {
-      entityType,
-      entityId,
-      docType,
-      fileName,
-      mimeType,
-      dataBase64,
-    } = payload;
-    if (!entityType || !entityId || !docType || !fileName || !dataBase64) {
+    const { entityType, entityId, docType, fileName, mimeType, dataBase64 } = payload;
+    if (!entityType || !entityId || !docType || !fileName || !dataBase64)
       return { ok: false, message: "Datos del documento incompletos." };
-    }
     let buffer;
-    try {
-      buffer = Buffer.from(dataBase64, "base64");
-    } catch {
-      return { ok: false, message: "Archivo no valido." };
-    }
+    try { buffer = Buffer.from(dataBase64, "base64"); }
+    catch { return { ok: false, message: "Archivo no valido." }; }
     const db = getDatabase();
-    return insertDocumentRecord(db, {
-      entityType,
-      entityId,
-      docType,
-      fileName,
+    return await insertDocumentRecord(db, {
+      entityType, entityId, docType, fileName,
       mimeType: mimeType || "application/pdf",
       buffer,
     });
@@ -151,11 +137,12 @@ function registerDocumentsHandlers({
     if (denied) return denied;
     const { entityType, entityId, docType } = payload;
     if (!ENTITY_TYPES.includes(entityType)) return { ok: false, message: "Tipo de entidad no valido." };
-    if (!DOC_TYPES.includes(docType)) return { ok: false, message: "Tipo de documento no valido." };
+    if (!DOC_TYPES.includes(docType))       return { ok: false, message: "Tipo de documento no valido." };
 
     const filters = docType === "permiso_firmado"
       ? [{ name: "PDF", extensions: ["pdf"] }]
       : [{ name: "Documentos", extensions: ["pdf", "jpg", "jpeg", "png", "webp"] }];
+
     const { filePaths, canceled } = await dialog.showOpenDialog({
       title: "Seleccionar documento",
       filters,
@@ -164,43 +151,34 @@ function registerDocumentsHandlers({
     if (canceled || !filePaths?.length) return { ok: false, message: "Cancelado" };
 
     const sourcePath = filePaths[0];
-    const fileName = path.basename(sourcePath);
-    const ext = path.extname(fileName).toLowerCase();
-    const mimeType =
-      ext === ".pdf" ? "application/pdf" :
-      ext === ".png" ? "image/png" :
+    const fileName   = path.basename(sourcePath);
+    const ext        = path.extname(fileName).toLowerCase();
+    const mimeType   =
+      ext === ".pdf"  ? "application/pdf" :
+      ext === ".png"  ? "image/png" :
       ext === ".webp" ? "image/webp" :
       "image/jpeg";
 
-    if (!isAllowedUpload(fileName, mimeType)) {
+    if (!isAllowedUpload(fileName, mimeType))
       return { ok: false, message: "Formato no permitido. Use PDF, JPG, PNG o WEBP." };
-    }
 
     const stat = fs.statSync(sourcePath);
-    if (stat.size > MAX_FILE_BYTES) {
+    if (stat.size > MAX_FILE_BYTES)
       return { ok: false, message: "El archivo supera el limite de 15 MB." };
-    }
 
-    const db = getDatabase();
     const buffer = fs.readFileSync(sourcePath);
-    return insertDocumentRecord(db, {
-      entityType,
-      entityId,
-      docType,
-      fileName,
-      mimeType,
-      buffer,
-    });
+    const db = getDatabase();
+    return await insertDocumentRecord(db, { entityType, entityId, docType, fileName, mimeType, buffer });
   });
 
-  ipcMain.handle("documents:get-content", (_event, { id } = {}) => {
+  ipcMain.handle("documents:get-content", async (_event, { id } = {}) => {
     const denied = denyIfNotAuthenticated();
     if (denied) return denied;
-    const db = getDatabase();
-    const row = getDocumentById(db, id);
+    const db  = getDatabase();
+    const row = await db.prepare("SELECT * FROM documents WHERE id = ?").get(Number(id));
     if (!row) return { ok: false, message: "Documento no encontrado." };
-    const buffer = readDocumentFile(row.file_path);
-    if (!buffer) return { ok: false, message: "Archivo no encontrado en disco." };
+    const buffer = await readFileData(db, row);
+    if (!buffer) return { ok: false, message: "Archivo no disponible." };
     return {
       ok: true,
       document: mapDocumentRow(row),
@@ -211,28 +189,30 @@ function registerDocumentsHandlers({
   ipcMain.handle("documents:download", async (_event, { id } = {}) => {
     const denied = denyIfNotAuthenticated();
     if (denied) return denied;
-    const db = getDatabase();
-    const row = getDocumentById(db, id);
+    const db  = getDatabase();
+    const row = await db.prepare("SELECT * FROM documents WHERE id = ?").get(Number(id));
     if (!row) return { ok: false, message: "Documento no encontrado." };
-    const abs = path.join(getStorageRoot(), row.file_path);
+
+    const buffer = await readFileData(db, row);
+    if (!buffer) return { ok: false, message: "Archivo no disponible." };
+
     const { filePath, canceled } = await dialog.showSaveDialog({
       title: "Guardar documento",
       defaultPath: row.file_name,
     });
     if (canceled || !filePath) return { ok: false, message: "Cancelado" };
-    fs.copyFileSync(abs, filePath);
+    fs.writeFileSync(filePath, buffer);
     return { ok: true };
   });
 
-  ipcMain.handle("documents:delete", (_event, { id } = {}) => {
+  ipcMain.handle("documents:delete", async (_event, { id } = {}) => {
     const denied = denyIfVisor();
     if (denied) return denied;
-    const db = getDatabase();
-    const row = getDocumentById(db, id);
+    const db  = getDatabase();
+    const row = await getDocumentById(db, id);
     if (!row) return { ok: false, message: "Documento no encontrado." };
-    deleteDocumentFile(row.file_path);
-    db.prepare("DELETE FROM documents WHERE id = ?").run(Number(id));
-    logActivity(db, null, "DELETE", "documents", id, row.file_name);
+    await db.prepare("DELETE FROM documents WHERE id = ?").run(Number(id));
+    await logActivity(db, null, "DELETE", "documents", id, row.file_name);
     return { ok: true };
   });
 

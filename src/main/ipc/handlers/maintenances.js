@@ -4,6 +4,7 @@ function registerMaintenancesHandlers({ ipcMain, getDatabase, guards, equipment,
   const { syncMotorStatusWithMaintenances } = require("../../../modules/equipment/status");
   const { buildUpdateDetails } = require("../../../modules/activity/changes");
   const { isRowUnchanged, normStr, normNum, normNullableId } = require("../../../modules/activity/unchanged");
+  const { validate, validateId, schemas } = require("../schemas");
 
   const MAINTENANCE_UPDATE_FIELDS = [
     ["motor_id", "Motor"],
@@ -17,9 +18,9 @@ function registerMaintenancesHandlers({ ipcMain, getDatabase, guards, equipment,
 
   ipcMain.handle(
     "maintenances:list",
-    secureHandler(denyIfNotAuthenticated, () => {
+    secureHandler(denyIfNotAuthenticated, async () => {
       const db = getDatabase();
-      return db.prepare(`
+      return await db.prepare(`
       SELECT
         m.id,
         m.motor_id,
@@ -42,10 +43,13 @@ function registerMaintenancesHandlers({ ipcMain, getDatabase, guards, equipment,
 
   ipcMain.handle(
     "maintenances:calendar",
-    secureHandler(denyIfNotAuthenticated, (_event, { year, month }) => {
+    secureHandler(denyIfNotAuthenticated, async (_event, params) => {
+      const invalid = validate(schemas.calendarParamsSchema, params ?? {});
+      if (invalid) return invalid;
+      const { year, month } = params ?? {};
       const db = getDatabase();
       const { from, to } = calendarMonthIsoRange(year, month);
-      return db.prepare(`
+      return await db.prepare(`
       SELECT m.*, mo.code as motor_code, t.full_name as technician_name
       FROM maintenances m
       JOIN motors mo ON mo.id = m.motor_id
@@ -59,8 +63,10 @@ function registerMaintenancesHandlers({ ipcMain, getDatabase, guards, equipment,
   ipcMain.handle("maintenances:create", async (_event, maintenance) => {
     const denied = denyIfVisor();
     if (denied) return denied;
+    const invalid = validate(schemas.maintenanceCreateSchema, maintenance);
+    if (invalid) return invalid;
     const db = getDatabase();
-    db.prepare(`
+    const result = await db.prepare(`
       INSERT INTO maintenances (
         motor_id, technician_id, maintenance_type, maintenance_date, description, parts_used, cost, status, notes, created_at
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
@@ -76,17 +82,18 @@ function registerMaintenancesHandlers({ ipcMain, getDatabase, guards, equipment,
       maintenance.notes || "",
       new Date().toISOString()
     );
-    const newMtn = db.prepare("SELECT id FROM maintenances ORDER BY id DESC LIMIT 1").get();
-    syncMotorStatusWithMaintenances(db, maintenance.motorId);
-    logActivity(db, maintenance._username, "CREATE", "maintenances", newMtn?.id, `${maintenance.maintenanceType} — Motor #${maintenance.motorId}`);
-    return { ok: true, id: newMtn?.id };
+    await syncMotorStatusWithMaintenances(db, maintenance.motorId);
+    await logActivity(db, maintenance._username, "CREATE", "maintenances", result.lastInsertRowid, `${maintenance.maintenanceType} — Motor #${maintenance.motorId}`);
+    return { ok: true, id: result.lastInsertRowid };
   });
 
   ipcMain.handle("maintenances:update", async (_event, maintenance) => {
     const denied = denyIfVisor();
     if (denied) return denied;
+    const invalid = validate(schemas.maintenanceUpdateSchema, maintenance);
+    if (invalid) return invalid;
     const db = getDatabase();
-    const before = db.prepare("SELECT * FROM maintenances WHERE id = ?").get(Number(maintenance.id));
+    const before = await db.prepare("SELECT * FROM maintenances WHERE id = ?").get(Number(maintenance.id));
     if (!before) return { ok: false, message: "Mantenimiento no encontrado." };
 
     const after = {
@@ -111,7 +118,7 @@ function registerMaintenancesHandlers({ ipcMain, getDatabase, guards, equipment,
       return { ok: true, unchanged: true };
     }
 
-    db.prepare(`
+    await db.prepare(`
       UPDATE maintenances
       SET motor_id = ?, technician_id = ?, maintenance_type = ?, maintenance_date = ?, description = ?, cost = ?, status = ?
       WHERE id = ?
@@ -126,12 +133,12 @@ function registerMaintenancesHandlers({ ipcMain, getDatabase, guards, equipment,
       Number(maintenance.id)
     );
 
-    syncMotorStatusWithMaintenances(db, before.motor_id);
+    await syncMotorStatusWithMaintenances(db, before.motor_id);
     if (after.motor_id !== before.motor_id) {
-      syncMotorStatusWithMaintenances(db, after.motor_id);
+      await syncMotorStatusWithMaintenances(db, after.motor_id);
     }
 
-    logActivity(
+    await logActivity(
       db,
       maintenance._username,
       "UPDATE",
@@ -150,12 +157,14 @@ function registerMaintenancesHandlers({ ipcMain, getDatabase, guards, equipment,
   ipcMain.handle("maintenances:delete", async (_event, id) => {
     const denied = denyIfVisor();
     if (denied) return denied;
+    const invalid = validateId(id);
+    if (invalid) return invalid;
     const db = getDatabase();
-    const row = db.prepare("SELECT motor_id FROM maintenances WHERE id = ?").get(Number(id));
-    deleteDocumentsForEntity(db, "maintenance", id);
-    db.prepare("DELETE FROM maintenances WHERE id = ?").run(Number(id));
-    if (row?.motor_id) syncMotorStatusWithMaintenances(db, row.motor_id);
-    logActivity(db, null, "DELETE", "maintenances", id, "");
+    const row = await db.prepare("SELECT motor_id FROM maintenances WHERE id = ?").get(Number(id));
+    await deleteDocumentsForEntity(db, "maintenance", id);
+    await db.prepare("DELETE FROM maintenances WHERE id = ?").run(Number(id));
+    if (row?.motor_id) await syncMotorStatusWithMaintenances(db, row.motor_id);
+    await logActivity(db, null, "DELETE", "maintenances", id, "");
     return { ok: true };
   });
 }

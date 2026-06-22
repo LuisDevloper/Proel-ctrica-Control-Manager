@@ -3,6 +3,7 @@ function registerTurbinasHandlers({ ipcMain, getDatabase, guards, equipment, log
   const { canonicalMotorStatus, canonicalOperationalLocation } = equipment;
   const { buildUpdateDetails } = require("../../../modules/activity/changes");
   const { isRowUnchanged, normStr, normNullableId } = require("../../../modules/activity/unchanged");
+  const { validate, validateId, schemas } = require("../schemas");
 
   const TURBINE_UPDATE_FIELDS = [
     ["code", "Codigo"],
@@ -21,9 +22,9 @@ function registerTurbinasHandlers({ ipcMain, getDatabase, guards, equipment, log
 
   ipcMain.handle(
     "turbinas:list",
-    secureHandler(denyIfNotAuthenticated, () => {
+    secureHandler(denyIfNotAuthenticated, async () => {
       const db = getDatabase();
-      return db.prepare(`
+      return await db.prepare(`
       SELECT
         t.*,
         m.code AS motor_code,
@@ -41,9 +42,11 @@ function registerTurbinasHandlers({ ipcMain, getDatabase, guards, equipment, log
 
   ipcMain.handle(
     "turbinas:detail",
-    secureHandler(denyIfNotAuthenticated, (_event, id) => {
+    secureHandler(denyIfNotAuthenticated, async (_event, id) => {
+      const invalid = validateId(id);
+      if (invalid) return invalid;
       const db = getDatabase();
-      const turbine = db.prepare(`
+      const turbine = await db.prepare(`
       SELECT t.*, m.code AS motor_code
       FROM turbinas t
       LEFT JOIN motors m ON m.id = t.motor_id
@@ -56,9 +59,11 @@ function registerTurbinasHandlers({ ipcMain, getDatabase, guards, equipment, log
   ipcMain.handle("turbinas:create", async (_event, turbine) => {
     const denied = denyIfVisor();
     if (denied) return denied;
+    const invalid = validate(schemas.turbinaCreateSchema, turbine);
+    if (invalid) return invalid;
     const db = getDatabase();
     try {
-      db.prepare(`
+      await db.prepare(`
         INSERT INTO turbinas (
           code, serial_number, gg, pt, bearing_1, bearing_2, runtime_retiro, comentarios_retiro,
           operational_location, status, motor_id, notes, created_at
@@ -79,21 +84,23 @@ function registerTurbinasHandlers({ ipcMain, getDatabase, guards, equipment, log
         new Date().toISOString()
       );
     } catch (e) {
-      if (String(e.message || "").includes("UNIQUE")) {
+      if (e.code === "23505" || String(e.message || "").includes("unique")) {
         return { ok: false, message: "Ya existe una turbina con ese codigo." };
       }
       throw e;
     }
-    const newRow = db.prepare("SELECT id FROM turbinas WHERE code = ? ORDER BY id DESC LIMIT 1").get(turbine.code);
-    logActivity(db, turbine._username, "CREATE", "turbinas", newRow?.id, `Turbina ${turbine.code}`);
+    const newRow = await db.prepare("SELECT id FROM turbinas WHERE code = ? ORDER BY id DESC LIMIT 1").get(turbine.code);
+    await logActivity(db, turbine._username, "CREATE", "turbinas", newRow?.id, `Turbina ${turbine.code}`);
     return { ok: true };
   });
 
   ipcMain.handle("turbinas:update", async (_event, turbine) => {
     const denied = denyIfVisor();
     if (denied) return denied;
+    const invalid = validate(schemas.turbinaUpdateSchema, turbine);
+    if (invalid) return invalid;
     const db = getDatabase();
-    const before = db.prepare("SELECT * FROM turbinas WHERE id = ?").get(Number(turbine.id));
+    const before = await db.prepare("SELECT * FROM turbinas WHERE id = ?").get(Number(turbine.id));
     if (!before) return { ok: false, message: "Turbina no encontrada." };
 
     const operationalLocation = canonicalOperationalLocation(turbine.operationalLocation || turbine.operational_location);
@@ -133,7 +140,7 @@ function registerTurbinasHandlers({ ipcMain, getDatabase, guards, equipment, log
     }
 
     try {
-      db.prepare(`
+      await db.prepare(`
         UPDATE turbinas
         SET code = ?, serial_number = ?, gg = ?, pt = ?, bearing_1 = ?, bearing_2 = ?,
             runtime_retiro = ?, comentarios_retiro = ?,
@@ -155,13 +162,13 @@ function registerTurbinasHandlers({ ipcMain, getDatabase, guards, equipment, log
         Number(turbine.id)
       );
     } catch (e) {
-      if (String(e.message || "").includes("UNIQUE")) {
+      if (e.code === "23505" || String(e.message || "").includes("unique")) {
         return { ok: false, message: "Ya existe otra turbina con ese codigo." };
       }
       throw e;
     }
 
-    logActivity(
+    await logActivity(
       db,
       turbine._username,
       "UPDATE",
@@ -180,11 +187,13 @@ function registerTurbinasHandlers({ ipcMain, getDatabase, guards, equipment, log
   ipcMain.handle("turbinas:delete", async (_event, id) => {
     const denied = denyIfVisor();
     if (denied) return denied;
+    const invalid = validateId(id);
+    if (invalid) return invalid;
     const db = getDatabase();
-    const row = db.prepare("SELECT code FROM turbinas WHERE id = ?").get(Number(id));
-    deleteDocumentsForEntity(db, "turbine", id);
-    db.prepare("DELETE FROM turbinas WHERE id = ?").run(Number(id));
-    logActivity(db, null, "DELETE", "turbinas", id, row ? `Turbina ${row.code}` : "");
+    const row = await db.prepare("SELECT code FROM turbinas WHERE id = ?").get(Number(id));
+    await deleteDocumentsForEntity(db, "turbine", id);
+    await db.prepare("DELETE FROM turbinas WHERE id = ?").run(Number(id));
+    await logActivity(db, null, "DELETE", "turbinas", id, row ? `Turbina ${row.code}` : "");
     return { ok: true };
   });
 }

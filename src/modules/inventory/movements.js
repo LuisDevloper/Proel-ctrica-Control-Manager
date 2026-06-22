@@ -21,12 +21,12 @@ function mapInventoryMovementRow(row) {
   };
 }
 
-function resolveMovementReference(db, referenceType, referenceId) {
+async function resolveMovementReference(db, referenceType, referenceId) {
   if (!referenceType || referenceType === "manual" || !referenceId) {
     return { referenceType: "manual", referenceId: null, referenceLabel: null };
   }
   if (referenceType === "maintenance") {
-    const row = db.prepare(`
+    const row = await db.prepare(`
       SELECT m.id, mo.code AS motor_code, m.maintenance_type
       FROM maintenances m
       JOIN motors mo ON mo.id = m.motor_id
@@ -40,7 +40,7 @@ function resolveMovementReference(db, referenceType, referenceId) {
     };
   }
   if (referenceType === "external_shipment") {
-    const row = db.prepare(`
+    const row = await db.prepare(`
       SELECT s.id, s.workshop_name,
         CASE WHEN s.equipment_type = 'motor' THEN m.code ELSE t.code END AS equipment_code
       FROM external_workshop_shipments s
@@ -58,7 +58,7 @@ function resolveMovementReference(db, referenceType, referenceId) {
   return { referenceType: "manual", referenceId: null, referenceLabel: null };
 }
 
-function applyInventoryMovement(db, payload, logActivity) {
+async function applyInventoryMovement(db, payload, logActivity) {
   const itemId = Number(payload.inventoryItemId || payload.inventory_item_id);
   const movementType = String(payload.movementType || payload.movement_type || "entrada").toLowerCase();
   const qty = Math.abs(Number(payload.quantity));
@@ -69,12 +69,12 @@ function applyInventoryMovement(db, payload, logActivity) {
     return { ok: false, message: "La cantidad debe ser mayor a cero." };
   }
 
-  const item = db.prepare("SELECT * FROM inventory_items WHERE id = ?").get(itemId);
+  const item = await db.prepare("SELECT * FROM inventory_items WHERE id = ?").get(itemId);
   if (!item) return { ok: false, message: "Repuesto no encontrado." };
 
   const refRaw = payload.referenceType || payload.reference_type || "manual";
   const refId = payload.referenceId || payload.reference_id || null;
-  const refResolved = resolveMovementReference(db, refRaw, refId);
+  const refResolved = await resolveMovementReference(db, refRaw, refId);
   if (refResolved.ok === false) return refResolved;
 
   let referenceType = refResolved.referenceType || "manual";
@@ -98,8 +98,8 @@ function applyInventoryMovement(db, payload, logActivity) {
   }
 
   const now = new Date().toISOString();
-  db.prepare("UPDATE inventory_items SET quantity = ? WHERE id = ?").run(stockAfter, itemId);
-  const result = db.prepare(`
+  await db.prepare("UPDATE inventory_items SET quantity = ? WHERE id = ?").run(stockAfter, itemId);
+  const result = await db.prepare(`
     INSERT INTO inventory_movements (
       inventory_item_id, movement_type, quantity, stock_before, stock_after,
       reference_type, reference_id, reference_label, notes, created_by, created_at
@@ -114,12 +114,11 @@ function applyInventoryMovement(db, payload, logActivity) {
     referenceId,
     referenceLabel,
     payload.notes || "",
-    payload.notes || "",
     getAuthSession()?.username || null,
     now
   );
 
-  logActivity(
+  await logActivity(
     db,
     null,
     movementType.toUpperCase(),

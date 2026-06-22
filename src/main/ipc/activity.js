@@ -5,9 +5,9 @@ function resolveActivityActor(auth) {
   return auth.getAuthSession()?.username || "sistema";
 }
 
-function logActivity(db, username, action, entity, entityId, details) {
+async function logActivity(db, username, action, entity, entityId, details) {
   try {
-    db.prepare(`
+    await db.prepare(`
       INSERT INTO activity_log (username, action, entity, entity_id, details, created_at)
       VALUES (?, ?, ?, ?, ?, ?)
     `).run(username || "sistema", action, entity, entityId || null, details || null, new Date().toISOString());
@@ -18,8 +18,8 @@ function logActivity(db, username, action, entity, entityId, details) {
 
 /** Ignora username del cliente; usa siempre la sesion activa en main. */
 function createSecureLogActivity(auth) {
-  return function secureLogActivity(db, _ignoredUsername, action, entity, entityId, details) {
-    logActivity(db, resolveActivityActor(auth), action, entity, entityId, details);
+  return async function secureLogActivity(db, _ignoredUsername, action, entity, entityId, details) {
+    await logActivity(db, resolveActivityActor(auth), action, entity, entityId, details);
   };
 }
 

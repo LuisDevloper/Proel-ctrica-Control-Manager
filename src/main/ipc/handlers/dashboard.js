@@ -3,9 +3,9 @@ function registerDashboardHandlers({ ipcMain, getDatabase, guards, equipment }) 
   const { countEquipmentByEffectiveStatus, countInMaintenance } = require("../../../modules/equipment/status");
   const { parseDashboardYear, parseDashboardMonth, buildYearMonthKey, formatDashboardPeriod, getAvailableYears, fillYearMonths } = require("../../../modules/dashboard/years");
 
-  function equipmentStatusRows(db, table) {
+  async function equipmentStatusRows(db, table) {
     if (table === "motors") {
-      return db.prepare(`
+      const rows = await db.prepare(`
         SELECT
           m.status,
           m.operational_location AS operationalLocation,
@@ -14,37 +14,42 @@ function registerDashboardHandlers({ ipcMain, getDatabase, guards, equipment }) 
             WHERE mt.motor_id = m.id AND mt.status != 'Completado'
           ) AS hasOpenMaintenance
         FROM motors m
-      `).all().map((row) => ({
+      `).all();
+      return rows.map((row) => ({
         status: row.status,
-        operationalLocation: row.operationalLocation,
-        hasOpenMaintenance: Boolean(row.hasOpenMaintenance),
+        operationalLocation: row.operationallocation ?? row.operationalLocation,
+        hasOpenMaintenance: Boolean(row.hasopenmaintenance ?? row.hasOpenMaintenance),
       }));
     }
-    return db.prepare(`
-      SELECT status, operational_location AS operationalLocation
+    const rows = await db.prepare(`
+      SELECT status, operational_location AS operationallocation
       FROM turbinas
     `).all();
+    return rows.map((row) => ({
+      status: row.status,
+      operationalLocation: row.operationallocation,
+    }));
   }
 
-  function equipmentStatusCounts(db, table) {
-    return countEquipmentByEffectiveStatus(equipmentStatusRows(db, table));
+  async function equipmentStatusCounts(db, table) {
+    return countEquipmentByEffectiveStatus(await equipmentStatusRows(db, table));
   }
 
   ipcMain.handle(
     "notifications:list",
-    secureHandler(denyIfNotAuthenticated, () => {
+    secureHandler(denyIfNotAuthenticated, async () => {
       const db = getDatabase();
-      const upcoming = db.prepare(`
+      const upcoming = await db.prepare(`
       SELECT 'maintenance' as type, 'Mantenimiento proximo' as title,
         mo.code || ' — ' || m.maintenance_type as body,
         m.maintenance_date as date, m.id
       FROM maintenances m
       JOIN motors mo ON mo.id = m.motor_id
-      WHERE m.maintenance_date BETWEEN date('now') AND date('now', '+7 day')
+      WHERE m.maintenance_date::date BETWEEN CURRENT_DATE AND CURRENT_DATE + INTERVAL '7 days'
         AND m.status != 'Completado'
       ORDER BY m.maintenance_date
     `).all();
-      const failures = db.prepare(`
+      const failures = await db.prepare(`
       SELECT 'failure' as type, 'Falla pendiente' as title,
         mo.code || ' — ' || f.failure_type as body,
         f.reported_at as date, f.id
@@ -53,7 +58,7 @@ function registerDashboardHandlers({ ipcMain, getDatabase, guards, equipment }) 
       WHERE f.status != 'Resuelta'
       ORDER BY CASE f.priority WHEN 'Alta' THEN 1 WHEN 'Media' THEN 2 ELSE 3 END
     `).all();
-      const lowStock = db.prepare(`
+      const lowStock = await db.prepare(`
       SELECT 'stock' as type, 'Stock minimo' as title,
         part_name || ' (' || quantity || ' uds)' as body,
         created_at as date, id
@@ -65,30 +70,30 @@ function registerDashboardHandlers({ ipcMain, getDatabase, guards, equipment }) 
 
   ipcMain.handle(
     "dashboard:charts",
-    secureHandler(denyIfNotAuthenticated, (_event, opts = {}) => {
+    secureHandler(denyIfNotAuthenticated, async (_event, opts = {}) => {
       const db = getDatabase();
       const year = parseDashboardYear(opts.year);
       const month = parseDashboardMonth(opts.month);
       const yearKey = String(year);
       const yearMonthKey = month ? buildYearMonthKey(year, month) : null;
-      const availableYears = getAvailableYears(db);
+      const availableYears = await getAvailableYears(db);
       const periodLabel = formatDashboardPeriod(year, month);
 
-      const motorsByStatus = equipmentStatusCounts(db, "motors");
-      const turbinasByStatus = equipmentStatusCounts(db, "turbinas");
+      const motorsByStatus = await equipmentStatusCounts(db, "motors");
+      const turbinasByStatus = await equipmentStatusCounts(db, "turbinas");
 
-      const maintenanceRows = db.prepare(`
-        SELECT strftime('%Y-%m', maintenance_date) as month, COUNT(*) as count
+      const maintenanceRows = await db.prepare(`
+        SELECT TO_CHAR(maintenance_date::date, 'YYYY-MM') as month, COUNT(*) as count
         FROM maintenances
-        WHERE strftime('%Y', maintenance_date) = ?
+        WHERE TO_CHAR(maintenance_date::date, 'YYYY') = ?
         GROUP BY month
         ORDER BY month
       `).all(yearKey);
 
-      const failureRows = db.prepare(`
-        SELECT strftime('%Y-%m', reported_at) as month, COUNT(*) as count
+      const failureRows = await db.prepare(`
+        SELECT TO_CHAR(reported_at::date, 'YYYY-MM') as month, COUNT(*) as count
         FROM failures
-        WHERE strftime('%Y', reported_at) = ?
+        WHERE TO_CHAR(reported_at::date, 'YYYY') = ?
         GROUP BY month
         ORDER BY month
       `).all(yearKey);
@@ -102,38 +107,38 @@ function registerDashboardHandlers({ ipcMain, getDatabase, guards, equipment }) 
       }
 
       const costByMotor = month
-        ? db.prepare(`
+        ? await db.prepare(`
             SELECT mo.code AS motor, SUM(m.cost) AS total
             FROM maintenances m
             JOIN motors mo ON mo.id = m.motor_id
-            WHERE strftime('%Y-%m', m.maintenance_date) = ?
-            GROUP BY mo.id
+            WHERE TO_CHAR(m.maintenance_date::date, 'YYYY-MM') = ?
+            GROUP BY mo.id, mo.code
             ORDER BY total DESC
             LIMIT 10
           `).all(yearMonthKey)
-        : db.prepare(`
+        : await db.prepare(`
             SELECT mo.code AS motor, SUM(m.cost) AS total
             FROM maintenances m
             JOIN motors mo ON mo.id = m.motor_id
-            WHERE strftime('%Y', m.maintenance_date) = ?
-            GROUP BY mo.id
+            WHERE TO_CHAR(m.maintenance_date::date, 'YYYY') = ?
+            GROUP BY mo.id, mo.code
             ORDER BY total DESC
             LIMIT 10
           `).all(yearKey);
 
       const yearTotals = month
-        ? db.prepare(`
+        ? await db.prepare(`
             SELECT
-              (SELECT COUNT(*) FROM maintenances WHERE strftime('%Y-%m', maintenance_date) = ?) AS maintenancesInYear,
-              (SELECT COUNT(*) FROM failures WHERE strftime('%Y-%m', reported_at) = ?) AS failuresInYear,
-              (SELECT COALESCE(SUM(cost), 0) FROM maintenances WHERE strftime('%Y-%m', maintenance_date) = ?) AS maintenanceCostInYear
-          `).get(yearMonthKey, yearMonthKey, yearMonthKey)
-        : db.prepare(`
+              (SELECT COUNT(*) FROM maintenances WHERE TO_CHAR(maintenance_date::date, 'YYYY-MM') = $1) AS maintenancesInYear,
+              (SELECT COUNT(*) FROM failures WHERE TO_CHAR(reported_at::date, 'YYYY-MM') = $1) AS failuresInYear,
+              (SELECT COALESCE(SUM(cost), 0) FROM maintenances WHERE TO_CHAR(maintenance_date::date, 'YYYY-MM') = $1) AS maintenanceCostInYear
+          `).get(yearMonthKey)
+        : await db.prepare(`
             SELECT
-              (SELECT COUNT(*) FROM maintenances WHERE strftime('%Y', maintenance_date) = ?) AS maintenancesInYear,
-              (SELECT COUNT(*) FROM failures WHERE strftime('%Y', reported_at) = ?) AS failuresInYear,
-              (SELECT COALESCE(SUM(cost), 0) FROM maintenances WHERE strftime('%Y', maintenance_date) = ?) AS maintenanceCostInYear
-          `).get(yearKey, yearKey, yearKey);
+              (SELECT COUNT(*) FROM maintenances WHERE TO_CHAR(maintenance_date::date, 'YYYY') = $1) AS maintenancesInYear,
+              (SELECT COUNT(*) FROM failures WHERE TO_CHAR(reported_at::date, 'YYYY') = $1) AS failuresInYear,
+              (SELECT COALESCE(SUM(cost), 0) FROM maintenances WHERE TO_CHAR(maintenance_date::date, 'YYYY') = $1) AS maintenanceCostInYear
+          `).get(yearKey);
 
       return {
         year,
@@ -152,33 +157,44 @@ function registerDashboardHandlers({ ipcMain, getDatabase, guards, equipment }) 
 
   ipcMain.handle(
     "dashboard:stats",
-    secureHandler(denyIfNotAuthenticated, () => {
+    secureHandler(denyIfNotAuthenticated, async () => {
       const db = getDatabase();
-      const motorRows = equipmentStatusRows(db, "motors");
-      const turbinaRows = equipmentStatusRows(db, "turbinas");
+      const motorRows = await equipmentStatusRows(db, "motors");
+      const turbinaRows = await equipmentStatusRows(db, "turbinas");
       const inMaintenance = countInMaintenance(motorRows) + countInMaintenance(turbinaRows);
 
-      return {
-        totalMotors: db.prepare("SELECT COUNT(*) AS c FROM motors").get().c,
-        totalTurbinas: db.prepare("SELECT COUNT(*) AS c FROM turbinas").get().c,
-        inMaintenance,
-        outOfService:
-          db.prepare("SELECT COUNT(*) AS c FROM motors WHERE status = 'Fuera de servicio'").get().c +
-          db.prepare("SELECT COUNT(*) AS c FROM turbinas WHERE status = 'Fuera de servicio'").get().c,
-        totalMaintenances: db.prepare("SELECT COUNT(*) AS c FROM maintenances").get().c,
-        pendingFailures: db.prepare("SELECT COUNT(*) AS c FROM failures WHERE status <> 'Resuelta'").get().c,
-        totalTechnicians: db.prepare("SELECT COUNT(*) AS c FROM technicians").get().c,
-        lowStockItems: db.prepare("SELECT COUNT(*) AS c FROM inventory_items WHERE quantity <= min_stock").get().c,
-        upcomingMaintenances: db.prepare(`
+      const [tm, tt, oos1, oos2, tmaint, pf, tt2, ls, um, ps] = await Promise.all([
+        db.prepare("SELECT COUNT(*) AS c FROM motors").get(),
+        db.prepare("SELECT COUNT(*) AS c FROM turbinas").get(),
+        db.prepare("SELECT COUNT(*) AS c FROM motors WHERE status = 'Fuera de servicio'").get(),
+        db.prepare("SELECT COUNT(*) AS c FROM turbinas WHERE status = 'Fuera de servicio'").get(),
+        db.prepare("SELECT COUNT(*) AS c FROM maintenances").get(),
+        db.prepare("SELECT COUNT(*) AS c FROM failures WHERE status <> 'Resuelta'").get(),
+        db.prepare("SELECT COUNT(*) AS c FROM technicians").get(),
+        db.prepare("SELECT COUNT(*) AS c FROM inventory_items WHERE quantity <= min_stock").get(),
+        db.prepare(`
           SELECT COUNT(*) AS c FROM maintenances
-          WHERE maintenance_date >= date('now')
-            AND maintenance_date <= date('now', '+7 day')
+          WHERE maintenance_date::date >= CURRENT_DATE
+            AND maintenance_date::date <= CURRENT_DATE + INTERVAL '7 days'
             AND status != 'Completado'
-        `).get().c,
-        pendingShipments: db.prepare(`
+        `).get(),
+        db.prepare(`
           SELECT COUNT(*) AS c FROM external_workshop_shipments
           WHERE logistics_status NOT IN ('Entrada registrada', 'Equipo entregado')
-        `).get().c,
+        `).get(),
+      ]);
+
+      return {
+        totalMotors: Number(tm.c),
+        totalTurbinas: Number(tt.c),
+        inMaintenance,
+        outOfService: Number(oos1.c) + Number(oos2.c),
+        totalMaintenances: Number(tmaint.c),
+        pendingFailures: Number(pf.c),
+        totalTechnicians: Number(tt2.c),
+        lowStockItems: Number(ls.c),
+        upcomingMaintenances: Number(um.c),
+        pendingShipments: Number(ps.c),
       };
     })
   );

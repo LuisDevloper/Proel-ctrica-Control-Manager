@@ -2,6 +2,7 @@ function registerFailuresHandlers({ ipcMain, getDatabase, guards, logActivity })
   const { denyIfNotAuthenticated, denyIfVisor, secureHandler } = guards;
   const { buildUpdateDetails } = require("../../../modules/activity/changes");
   const { isRowUnchanged, normStr, normNullableId } = require("../../../modules/activity/unchanged");
+  const { validate, validateId, schemas } = require("../schemas");
 
   const FAILURE_UPDATE_FIELDS = [
     ["motor_id", "Motor"],
@@ -15,9 +16,9 @@ function registerFailuresHandlers({ ipcMain, getDatabase, guards, logActivity })
 
   ipcMain.handle(
     "failures:list",
-    secureHandler(denyIfNotAuthenticated, () => {
+    secureHandler(denyIfNotAuthenticated, async () => {
       const db = getDatabase();
-      return db.prepare(`
+      return await db.prepare(`
       SELECT
         f.id,
         f.motor_id,
@@ -41,8 +42,10 @@ function registerFailuresHandlers({ ipcMain, getDatabase, guards, logActivity })
   ipcMain.handle("failures:create", async (_event, failure) => {
     const denied = denyIfVisor();
     if (denied) return denied;
+    const invalid = validate(schemas.failureCreateSchema, failure);
+    if (invalid) return invalid;
     const db = getDatabase();
-    db.prepare(`
+    const result = await db.prepare(`
       INSERT INTO failures (
         motor_id, technician_id, failure_type, priority, status, reported_at, solution, notes, created_at
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
@@ -57,16 +60,17 @@ function registerFailuresHandlers({ ipcMain, getDatabase, guards, logActivity })
       failure.notes || "",
       new Date().toISOString()
     );
-    const newFail = db.prepare("SELECT id FROM failures ORDER BY id DESC LIMIT 1").get();
-    logActivity(db, failure._username, "CREATE", "failures", newFail?.id, `${failure.failureType} — Motor #${failure.motorId}`);
+    await logActivity(db, failure._username, "CREATE", "failures", result.lastInsertRowid, `${failure.failureType} — Motor #${failure.motorId}`);
     return { ok: true };
   });
 
   ipcMain.handle("failures:update", async (_event, failure) => {
     const denied = denyIfVisor();
     if (denied) return denied;
+    const invalid = validate(schemas.failureUpdateSchema, failure);
+    if (invalid) return invalid;
     const db = getDatabase();
-    const before = db.prepare("SELECT * FROM failures WHERE id = ?").get(Number(failure.id));
+    const before = await db.prepare("SELECT * FROM failures WHERE id = ?").get(Number(failure.id));
     if (!before) return { ok: false, message: "Falla no encontrada." };
 
     const after = {
@@ -91,7 +95,7 @@ function registerFailuresHandlers({ ipcMain, getDatabase, guards, logActivity })
 
     if (unchanged) return { ok: true, unchanged: true };
 
-    db.prepare(`
+    await db.prepare(`
       UPDATE failures
       SET motor_id = ?, technician_id = ?, failure_type = ?, priority = ?, status = ?, reported_at = ?, solution = ?
       WHERE id = ?
@@ -106,7 +110,7 @@ function registerFailuresHandlers({ ipcMain, getDatabase, guards, logActivity })
       Number(failure.id)
     );
 
-    logActivity(
+    await logActivity(
       db,
       failure._username,
       "UPDATE",
@@ -125,9 +129,11 @@ function registerFailuresHandlers({ ipcMain, getDatabase, guards, logActivity })
   ipcMain.handle("failures:delete", async (_event, id) => {
     const denied = denyIfVisor();
     if (denied) return denied;
+    const invalid = validateId(id);
+    if (invalid) return invalid;
     const db = getDatabase();
-    db.prepare("DELETE FROM failures WHERE id = ?").run(Number(id));
-    logActivity(db, null, "DELETE", "failures", id, "");
+    await db.prepare("DELETE FROM failures WHERE id = ?").run(Number(id));
+    await logActivity(db, null, "DELETE", "failures", id, "");
     return { ok: true };
   });
 }

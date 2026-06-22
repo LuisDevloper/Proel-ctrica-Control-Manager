@@ -8,7 +8,7 @@ import { useAsync } from "../hooks/useAsync";
 import { useDbHealth } from "../context/DbHealthContext";
 import { useAccessibility } from "../context/AccessibilityContext";
 import { canMutateRecords, READ_ONLY_ROLE_TITLE } from "../lib/permissions";
-import { KeyRound, Info, Database, Monitor, Download, Upload, AlertTriangle, RefreshCw, Type, Settings, History } from "lucide-react";
+import { KeyRound, Info, Database, Monitor, RefreshCw, Type, Settings, History, Cloud, ShieldCheck } from "lucide-react";
 import { PageHeader } from "../components/ui/PageHeader";
 import { VersionHistory } from "../components/settings/VersionHistory";
 
@@ -61,7 +61,6 @@ export function Configuracion({ user }) {
   const { fontPercent, setFontPercent } = useAccessibility();
   const dbTitle                       = dbHealthStatus !== true ? "Sin conexion a la base de datos." : undefined;
   const canMutateOps                  = canMutateRecords(user?.role);
-  const restoreTitle                  = dbHealthStatus !== true ? dbTitle : (!canMutateOps ? READ_ONLY_ROLE_TITLE : undefined);
 
   useEffect(() => {
     let cancelled = false;
@@ -117,7 +116,7 @@ export function Configuracion({ user }) {
     <div className="flex flex-col gap-4 max-w-2xl">
       <PageHeader
         title="Configuracion"
-        description="Sistema, accesibilidad, contrasena y copias de seguridad"
+        description="Sistema, accesibilidad y contrasena"
         icon={Settings}
       />
 
@@ -175,11 +174,11 @@ export function Configuracion({ user }) {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 flex-wrap">
             <Badge variant={dbHealthStatus === true ? "success" : dbHealthStatus === false ? "danger" : "default"}>
               {dbHealthStatus === null ? "Verificando..." : dbHealthStatus ? "Conectada" : "Error"}
             </Badge>
-            <span className="text-sm text-[#9ab0c7]">SQLite — proelectrica.db</span>
+            <span className="text-sm text-[#9ab0c7]">PostgreSQL — Neon (nube)</span>
             <Button
               variant="ghost" size="sm"
               onClick={async () => {
@@ -229,41 +228,29 @@ export function Configuracion({ user }) {
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <Database size={15} className="text-[#2f8dff]" /> Copia de seguridad
+            <Cloud size={15} className="text-[#39d48f]" /> Copias de seguridad
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <p className="text-sm text-[#9ab0c7] mb-4">
-            Guarda una copia de todos los datos o restaura desde una copia anterior.
-          </p>
-          <div className="flex gap-3 flex-wrap">
-            <Button
-              variant="secondary"
-              disabled={dbHealthStatus !== true}
-              title={dbTitle}
-              onClick={async () => {
-                await run(() => window.proelectricaApi.backupDb(), "Copia de seguridad guardada correctamente.");
-              }}
-            >
-              <Download size={14} className="mr-2" /> Exportar copia de seguridad
-            </Button>
-            <Button
-              variant="ghost"
-              className="border border-[#e0a91f]/40 text-[#e0a91f] hover:bg-[#e0a91f]/10"
-              disabled={dbHealthStatus !== true || !canMutateOps}
-              title={restoreTitle}
-              onClick={async () => {
-                await run(() => window.proelectricaApi.restoreDb(), "Base de datos restaurada. Reinicia la aplicacion para ver los cambios.");
-              }}
-            >
-              <Upload size={14} className="mr-2" /> Restaurar desde copia
-            </Button>
-          </div>
-          <div className="flex items-start gap-2 mt-4 bg-[#e0a91f]/5 border border-[#e0a91f]/20 rounded-xl p-3">
-            <AlertTriangle size={14} className="text-[#e0a91f] shrink-0 mt-0.5" />
-            <p className="text-xs text-[#9ab0c7]">
-              Al restaurar, se hace una copia automatica antes de reemplazar la BD. Reinicia la app despues de restaurar.
-            </p>
+          <div className="flex items-start gap-3 bg-[#39d48f]/5 border border-[#39d48f]/20 rounded-xl p-4">
+            <ShieldCheck size={18} className="text-[#39d48f] shrink-0 mt-0.5" />
+            <div className="flex flex-col gap-1">
+              <p className="text-sm text-[#eaf2fb] font-medium">
+                Copias automáticas gestionadas por Neon
+              </p>
+              <p className="text-sm text-[#9ab0c7]">
+                La base de datos está en la nube (PostgreSQL — Neon). Neon realiza copias de seguridad
+                automáticas con retención de 7 días en el plan gratuito. No se requiere ninguna acción manual.
+              </p>
+              <a
+                href="https://neon.tech/docs/introduction/backups"
+                target="_blank"
+                rel="noreferrer"
+                className="text-xs text-[#2f8dff] hover:underline mt-1 w-fit"
+              >
+                Ver documentación de backups en Neon →
+              </a>
+            </div>
           </div>
         </CardContent>
       </Card>

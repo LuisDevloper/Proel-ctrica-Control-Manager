@@ -1,21 +1,20 @@
-const bcrypt = require("bcryptjs");
-const { PgDb, Pool } = require("./pgAdapter");
-const { DATABASE_URL } = require("./config");
-const { logInfo, logError } = require("../services/logger");
+/**
+ * Script para inicializar las tablas en Neon (PostgreSQL).
+ * Ejecutar una vez antes de usar la app: node scripts/init-db.mjs
+ */
+import { createRequire } from 'module';
+const require = createRequire(import.meta.url);
 
-let db = null;
+const { PgDb, Pool } = require('../src/database/pgAdapter.js');
+const { DATABASE_URL } = require('../src/database/config.js');
+const bcrypt = require('bcryptjs');
 
-async function initializeDatabase() {
-  const pool = new Pool({
-    connectionString: DATABASE_URL,
-    ssl: { rejectUnauthorized: false },
-    max: 10,
-    idleTimeoutMillis: 30000,
-    connectionTimeoutMillis: 10000,
-  });
+const pool = new Pool({ connectionString: DATABASE_URL, ssl: { rejectUnauthorized: false } });
+const db = new PgDb(pool);
 
-  db = new PgDb(pool);
+console.log('Inicializando tablas en Neon...');
 
+try {
   await db.exec(`
     CREATE TABLE IF NOT EXISTS users (
       id SERIAL PRIMARY KEY,
@@ -83,12 +82,12 @@ async function initializeDatabase() {
     );
 
     CREATE TABLE IF NOT EXISTS activity_log (
-      id         SERIAL PRIMARY KEY,
-      username   TEXT NOT NULL,
-      action     TEXT NOT NULL,
-      entity     TEXT NOT NULL,
-      entity_id  INTEGER,
-      details    TEXT,
+      id SERIAL PRIMARY KEY,
+      username TEXT NOT NULL,
+      action TEXT NOT NULL,
+      entity TEXT NOT NULL,
+      entity_id INTEGER,
+      details TEXT,
       created_at TEXT NOT NULL
     );
 
@@ -176,59 +175,29 @@ async function initializeDatabase() {
     CREATE INDEX IF NOT EXISTS idx_shipments_equipment ON external_workshop_shipments(equipment_type, equipment_id);
     CREATE INDEX IF NOT EXISTS idx_shipments_status ON external_workshop_shipments(logistics_status);
   `);
+  console.log('✓ Tablas creadas (o ya existian)');
 
-  // Migración: agregar columna de datos binarios a documentos (idempotente)
-  await db.exec(`
-    ALTER TABLE documents ADD COLUMN IF NOT EXISTS file_data BYTEA;
-  `);
-
-  await seedAdminUser();
-  logInfo("database.init", { host: "neon.tech (PostgreSQL)" });
-}
-
-async function seedAdminUser() {
-  const result = await db.prepare("SELECT COUNT(*) AS total FROM users").get();
-  const total = Number(result.total);
-
-  if (total === 0) {
-    const defaultPasswordHash = await bcrypt.hash("Pro.2026", 10);
-    await db.prepare("INSERT INTO users (username, password_hash, role) VALUES (?, ?, ?)").run(
-      "Proelectrica",
-      defaultPasswordHash,
-      "ADMIN"
-    );
-    logInfo("database.seed_admin_created");
+  // Seed admin user
+  const result = await db.prepare('SELECT COUNT(*) AS total FROM users').get();
+  if (Number(result.total) === 0) {
+    const hash = await bcrypt.hash('Pro.2026', 10);
+    await db.prepare("INSERT INTO users (username, password_hash, role) VALUES (?, ?, ?)").run('Proelectrica', hash, 'ADMIN');
+    console.log('✓ Usuario admin creado (Proelectrica / Pro.2026)');
   } else {
-    const oldAdmin = await db.prepare("SELECT id FROM users WHERE username = 'admin'").get();
-    if (oldAdmin) {
-      const newHash = await bcrypt.hash("Pro.2026", 10);
-      await db.prepare("UPDATE users SET username = 'Proelectrica', password_hash = ? WHERE username = 'admin'").run(newHash);
-      logInfo("database.admin_migrated");
-    }
+    console.log(`✓ Usuarios existentes: ${result.total}`);
   }
+
+  // Mostrar resumen de tablas
+  const tables = await db.prepare(`
+    SELECT table_name FROM information_schema.tables
+    WHERE table_schema = 'public' ORDER BY table_name
+  `).all();
+  console.log('\nTablas en la base de datos:');
+  for (const t of tables) console.log(' -', t.table_name);
+
+  console.log('\n✓ Base de datos lista para usar!');
+} catch (e) {
+  console.error('Error:', e.message);
+} finally {
+  await pool.end();
 }
-
-async function saveDatabase() {
-  return;
-}
-
-function getDatabase() {
-  if (!db) {
-    throw new Error("Base de datos no inicializada.");
-  }
-  return db;
-}
-
-/** No-op: no aplica con PostgreSQL (sin archivos locales). */
-function closeDatabaseForFileReplace() {}
-
-/** No-op: no aplica con PostgreSQL. */
-function reopenDatabase() {}
-
-module.exports = {
-  initializeDatabase,
-  saveDatabase,
-  getDatabase,
-  closeDatabaseForFileReplace,
-  reopenDatabase,
-};

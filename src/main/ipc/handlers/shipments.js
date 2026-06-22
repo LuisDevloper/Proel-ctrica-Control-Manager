@@ -11,6 +11,7 @@ function registerShipmentsHandlers({ ipcMain, getDatabase, guards, shipments, lo
   } = shipments;
   const { buildUpdateDetails } = require("../../../modules/activity/changes");
   const { isRowUnchanged, normStr, normNullableId } = require("../../../modules/activity/unchanged");
+  const { validate, validateId, schemas } = require("../schemas");
 
   const SHIPMENT_UPDATE_FIELDS = [
     ["equipment_type", "Tipo equipo"],
@@ -28,9 +29,9 @@ function registerShipmentsHandlers({ ipcMain, getDatabase, guards, shipments, lo
 
   ipcMain.handle(
     "external-shipments:list",
-    secureHandler(denyIfNotAuthenticated, () => {
+    secureHandler(denyIfNotAuthenticated, async () => {
       const db = getDatabase();
-      const rows = db.prepare(`${shipmentListSelect()} ORDER BY s.id DESC`).all();
+      const rows = await db.prepare(`${shipmentListSelect()} ORDER BY s.id DESC`).all();
       return rows.map(mapShipmentRow);
     })
   );
@@ -38,10 +39,12 @@ function registerShipmentsHandlers({ ipcMain, getDatabase, guards, shipments, lo
   ipcMain.handle("external-shipments:create", async (_event, payload = {}) => {
     const denied = denyIfVisor();
     if (denied) return denied;
+    const invalid = validate(schemas.shipmentCreateSchema, payload);
+    if (invalid) return invalid;
     const db = getDatabase();
     const equipmentType = payload.equipmentType || payload.equipment_type;
     const equipmentId = payload.equipmentId || payload.equipment_id;
-    const check = validateShipmentEquipment(db, equipmentType, equipmentId);
+    const check = await validateShipmentEquipment(db, equipmentType, equipmentId);
     if (!check.ok) return check;
     if (!payload.workshopName && !payload.workshop_name) {
       return { ok: false, message: "El nombre del taller es obligatorio." };
@@ -52,8 +55,8 @@ function registerShipmentsHandlers({ ipcMain, getDatabase, guards, shipments, lo
 
     const now = new Date().toISOString();
     const logisticsStatus = canonicalLogisticsStatus(payload.logisticsStatus || payload.logistics_status);
-    const previousLocation = getEquipmentOperationalLocation(db, equipmentType, equipmentId);
-    const result = db.prepare(`
+    const previousLocation = await getEquipmentOperationalLocation(db, equipmentType, equipmentId);
+    const result = await db.prepare(`
       INSERT INTO external_workshop_shipments (
         equipment_type, equipment_id, workshop_name, responsible,
         departure_date, expected_return_date, actual_return_date,
@@ -78,8 +81,8 @@ function registerShipmentsHandlers({ ipcMain, getDatabase, guards, shipments, lo
       now
     );
 
-    syncEquipmentLocationFromShipment(db, equipmentType, equipmentId, logisticsStatus);
-    logActivity(
+    await syncEquipmentLocationFromShipment(db, equipmentType, equipmentId, logisticsStatus);
+    await logActivity(
       db,
       payload._username,
       "CREATE",
@@ -93,13 +96,15 @@ function registerShipmentsHandlers({ ipcMain, getDatabase, guards, shipments, lo
   ipcMain.handle("external-shipments:update", async (_event, payload = {}) => {
     const denied = denyIfVisor();
     if (denied) return denied;
+    const invalid = validateId(payload?.id);
+    if (invalid) return invalid;
     const db = getDatabase();
-    const existing = db.prepare("SELECT * FROM external_workshop_shipments WHERE id = ?").get(Number(payload.id));
+    const existing = await db.prepare("SELECT * FROM external_workshop_shipments WHERE id = ?").get(Number(payload.id));
     if (!existing) return { ok: false, message: "Envio no encontrado." };
 
     const equipmentType = payload.equipmentType || payload.equipment_type || existing.equipment_type;
     const equipmentId = payload.equipmentId || payload.equipment_id || existing.equipment_id;
-    const check = validateShipmentEquipment(db, equipmentType, equipmentId);
+    const check = await validateShipmentEquipment(db, equipmentType, equipmentId);
     if (!check.ok) return check;
 
     const logisticsStatus = canonicalLogisticsStatus(
@@ -143,15 +148,15 @@ function registerShipmentsHandlers({ ipcMain, getDatabase, guards, shipments, lo
     const equipmentChanged =
       equipmentType !== existing.equipment_type || Number(equipmentId) !== Number(existing.equipment_id);
     if (equipmentChanged) {
-      restoreEquipmentLocationAfterShipmentRemoval(db, existing, existing.id);
+      await restoreEquipmentLocationAfterShipmentRemoval(db, existing, existing.id);
     }
 
-    let previousLocation = existing.previous_operational_location || getEquipmentOperationalLocation(db, existing.equipment_type, existing.equipment_id);
+    let previousLocation = existing.previous_operational_location || await getEquipmentOperationalLocation(db, existing.equipment_type, existing.equipment_id);
     if (equipmentChanged) {
-      previousLocation = getEquipmentOperationalLocation(db, equipmentType, equipmentId);
+      previousLocation = await getEquipmentOperationalLocation(db, equipmentType, equipmentId);
     }
 
-    db.prepare(`
+    await db.prepare(`
       UPDATE external_workshop_shipments
       SET equipment_type = ?, equipment_id = ?, workshop_name = ?, responsible = ?,
           departure_date = ?, expected_return_date = ?, actual_return_date = ?,
@@ -174,8 +179,8 @@ function registerShipmentsHandlers({ ipcMain, getDatabase, guards, shipments, lo
       Number(payload.id)
     );
 
-    syncEquipmentLocationFromShipment(db, equipmentType, equipmentId, logisticsStatus);
-    logActivity(
+    await syncEquipmentLocationFromShipment(db, equipmentType, equipmentId, logisticsStatus);
+    await logActivity(
       db,
       payload._username,
       "UPDATE",
@@ -194,13 +199,15 @@ function registerShipmentsHandlers({ ipcMain, getDatabase, guards, shipments, lo
   ipcMain.handle("external-shipments:delete", async (_event, id) => {
     const denied = denyIfVisor();
     if (denied) return denied;
+    const invalid = validateId(id);
+    if (invalid) return invalid;
     const db = getDatabase();
-    const row = db.prepare("SELECT * FROM external_workshop_shipments WHERE id = ?").get(Number(id));
+    const row = await db.prepare("SELECT * FROM external_workshop_shipments WHERE id = ?").get(Number(id));
     if (!row) return { ok: false, message: "Envio no encontrado." };
-    restoreEquipmentLocationAfterShipmentRemoval(db, row);
-    deleteDocumentsForEntity(db, "external_shipment", Number(id));
-    db.prepare("DELETE FROM external_workshop_shipments WHERE id = ?").run(Number(id));
-    logActivity(db, null, "DELETE", "external_shipments", id, row.workshop_name);
+    await restoreEquipmentLocationAfterShipmentRemoval(db, row);
+    await deleteDocumentsForEntity(db, "external_shipment", Number(id));
+    await db.prepare("DELETE FROM external_workshop_shipments WHERE id = ?").run(Number(id));
+    await logActivity(db, null, "DELETE", "external_shipments", id, row.workshop_name);
     return { ok: true };
   });
 }

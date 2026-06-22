@@ -1,6 +1,5 @@
 const { canonicalMotorStatus, canonicalOperationalLocation } = require("../equipment/canonical");
 
-/** Día de calendario de una celda con fecha de Excel/ExcelJS → YYYY-MM-DD. */
 function excelDateToIsoDay(d) {
   const y = d.getUTCFullYear();
   const m = String(d.getUTCMonth() + 1).padStart(2, "0");
@@ -8,7 +7,6 @@ function excelDateToIsoDay(d) {
   return `${y}-${m}-${day}`;
 }
 
-/** dd/mm/aaaa o dd-mm-aaaa (calendario típico es-*) → YYYY-MM-DD; null si no aplica. */
 function parseLocaleDayMonthYearToIso(s) {
   const t = String(s).trim();
   const m = t.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/);
@@ -189,28 +187,29 @@ function parseExcelSheetForImport(ws, entity) {
   };
 }
 
-function importMotorsFromRows(db, rows, username, logActivity) {
+async function importMotorsFromRows(db, rows, username, logActivity) {
   let inserted = 0;
   let skipped = 0;
   let statusAdjusted = 0;
-  const stmt = db.prepare(`
-    INSERT OR IGNORE INTO motors
-      (code, brand, model, serial_number, power, voltage, rpm, location, operational_location, status, installed_at, notes, created_at)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-  `);
-  const insertMany = db.transaction((items) => {
-    for (const r of items) {
-      const code = r["Codigo"] || r["codigo"] || r["CODIGO"] || r["Code"] || "";
-      const brand = r["Marca"] || r["marca"] || r["MARCA"] || r["Brand"] || "";
-      if (!code || !brand) {
-        skipped++;
-        continue;
-      }
-      const estadoRaw = r["Estado"] || r["estado"] || r["ESTADO"] || "";
-      const { status: statusVal, adjusted } = canonicalMotorStatus(estadoRaw);
-      if (adjusted) statusAdjusted++;
-      const ubicRaw = r["Ubicacion operativa"] || r["Ubicacion"] || r["ubicacion"] || "";
-      const info = stmt.run(
+
+  for (const r of rows) {
+    const code = r["Codigo"] || r["codigo"] || r["CODIGO"] || r["Code"] || "";
+    const brand = r["Marca"] || r["marca"] || r["MARCA"] || r["Brand"] || "";
+    if (!code || !brand) {
+      skipped++;
+      continue;
+    }
+    const estadoRaw = r["Estado"] || r["estado"] || r["ESTADO"] || "";
+    const { status: statusVal, adjusted } = canonicalMotorStatus(estadoRaw);
+    if (adjusted) statusAdjusted++;
+    const ubicRaw = r["Ubicacion operativa"] || r["Ubicacion"] || r["ubicacion"] || "";
+    try {
+      const info = await db.prepare(`
+        INSERT INTO motors
+          (code, brand, model, serial_number, power, voltage, rpm, location, operational_location, status, installed_at, notes, created_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ON CONFLICT (code) DO NOTHING
+      `).run(
         code,
         brand,
         r["Modelo"] || r["modelo"] || "",
@@ -227,28 +226,30 @@ function importMotorsFromRows(db, rows, username, logActivity) {
       );
       if (info.changes > 0) inserted++;
       else skipped++;
+    } catch (_) {
+      skipped++;
     }
-  });
-  insertMany(rows);
-  logActivity(db, username, "IMPORT", "motors", null, `${inserted} motores importados, ${skipped} omitidos`);
+  }
+
+  await logActivity(db, username, "IMPORT", "motors", null, `${inserted} motores importados, ${skipped} omitidos`);
   return { ok: true, inserted, skipped, statusAdjusted };
 }
 
-function importTechniciansFromRows(db, rows, username, logActivity) {
+async function importTechniciansFromRows(db, rows, username, logActivity) {
   let inserted = 0;
   let skipped = 0;
-  const stmt = db.prepare(`
-    INSERT OR IGNORE INTO technicians (full_name, phone, email, specialty, created_at)
-    VALUES (?, ?, ?, ?, ?)
-  `);
-  const insertMany = db.transaction((items) => {
-    for (const r of items) {
-      const name = r["Nombre"] || r["nombre"] || r["NOMBRE"] || r["full_name"] || "";
-      if (!name) {
-        skipped++;
-        continue;
-      }
-      const info = stmt.run(
+
+  for (const r of rows) {
+    const name = r["Nombre"] || r["nombre"] || r["NOMBRE"] || r["full_name"] || "";
+    if (!name) {
+      skipped++;
+      continue;
+    }
+    try {
+      const info = await db.prepare(`
+        INSERT INTO technicians (full_name, phone, email, specialty, created_at)
+        VALUES (?, ?, ?, ?, ?)
+      `).run(
         name,
         r["Telefono"] || r["telefono"] || r["Phone"] || "",
         r["Email"] || r["email"] || "",
@@ -257,31 +258,34 @@ function importTechniciansFromRows(db, rows, username, logActivity) {
       );
       if (info.changes > 0) inserted++;
       else skipped++;
+    } catch (_) {
+      skipped++;
     }
-  });
-  insertMany(rows);
-  logActivity(db, username, "IMPORT", "technicians", null, `${inserted} técnicos importados, ${skipped} omitidos`);
+  }
+
+  await logActivity(db, username, "IMPORT", "technicians", null, `${inserted} técnicos importados, ${skipped} omitidos`);
   return { ok: true, inserted, skipped };
 }
 
-function importTurbinasFromRows(db, rows, username, logActivity) {
+async function importTurbinasFromRows(db, rows, username, logActivity) {
   let inserted = 0;
   let skipped = 0;
   let statusAdjusted = 0;
-  const stmt = db.prepare(`
-    INSERT OR IGNORE INTO turbinas
-      (code, serial_number, gg, pt, bearing_1, bearing_2, operational_location, status, runtime_retiro, notes, created_at)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-  `);
-  const insertMany = db.transaction((items) => {
-    for (const r of items) {
-      const code = r["Codigo"] || r["codigo"] || r["CODIGO"] || "";
-      if (!code) { skipped++; continue; }
-      const estadoRaw = r["Estado"] || r["estado"] || "";
-      const { status: statusVal, adjusted } = canonicalMotorStatus(estadoRaw);
-      if (adjusted) statusAdjusted++;
-      const ubicRaw = r["Ubicacion operativa"] || r["Ubicacion"] || r["ubicacion"] || "";
-      const info = stmt.run(
+
+  for (const r of rows) {
+    const code = r["Codigo"] || r["codigo"] || r["CODIGO"] || "";
+    if (!code) { skipped++; continue; }
+    const estadoRaw = r["Estado"] || r["estado"] || "";
+    const { status: statusVal, adjusted } = canonicalMotorStatus(estadoRaw);
+    if (adjusted) statusAdjusted++;
+    const ubicRaw = r["Ubicacion operativa"] || r["Ubicacion"] || r["ubicacion"] || "";
+    try {
+      const info = await db.prepare(`
+        INSERT INTO turbinas
+          (code, serial_number, gg, pt, bearing_1, bearing_2, operational_location, status, runtime_retiro, notes, created_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ON CONFLICT (code) DO NOTHING
+      `).run(
         code,
         r["Numero de serie"] || r["No. Serie"] || r["serie"] || "",
         r["GG"] || r["gg"] || "",
@@ -296,10 +300,12 @@ function importTurbinasFromRows(db, rows, username, logActivity) {
       );
       if (info.changes > 0) inserted++;
       else skipped++;
+    } catch (_) {
+      skipped++;
     }
-  });
-  insertMany(rows);
-  logActivity(db, username, "IMPORT", "turbinas", null, `${inserted} turbinas importadas, ${skipped} omitidas`);
+  }
+
+  await logActivity(db, username, "IMPORT", "turbinas", null, `${inserted} turbinas importadas, ${skipped} omitidas`);
   return { ok: true, inserted, skipped, statusAdjusted };
 }
 
