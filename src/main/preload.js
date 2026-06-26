@@ -78,6 +78,11 @@ contextBridge.exposeInMainWorld("proelectricaApi", {
   getUpdaterReleaseNotes: (version) => ipcRenderer.invoke("updater:getReleaseNotes", version),
   installUpdate: () => ipcRenderer.send("updater:install-now"),
   getMigrationStatus: () => ipcRenderer.invoke("migration:getStatus"),
+  // Almacenamiento y limpieza
+  getStorageStats:     ()     => ipcRenderer.invoke("storage:stats"),
+  listHeavyDocuments:  (opts) => ipcRenderer.invoke("storage:list-heavy", opts),
+  listOrphanDocuments: ()     => ipcRenderer.invoke("storage:orphans"),
+  deleteManyDocuments: (opts) => ipcRenderer.invoke("storage:delete-many", opts),
   onMenuAction: (cb) => {
     const handler = (_, data) => cb(data);
     ipcRenderer.on("app:menu-action", handler);

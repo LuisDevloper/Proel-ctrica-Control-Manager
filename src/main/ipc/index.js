@@ -27,6 +27,7 @@ const registerImportHandlers = require("./handlers/import");
 const registerActivityHandlers = require("./handlers/activity");
 const registerUsersHandlers = require("./handlers/users");
 const registerDocumentsHandlers = require("./handlers/documents");
+const registerStorageHandlers   = require("./handlers/storage");
 
 function registerIpcHandlers() {
   const logActivity = createSecureLogActivity(auth);
@@ -69,6 +70,7 @@ function registerIpcHandlers() {
   registerActivityHandlers(deps);
   registerUsersHandlers(deps);
   registerDocumentsHandlers(deps);
+  registerStorageHandlers(deps);
 }
 
 module.exports = { registerIpcHandlers };

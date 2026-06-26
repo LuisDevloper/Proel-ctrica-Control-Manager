@@ -129,15 +129,15 @@ function registerDashboardHandlers({ ipcMain, getDatabase, guards, equipment }) 
       const yearTotals = month
         ? await db.prepare(`
             SELECT
-              (SELECT COUNT(*) FROM maintenances WHERE TO_CHAR(maintenance_date::date, 'YYYY-MM') = $1) AS maintenancesInYear,
-              (SELECT COUNT(*) FROM failures WHERE TO_CHAR(reported_at::date, 'YYYY-MM') = $1) AS failuresInYear,
-              (SELECT COALESCE(SUM(cost), 0) FROM maintenances WHERE TO_CHAR(maintenance_date::date, 'YYYY-MM') = $1) AS maintenanceCostInYear
+              (SELECT COUNT(*) FROM maintenances WHERE TO_CHAR(maintenance_date::date, 'YYYY-MM') = $1) AS "maintenancesInYear",
+              (SELECT COUNT(*) FROM failures WHERE TO_CHAR(reported_at::date, 'YYYY-MM') = $1) AS "failuresInYear",
+              (SELECT COALESCE(SUM(cost), 0) FROM maintenances WHERE TO_CHAR(maintenance_date::date, 'YYYY-MM') = $1) AS "maintenanceCostInYear"
           `).get(yearMonthKey)
         : await db.prepare(`
             SELECT
-              (SELECT COUNT(*) FROM maintenances WHERE TO_CHAR(maintenance_date::date, 'YYYY') = $1) AS maintenancesInYear,
-              (SELECT COUNT(*) FROM failures WHERE TO_CHAR(reported_at::date, 'YYYY') = $1) AS failuresInYear,
-              (SELECT COALESCE(SUM(cost), 0) FROM maintenances WHERE TO_CHAR(maintenance_date::date, 'YYYY') = $1) AS maintenanceCostInYear
+              (SELECT COUNT(*) FROM maintenances WHERE TO_CHAR(maintenance_date::date, 'YYYY') = $1) AS "maintenancesInYear",
+              (SELECT COUNT(*) FROM failures WHERE TO_CHAR(reported_at::date, 'YYYY') = $1) AS "failuresInYear",
+              (SELECT COALESCE(SUM(cost), 0) FROM maintenances WHERE TO_CHAR(maintenance_date::date, 'YYYY') = $1) AS "maintenanceCostInYear"
           `).get(yearKey);
 
       return {

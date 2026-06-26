@@ -6,6 +6,16 @@ import semver from "semver";
  */
 export const CHANGELOG = [
   {
+    version: "1.7.0",
+    date: "2026-06-26",
+    title: "Herramienta de limpieza de almacenamiento y correcciones",
+    highlights: [
+      "Nueva seccion Almacenamiento en Configuracion: barra de uso, deteccion de archivos huerfanos y eliminacion de documentos pesados",
+      "Correccion: el resumen del Dashboard (mantenimientos, fallas, costos) ahora muestra los datos reales del año",
+      "Correccion: enlace de documentacion de backups de Neon actualizado",
+    ],
+  },
+  {
     version: "1.6.0",
     date: "2026-06-22",
     title: "Documentos compartidos y validacion avanzada",
