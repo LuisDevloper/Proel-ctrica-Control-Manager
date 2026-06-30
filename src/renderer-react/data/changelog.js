@@ -6,6 +6,15 @@ import semver from "semver";
  */
 export const CHANGELOG = [
   {
+    version: "1.8.0",
+    date: "2026-06-30",
+    title: "Correccion critica de instalacion",
+    highlights: [
+      "Correccion: la aplicacion instalada ya no muestra el error 'Cannot find module config' al iniciar",
+      "El archivo de configuracion de la base de datos ahora se incluye correctamente en el instalador",
+    ],
+  },
+  {
     version: "1.7.0",
     date: "2026-06-26",
     title: "Herramienta de limpieza de almacenamiento y correcciones",

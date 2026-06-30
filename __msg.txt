@@ -1,0 +1,5 @@
+fix: v1.8.0 — incluir config.js en el instalador
+
+- Correccion critica: config.js (conexion a Neon) ahora se empaqueta explicitamente en el build
+- Resuelve el error "Cannot find module './config'" en la aplicacion instalada
+- Agregado src/database/config.js al campo files de electron-builder en package.json
