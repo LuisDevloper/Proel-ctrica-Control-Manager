@@ -28,6 +28,7 @@ const registerActivityHandlers = require("./handlers/activity");
 const registerUsersHandlers = require("./handlers/users");
 const registerDocumentsHandlers = require("./handlers/documents");
 const registerStorageHandlers   = require("./handlers/storage");
+const registerSearchHandlers    = require("./handlers/search");
 
 function registerIpcHandlers() {
   const logActivity = createSecureLogActivity(auth);
@@ -71,6 +72,7 @@ function registerIpcHandlers() {
   registerUsersHandlers(deps);
   registerDocumentsHandlers(deps);
   registerStorageHandlers(deps);
+  registerSearchHandlers(deps);
 }
 
 module.exports = { registerIpcHandlers };

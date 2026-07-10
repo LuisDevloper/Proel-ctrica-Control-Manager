@@ -1,7 +1,7 @@
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import { formatEquipmentCondition } from "./equipment";
-import logoUrl from "/logo.png";
+import logoUrl from "/logo-excel.png";
 
 // Paleta para impresión (fondo blanco)
 const HEADER_BG   = [15,  40,  80];   // azul oscuro — cabecera

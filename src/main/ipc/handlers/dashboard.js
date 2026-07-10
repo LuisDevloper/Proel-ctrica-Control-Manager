@@ -39,32 +39,77 @@ function registerDashboardHandlers({ ipcMain, getDatabase, guards, equipment }) 
     "notifications:list",
     secureHandler(denyIfNotAuthenticated, async () => {
       const db = getDatabase();
+
+      // Mantenimientos vencidos (fecha pasada, no completados) — urgencia ALTA
+      const overdue = await db.prepare(`
+        SELECT 'overdue_maintenance' AS type, 'Mantenimiento vencido' AS title,
+          mo.code || ' — ' || m.maintenance_type AS body,
+          m.maintenance_date AS date, m.id,
+          'high' AS urgency,
+          (CURRENT_DATE - m.maintenance_date::date) AS days_late
+        FROM maintenances m
+        JOIN motors mo ON mo.id = m.motor_id
+        WHERE m.maintenance_date::date < CURRENT_DATE
+          AND m.status NOT IN ('Completado', 'Cancelado')
+        ORDER BY m.maintenance_date
+      `).all();
+
+      // Mantenimientos próximos (7 días) — urgencia MEDIA
       const upcoming = await db.prepare(`
-      SELECT 'maintenance' as type, 'Mantenimiento proximo' as title,
-        mo.code || ' — ' || m.maintenance_type as body,
-        m.maintenance_date as date, m.id
-      FROM maintenances m
-      JOIN motors mo ON mo.id = m.motor_id
-      WHERE m.maintenance_date::date BETWEEN CURRENT_DATE AND CURRENT_DATE + INTERVAL '7 days'
-        AND m.status != 'Completado'
-      ORDER BY m.maintenance_date
-    `).all();
-      const failures = await db.prepare(`
-      SELECT 'failure' as type, 'Falla pendiente' as title,
-        mo.code || ' — ' || f.failure_type as body,
-        f.reported_at as date, f.id
-      FROM failures f
-      JOIN motors mo ON mo.id = f.motor_id
-      WHERE f.status != 'Resuelta'
-      ORDER BY CASE f.priority WHEN 'Alta' THEN 1 WHEN 'Media' THEN 2 ELSE 3 END
-    `).all();
+        SELECT 'maintenance' AS type, 'Mantenimiento proximo' AS title,
+          mo.code || ' — ' || m.maintenance_type AS body,
+          m.maintenance_date AS date, m.id,
+          'medium' AS urgency,
+          0 AS days_late
+        FROM maintenances m
+        JOIN motors mo ON mo.id = m.motor_id
+        WHERE m.maintenance_date::date BETWEEN CURRENT_DATE AND CURRENT_DATE + INTERVAL '7 days'
+          AND m.status NOT IN ('Completado', 'Cancelado')
+        ORDER BY m.maintenance_date
+      `).all();
+
+      // Fallas estancadas > 5 días sin resolver — urgencia ALTA
+      const stalledFailures = await db.prepare(`
+        SELECT 'stalled_failure' AS type, 'Falla sin resolver' AS title,
+          mo.code || ' — ' || f.failure_type AS body,
+          f.reported_at AS date, f.id,
+          'high' AS urgency,
+          (CURRENT_DATE - f.reported_at::date) AS days_late
+        FROM failures f
+        JOIN motors mo ON mo.id = f.motor_id
+        WHERE f.status != 'Resuelta'
+          AND f.reported_at::date < CURRENT_DATE - INTERVAL '5 days'
+        ORDER BY CASE f.priority WHEN 'Alta' THEN 1 WHEN 'Media' THEN 2 ELSE 3 END,
+                 f.reported_at
+      `).all();
+
+      // Fallas recientes pendientes (≤ 5 días) — urgencia MEDIA
+      const recentFailures = await db.prepare(`
+        SELECT 'failure' AS type, 'Falla pendiente' AS title,
+          mo.code || ' — ' || f.failure_type AS body,
+          f.reported_at AS date, f.id,
+          'medium' AS urgency,
+          0 AS days_late
+        FROM failures f
+        JOIN motors mo ON mo.id = f.motor_id
+        WHERE f.status != 'Resuelta'
+          AND f.reported_at::date >= CURRENT_DATE - INTERVAL '5 days'
+        ORDER BY CASE f.priority WHEN 'Alta' THEN 1 WHEN 'Media' THEN 2 ELSE 3 END
+      `).all();
+
+      // Stock bajo — urgencia MEDIA
       const lowStock = await db.prepare(`
-      SELECT 'stock' as type, 'Stock minimo' as title,
-        part_name || ' (' || quantity || ' uds)' as body,
-        created_at as date, id
-      FROM inventory_items WHERE quantity <= min_stock
-    `).all();
-      return [...upcoming, ...failures, ...lowStock];
+        SELECT 'stock' AS type, 'Stock minimo' AS title,
+          part_name || ' (' || quantity || ' uds)' AS body,
+          created_at AS date, id,
+          'medium' AS urgency,
+          0 AS days_late
+        FROM inventory_items
+        WHERE quantity <= min_stock
+      `).all();
+
+      // Orden: alta urgencia primero
+      return [...overdue, ...stalledFailures, ...upcoming, ...recentFailures, ...lowStock];
     })
   );
 
@@ -196,6 +241,73 @@ function registerDashboardHandlers({ ipcMain, getDatabase, guards, equipment }) 
         upcomingMaintenances: Number(um.c),
         pendingShipments: Number(ps.c),
       };
+    })
+  );
+
+  // ── KPIs de confiabilidad ─────────────────────────────────────────────────
+  ipcMain.handle(
+    "motors:reliability",
+    secureHandler(denyIfNotAuthenticated, async (_event, opts = {}) => {
+      const db    = getDatabase();
+      const days  = Math.min(Math.max(Number(opts.days) || 365, 30), 730);
+
+      // Tabla de confiabilidad: fallas, costo y MTBF por motor (período configurable)
+      const rows = await db.prepare(`
+        SELECT
+          mo.id,
+          mo.code,
+          mo.brand,
+          mo.status,
+          mo.operational_location AS operationalLocation,
+          COUNT(DISTINCT f.id)              AS failure_count,
+          COUNT(DISTINCT m.id)              AS maintenance_count,
+          COALESCE(SUM(DISTINCT m.cost), 0) AS total_cost,
+          MIN(f.reported_at::date)          AS first_failure,
+          MAX(f.reported_at::date)          AS last_failure,
+          CASE
+            WHEN COUNT(DISTINCT f.id) >= 2 THEN
+              ROUND(
+                (MAX(f.reported_at::date) - MIN(f.reported_at::date))::numeric
+                / NULLIF(COUNT(DISTINCT f.id) - 1, 0)
+              )
+            ELSE NULL
+          END AS mtbf_days
+        FROM motors mo
+        LEFT JOIN failures f
+          ON f.motor_id = mo.id
+         AND f.reported_at::date >= CURRENT_DATE - ($1 || ' days')::interval
+        LEFT JOIN maintenances m
+          ON m.motor_id = mo.id
+         AND m.maintenance_date::date >= CURRENT_DATE - ($1 || ' days')::interval
+        GROUP BY mo.id, mo.code, mo.brand, mo.status, mo.operational_location
+        ORDER BY failure_count DESC, total_cost DESC
+        LIMIT 20
+      `).all(String(days));
+
+      // Resumen global del período
+      const summary = await db.prepare(`
+        SELECT
+          COUNT(DISTINCT f.id) AS total_failures,
+          COUNT(DISTINCT CASE WHEN f.id IS NOT NULL THEN f.motor_id END) AS motors_with_failures,
+          COUNT(DISTINCT mo.id) AS total_motors,
+          ROUND(AVG(CASE WHEN cnt.c >= 2 THEN cnt.mtbf END)) AS avg_mtbf
+        FROM motors mo
+        LEFT JOIN failures f
+          ON f.motor_id = mo.id
+         AND f.reported_at::date >= CURRENT_DATE - ($1 || ' days')::interval
+        LEFT JOIN (
+          SELECT motor_id,
+            COUNT(*) AS c,
+            CASE WHEN COUNT(*) >= 2 THEN
+              ROUND((MAX(reported_at::date) - MIN(reported_at::date))::numeric / NULLIF(COUNT(*) - 1, 0))
+            END AS mtbf
+          FROM failures
+          WHERE reported_at::date >= CURRENT_DATE - ($1 || ' days')::interval
+          GROUP BY motor_id
+        ) cnt ON cnt.motor_id = mo.id
+      `).get(String(days));
+
+      return { rows, summary, days };
     })
   );
 }

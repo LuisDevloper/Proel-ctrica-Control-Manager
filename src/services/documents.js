@@ -23,7 +23,7 @@ const ALLOWED_MIME = {
   "image/webp":      [".webp"],
 };
 
-const DOC_TYPES    = ["cotizacion", "informe", "orden_trabajo", "permiso_firmado", "otro"];
+const DOC_TYPES    = ["cotizacion", "informe", "orden_trabajo", "permiso_firmado", "foto", "otro"];
 const ENTITY_TYPES = ["motor", "maintenance", "turbine", "external_shipment"];
 
 // ── Utilidades ────────────────────────────────────────────────────────────

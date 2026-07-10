@@ -5,9 +5,20 @@ import { Table, Thead, Th, Tbody, Tr, Td } from "../components/ui/Table";
 import { useFilters } from "../hooks/useFilters";
 import { FilterBar } from "../components/layout/FilterBar";
 import { Pager } from "../components/layout/Pager";
-import { Activity, User, Edit, Trash2, Plus, Upload, RotateCcw, RefreshCw, LogIn, LogOut, Database } from "lucide-react";
+import { Activity, User, Edit, Trash2, Plus, Upload, RotateCcw, RefreshCw, LogIn, LogOut, Database, FileSpreadsheet } from "lucide-react";
 import { PageHeader } from "../components/ui/PageHeader";
 import { EmptyState } from "../components/ui/EmptyState";
+import { xlsxExport } from "../lib/excelExport";
+import { useToast } from "../components/ui/Toast";
+
+const EXCEL_COLS = [
+  { key: "fecha",        header: "Fecha y hora",  width: 22 },
+  { key: "username",     header: "Usuario",        width: 18 },
+  { key: "action_label", header: "Acción",         width: 18 },
+  { key: "entity_label", header: "Entidad",        width: 22 },
+  { key: "entity_id",    header: "ID",             width: 8  },
+  { key: "details",      header: "Detalles",       width: 60 },
+];
 
 const ACTION_ICONS = {
   CREATE:   { icon: Plus,        color: "text-[#29a16a]", bg: "bg-[#29a16a]/10 border-[#29a16a]/30" },
@@ -77,6 +88,7 @@ export function ActividadLog() {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [limit, setLimit] = useState(200);
+  const { showToast } = useToast();
 
   const filters = useFilters(items, { filterFn, defaultSortField: "created_at", perPage: 25 });
 
@@ -101,6 +113,28 @@ export function ActividadLog() {
       " " + d.toLocaleTimeString("es-CO", { hour: "2-digit", minute: "2-digit" });
   }
 
+  function handleExport() {
+    if (!filters.filtered.length) {
+      showToast("No hay registros para exportar.", "warning");
+      return;
+    }
+    const rows = filters.filtered.map((item) => ({
+      fecha:        fmtDate(item.created_at),
+      username:     item.username || "—",
+      action_label: ACTION_LABELS[item.action] || item.action || "—",
+      entity_label: ENTITY_LABELS[item.entity] || item.entity || "—",
+      entity_id:    item.entity_id ?? "",
+      details:      item.details || "—",
+    }));
+    const today = new Date().toISOString().slice(0, 10);
+    xlsxExport(
+      `Actividad_${today}`,
+      "Registro de Actividad",
+      EXCEL_COLS,
+      rows
+    );
+  }
+
   // Stats rápidas
   const stats = {
     creates:  items.filter(i => i.action === "CREATE").length,
@@ -117,9 +151,14 @@ export function ActividadLog() {
         description="Auditoria de acciones y cambios realizados en el sistema"
         icon={Activity}
         actions={
-          <Button variant="ghost" size="sm" className="border border-[var(--border)] text-[var(--muted)]" onClick={load}>
-            <RefreshCw size={13} className="mr-1" /> Actualizar
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button variant="ghost" size="sm" className="border border-[var(--border)] text-[var(--muted)]" onClick={load}>
+              <RefreshCw size={13} className="mr-1" /> Actualizar
+            </Button>
+            <Button variant="secondary" size="sm" onClick={handleExport}>
+              <FileSpreadsheet size={13} className="mr-1" /> Excel
+            </Button>
+          </div>
         }
       />
 

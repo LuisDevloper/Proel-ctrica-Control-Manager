@@ -1,28 +1,67 @@
-import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { Upload, Eye, Download, Trash2, FileText, Paperclip, Search } from "lucide-react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Upload, Eye, Download, Trash2, FileText, Paperclip, Search, Image } from "lucide-react";
 import { Button } from "../ui/Button";
 import { Select, Field, Input } from "../ui/Input";
 import { Badge } from "../ui/Badge";
 import { useToast } from "../ui/Toast";
+import { ConfirmModal } from "../ui/Modal";
 import { DocumentViewerModal } from "./DocumentViewerModal";
 import { EmptyState } from "../ui/EmptyState";
 
 export const DOC_TYPE_OPTIONS = [
-  { value: "cotizacion", label: "Cotizacion" },
-  { value: "informe", label: "Informe tecnico" },
-  { value: "orden_trabajo", label: "Orden de trabajo" },
+  { value: "cotizacion",      label: "Cotizacion" },
+  { value: "informe",         label: "Informe tecnico" },
+  { value: "orden_trabajo",   label: "Orden de trabajo" },
   { value: "permiso_firmado", label: "Permiso firmado" },
-  { value: "otro", label: "Otro documento" },
+  { value: "foto",            label: "Fotografia" },
+  { value: "otro",            label: "Otro documento" },
 ];
 
 const DOC_TYPE_LABEL = Object.fromEntries(DOC_TYPE_OPTIONS.map((o) => [o.value, o.label]));
 
 function docTypeBadgeVariant(docType) {
-  if (docType === "cotizacion") return "warning";
-  if (docType === "informe") return "info";
-  if (docType === "orden_trabajo") return "success";
+  if (docType === "cotizacion")      return "warning";
+  if (docType === "informe")         return "info";
+  if (docType === "orden_trabajo")   return "success";
   if (docType === "permiso_firmado") return "success";
+  if (docType === "foto")            return "info";
   return "default";
+}
+
+function isImage(mimeType) {
+  return typeof mimeType === "string" && mimeType.startsWith("image/");
+}
+
+/** Miniatura inline para documentos de imagen usando la API de contenido. */
+function ImageThumb({ documentId }) {
+  const [src, setSrc] = useState(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    window.proelectricaApi.getDocumentContent({ id: documentId })
+      .then((res) => {
+        if (cancelled || !res?.ok || !res.dataBase64) return;
+        setSrc(`data:${res.mimeType || "image/jpeg"};base64,${res.dataBase64}`);
+      })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, [documentId]);
+
+  if (!src) {
+    return (
+      <div className="w-10 h-10 rounded-lg bg-[#1a2d44] flex items-center justify-center shrink-0">
+        <Image size={16} className="text-[#5fb3ff]" />
+      </div>
+    );
+  }
+
+  return (
+    <img
+      src={src}
+      alt="Vista previa"
+      className="w-10 h-10 rounded-lg object-cover shrink-0 border border-[#2a3d57]"
+    />
+  );
 }
 
 function formatBytes(bytes) {
@@ -64,6 +103,9 @@ export function EntityDocuments({
   const [filterQuery, setFilterQuery] = useState("");
   const [filterType, setFilterType] = useState("");
   const [viewerId, setViewerId] = useState(null);
+  const [deleteId, setDeleteId] = useState(null);
+  const [isDragging, setIsDragging] = useState(false);
+  const dragCounter = useRef(0);
   const { showToast } = useToast();
 
   const load = useCallback(async () => {
@@ -112,6 +154,8 @@ export function EntityDocuments({
         showToast("Documento cargado correctamente.", "success");
         load();
         onChange?.();
+      } else if (res?.errorCode === "STORAGE_FULL") {
+        showToast(res.message, "warning", { duration: 8000 });
       } else if (res?.message && res.message !== "Cancelado") {
         showToast(res.message, "warning");
       }
@@ -126,9 +170,10 @@ export function EntityDocuments({
     else if (res?.message && res.message !== "Cancelado") showToast(res.message, "warning");
   }
 
-  async function handleDelete(id) {
-    if (!canMutate) return;
-    const res = await window.proelectricaApi.deleteDocument({ id, username });
+  async function handleDelete() {
+    if (!canMutate || !deleteId) return;
+    const res = await window.proelectricaApi.deleteDocument({ id: deleteId, username });
+    setDeleteId(null);
     if (res?.ok) {
       showToast("Documento eliminado.", "success");
       load();
@@ -138,8 +183,115 @@ export function EntityDocuments({
     }
   }
 
+  // ── Drag & Drop ──────────────────────────────────────────────────────────────
+
+  function readFileBase64(file) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload  = () => resolve(String(reader.result).split(",")[1]);
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+  }
+
+  function guessMime(file) {
+    if (file.type) return file.type;
+    const ext = file.name.toLowerCase().split(".").pop();
+    if (ext === "pdf")                return "application/pdf";
+    if (ext === "png")                return "image/png";
+    if (ext === "jpg" || ext === "jpeg") return "image/jpeg";
+    if (ext === "webp")               return "image/webp";
+    return "application/octet-stream";
+  }
+
+  function handleDragEnter(e) {
+    e.preventDefault();
+    dragCounter.current += 1;
+    if (dragCounter.current === 1) setIsDragging(true);
+  }
+
+  function handleDragLeave(e) {
+    e.preventDefault();
+    dragCounter.current -= 1;
+    if (dragCounter.current === 0) setIsDragging(false);
+  }
+
+  function handleDragOver(e) {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "copy";
+  }
+
+  async function handleDrop(e) {
+    e.preventDefault();
+    dragCounter.current = 0;
+    setIsDragging(false);
+    if (!canMutate) return;
+
+    const ALLOWED = ["application/pdf", "image/jpeg", "image/png", "image/webp"];
+    const MAX_BYTES = 15 * 1024 * 1024;
+
+    const files = Array.from(e.dataTransfer.files);
+    if (!files.length) return;
+
+    for (const file of files) {
+      const mime = guessMime(file);
+      if (!ALLOWED.includes(mime)) {
+        showToast(`Formato no permitido: ${file.name}. Use PDF, JPG, PNG o WEBP.`, "warning");
+        continue;
+      }
+      if (file.size > MAX_BYTES) {
+        showToast(`${file.name} supera el límite de 15 MB.`, "warning");
+        continue;
+      }
+      setUploading(true);
+      try {
+        const dataBase64 = await readFileBase64(file);
+        const res = await window.proelectricaApi.uploadDocument({
+          entityType,
+          entityId,
+          docType,
+          fileName: file.name,
+          mimeType: mime,
+          dataBase64,
+          username,
+        });
+        if (res?.ok) {
+          showToast(`${file.name} subido correctamente.`, "success");
+          load();
+          onChange?.();
+        } else if (res?.errorCode === "STORAGE_FULL") {
+          showToast(res.message, "warning", { duration: 8000 });
+        } else if (res?.message) {
+          showToast(res.message, "warning");
+        }
+      } catch {
+        showToast(`No se pudo subir ${file.name}.`, "warning");
+      } finally {
+        setUploading(false);
+      }
+    }
+  }
+
   return (
-    <div className={compact ? "flex flex-col gap-3" : "flex flex-col gap-4"}>
+    <div
+      className={`relative ${compact ? "flex flex-col gap-3" : "flex flex-col gap-4"} rounded-xl transition-colors duration-150 ${
+        isDragging ? "outline outline-2 outline-[#2f8dff]/60 bg-[#0d1825]/60" : ""
+      }`}
+      onDragEnter={canMutate ? handleDragEnter : undefined}
+      onDragLeave={canMutate ? handleDragLeave : undefined}
+      onDragOver={canMutate ? handleDragOver : undefined}
+      onDrop={canMutate ? handleDrop : undefined}
+    >
+      {/* Overlay de soltar archivo */}
+      {isDragging && canMutate && (
+        <div className="absolute inset-0 z-20 flex flex-col items-center justify-center rounded-xl border-2 border-dashed border-[#2f8dff] bg-[#0a1525]/85 backdrop-blur-[2px] pointer-events-none">
+          <Upload size={36} className="text-[#5fb3ff] mb-2 animate-bounce" />
+          <p className="text-sm font-semibold text-[#5fb3ff]">Suelta aquí para subir</p>
+          <p className="text-xs text-[#4a6a8a] mt-1">
+            Se guardará como: <span className="text-[#9ab0c7]">{DOC_TYPE_LABEL[docType] || docType}</span>
+          </p>
+        </div>
+      )}
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <h3 className={`font-semibold text-[#eaf2fb] flex items-center gap-2 ${compact ? "text-sm" : "text-base"}`}>
@@ -214,9 +366,13 @@ export function EntityDocuments({
               className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-[#2a3d57] bg-[#0d1825]/80 px-3 py-2.5"
             >
               <div className="flex items-center gap-3 min-w-0">
-                <div className="p-2 rounded-lg bg-[#1a2d44] text-[#5fb3ff] shrink-0">
-                  <FileText size={16} />
-                </div>
+                {isImage(doc.mimeType) ? (
+                  <ImageThumb documentId={doc.id} />
+                ) : (
+                  <div className="p-2 rounded-lg bg-[#1a2d44] text-[#5fb3ff] shrink-0">
+                    <FileText size={16} />
+                  </div>
+                )}
                 <div className="min-w-0">
                   <div className="flex flex-wrap items-center gap-2">
                     <Badge variant={docTypeBadgeVariant(doc.docType)}>{DOC_TYPE_LABEL[doc.docType] || doc.docType}</Badge>
@@ -236,7 +392,7 @@ export function EntityDocuments({
                   <Download size={14} />
                 </Button>
                 {canMutate && (
-                  <Button variant="ghost" size="icon" className="hover:text-[#e07070]" title="Eliminar" onClick={() => handleDelete(doc.id)}>
+                  <Button variant="ghost" size="icon" className="hover:text-[#e07070]" title="Eliminar" onClick={() => setDeleteId(doc.id)}>
                     <Trash2 size={14} />
                   </Button>
                 )}
@@ -247,6 +403,13 @@ export function EntityDocuments({
       )}
 
       <DocumentViewerModal open={!!viewerId} documentId={viewerId} onClose={() => setViewerId(null)} />
+
+      <ConfirmModal
+        open={!!deleteId}
+        onClose={() => setDeleteId(null)}
+        onConfirm={handleDelete}
+        message="Se eliminará este documento de forma permanente. Esta acción no se puede deshacer."
+      />
     </div>
   );
 }

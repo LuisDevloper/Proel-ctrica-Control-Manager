@@ -1,6 +1,15 @@
 {
-  "generatedAt": "2026-06-30T14:40:50.112Z",
+  "generatedAt": "2026-06-30T14:54:22.951Z",
   "entries": [
+    {
+      "version": "1.8.0",
+      "date": "2026-06-30",
+      "title": "Correccion critica de instalacion",
+      "highlights": [
+        "Correccion: la aplicacion instalada ya no muestra el error 'Cannot find module config' al iniciar",
+        "El archivo de configuracion de la base de datos ahora se incluye correctamente en el instalador"
+      ]
+    },
     {
       "version": "1.7.0",
       "date": "2026-06-26",

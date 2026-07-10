@@ -9,6 +9,7 @@ import { useToast } from "../components/ui/Toast";
 import { SkeletonStatCards, SkeletonCard } from "../components/ui/Skeleton";
 import { PageHeader } from "../components/ui/PageHeader";
 import { exportDashboardPDF } from "../lib/pdfReport";
+import { ReliabilityPanel } from "../components/dashboard/ReliabilityPanel";
 
 const DashboardCharts = lazy(() =>
   import("./DashboardCharts.jsx").then((m) => ({ default: m.DashboardCharts }))
@@ -217,6 +218,8 @@ export function Dashboard() {
           </CardContent>
         </Card>
       )}
+
+      <ReliabilityPanel />
     </div>
   );
 }

@@ -38,6 +38,7 @@ contextBridge.exposeInMainWorld("proelectricaApi", {
   getNotifications: () => ipcRenderer.invoke("notifications:list"),
   getDashboardCharts: (opts) => ipcRenderer.invoke("dashboard:charts", opts),
   getMotorDetail: (id) => ipcRenderer.invoke("motors:detail", id),
+  getMotorReliability: (opts) => ipcRenderer.invoke("motors:reliability", opts),
   getMaintenancesCalendar: (params) => ipcRenderer.invoke("maintenances:calendar", params),
   dbPing: () => ipcRenderer.invoke("db:ping"),
   getAppInfo: () => ipcRenderer.invoke("app:info"),
@@ -60,6 +61,8 @@ contextBridge.exposeInMainWorld("proelectricaApi", {
   updateUserRole:    (data) => ipcRenderer.invoke("users:update-role", data),
   resetUserPassword: (data) => ipcRenderer.invoke("users:reset-password", data),
   deleteUser:        (id)   => ipcRenderer.invoke("users:delete", id),
+  // Búsqueda global
+  globalSearch: (q) => ipcRenderer.invoke("search:global", { q }),
   // Documentos adjuntos
   listDocuments:     (opts) => ipcRenderer.invoke("documents:list", opts),
   pickAndUploadDocument: (opts) => ipcRenderer.invoke("documents:pick-and-upload", opts),

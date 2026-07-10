@@ -5,13 +5,31 @@ import { Button } from "../components/ui/Button";
 import { Table, Thead, Th, Tbody, Tr, Td } from "../components/ui/Table";
 import { SkeletonTable } from "../components/ui/Skeleton";
 import { exportMotorDetailPDF } from "../lib/pdfReport";
-import { ArrowLeft, FileText, Wrench, AlertTriangle, DollarSign, Activity } from "lucide-react";
+import { ArrowLeft, FileText, Wrench, AlertTriangle, DollarSign, Activity, Timer, GitBranch } from "lucide-react";
 import { ElectricMotorIcon } from "../components/icons/ElectricMotorIcon";
 import { useToast } from "../components/ui/Toast";
 import { PageHeader } from "../components/ui/PageHeader";
 import { EmptyState } from "../components/ui/EmptyState";
 import { EntityDocuments } from "../components/documents/EntityDocuments";
 import { canMutateRecords } from "../lib/permissions";
+
+/** Calcula MTBF en días a partir del arreglo de fallas. */
+function calcMtbf(failures) {
+  const dates = failures
+    .map(f => f.reported_at ? new Date(String(f.reported_at).slice(0, 10)) : null)
+    .filter(Boolean)
+    .sort((a, b) => a - b);
+  if (dates.length < 2) return null;
+  const diffMs = dates[dates.length - 1] - dates[0];
+  return Math.round(diffMs / (1000 * 60 * 60 * 24) / (dates.length - 1));
+}
+
+/** Días transcurridos desde una fecha ISO. */
+function daysSince(dateStr) {
+  if (!dateStr) return null;
+  const diff = Date.now() - new Date(String(dateStr).slice(0, 10)).getTime();
+  return Math.floor(diff / (1000 * 60 * 60 * 24));
+}
 
 const fmtCost = (v) => "$" + Number(v || 0).toLocaleString("es-CO");
 const fmtDate = (d) => d || "—";
@@ -73,6 +91,35 @@ export function MotorDetail({ motorId, onBack, user }) {
   const pendingFails = failures.filter(f => f.status !== "Resuelta").length;
   const completedMtn = maintenances.filter(m => m.status === "Completado").length;
 
+  // KPIs de confiabilidad calculados en el cliente
+  const mtbf           = calcMtbf(failures);
+  const lastFailure    = failures.length > 0
+    ? failures.reduce((a, b) => (a.reported_at || "") > (b.reported_at || "") ? a : b)
+    : null;
+  const daysSinceLastFail = daysSince(lastFailure?.reported_at);
+
+  // Timeline unificada de mantenimientos + fallas, ordenada cronológicamente
+  const timeline = [
+    ...maintenances.map(m => ({
+      kind:    "maintenance",
+      date:    m.maintenance_date || "",
+      label:   m.maintenance_type,
+      sub:     m.technician_name || "",
+      status:  m.status,
+      cost:    m.cost,
+      id:      `m-${m.id}`,
+    })),
+    ...failures.map(f => ({
+      kind:    "failure",
+      date:    f.reported_at || "",
+      label:   f.failure_type,
+      sub:     f.technician_name || "",
+      status:  f.status,
+      priority: f.priority,
+      id:      `f-${f.id}`,
+    })),
+  ].sort((a, b) => b.date.localeCompare(a.date));
+
   const fields = [
     ["Codigo",          motor.code],
     ["Marca",           motor.brand],
@@ -108,11 +155,36 @@ export function MotorDetail({ motorId, onBack, user }) {
       />
 
       {/* Estadísticas rápidas */}
-      <div className="grid grid-cols-4 gap-3">
-        <StatMini label="Mantenimientos" value={maintenances.length} color="text-[#2f8dff]" />
-        <StatMini label="Completados"    value={completedMtn}        color="text-[#29a16a]" />
-        <StatMini label="Fallas"         value={failures.length}     color="text-[#e0a91f]" />
-        <StatMini label="Fallas pendientes" value={pendingFails}     color={pendingFails > 0 ? "text-[#e07070]" : "text-[#29a16a]"} />
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <StatMini label="Mantenimientos"   value={maintenances.length} color="text-[#2f8dff]" />
+        <StatMini label="Completados"      value={completedMtn}        color="text-[#29a16a]" />
+        <StatMini label="Fallas totales"   value={failures.length}     color="text-[#e0a91f]" />
+        <StatMini label="Fallas pendientes" value={pendingFails}       color={pendingFails > 0 ? "text-[#e07070]" : "text-[#29a16a]"} />
+      </div>
+
+      {/* KPIs de confiabilidad */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+        <div className="flex flex-col items-center justify-center bg-[#0d1825] border border-[#2a3d57] rounded-xl p-4 gap-1">
+          <Timer size={14} className="text-[#2f8dff] mb-0.5" />
+          <span className={`text-2xl font-bold ${mtbf == null ? "text-[#4a6a8a]" : mtbf >= 60 ? "text-[#29a16a]" : mtbf >= 20 ? "text-[#e0a91f]" : "text-[#e07070]"}`}>
+            {mtbf != null ? `${mtbf}d` : "N/A"}
+          </span>
+          <span className="text-xs text-[#9ab0c7] text-center">MTBF (días entre fallas)</span>
+        </div>
+        <div className="flex flex-col items-center justify-center bg-[#0d1825] border border-[#2a3d57] rounded-xl p-4 gap-1">
+          <Activity size={14} className="text-[#29a16a] mb-0.5" />
+          <span className={`text-2xl font-bold ${daysSinceLastFail == null ? "text-[#4a6a8a]" : daysSinceLastFail >= 180 ? "text-[#29a16a]" : daysSinceLastFail >= 30 ? "text-[#e0a91f]" : "text-[#e07070]"}`}>
+            {daysSinceLastFail != null ? `${daysSinceLastFail}d` : "Sin fallas"}
+          </span>
+          <span className="text-xs text-[#9ab0c7] text-center">Días desde última falla</span>
+        </div>
+        <div className="flex flex-col items-center justify-center bg-[#0d1825] border border-[#2a3d57] rounded-xl p-4 gap-1 col-span-2 sm:col-span-1">
+          <GitBranch size={14} className="text-[#c084fc] mb-0.5" />
+          <span className="text-2xl font-bold text-[#c084fc]">
+            {failures.length > 0 ? (failures.length / Math.max(1, maintenances.length)).toFixed(1) : "0"}
+          </span>
+          <span className="text-xs text-[#9ab0c7] text-center">Fallas por mantenimiento</span>
+        </div>
       </div>
 
       {/* Costo total */}
@@ -177,6 +249,58 @@ export function MotorDetail({ motorId, onBack, user }) {
           </div>
         </CardContent>
       </Card>
+
+      {/* Timeline cronológica */}
+      {timeline.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Activity size={14} className="text-[#2f8dff]" /> Hoja de vida — Línea de tiempo
+              <span className="ml-auto text-xs font-normal text-[#9ab0c7]">{timeline.length} evento(s)</span>
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="relative flex flex-col gap-0">
+              {/* Línea vertical */}
+              <div className="absolute left-[17px] top-3 bottom-3 w-px bg-[#2a3d57]" />
+              {timeline.map((ev, i) => (
+                <div key={ev.id} className="flex items-start gap-3 py-2 pl-1">
+                  {/* Punto */}
+                  <div className={`relative z-10 mt-1 w-[18px] h-[18px] rounded-full shrink-0 border-2 flex items-center justify-center ${
+                    ev.kind === "failure"
+                      ? ev.status === "Resuelta" ? "border-[#e0a91f] bg-[#2b2208]" : "border-[#e07070] bg-[#2e1212]"
+                      : ev.status === "Completado" ? "border-[#29a16a] bg-[#0a1e14]" : "border-[#2f8dff] bg-[#0d1e38]"
+                  }`}>
+                    {ev.kind === "failure"
+                      ? <AlertTriangle size={9} className={ev.status === "Resuelta" ? "text-[#e0a91f]" : "text-[#e07070]"} />
+                      : <Wrench size={9} className={ev.status === "Completado" ? "text-[#29a16a]" : "text-[#2f8dff]"} />
+                    }
+                  </div>
+                  {/* Contenido */}
+                  <div className="flex-1 min-w-0 pb-1">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="text-xs font-semibold text-[#eaf2fb]">{ev.label}</span>
+                      {ev.kind === "failure" && ev.priority && (
+                        <Badge variant={statusBadgeVariant(ev.priority)} className="text-[9px] py-0 px-1">{ev.priority}</Badge>
+                      )}
+                      {ev.status && (
+                        <Badge variant={statusBadgeVariant(ev.status)} className="text-[9px] py-0 px-1">{ev.status}</Badge>
+                      )}
+                      {ev.cost > 0 && (
+                        <span className="text-[10px] text-[#29a16a] font-medium">{fmtCost(ev.cost)}</span>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-2 mt-0.5">
+                      <span className="text-[10px] text-[#4a6a8a]">{String(ev.date).slice(0, 10)}</span>
+                      {ev.sub && <span className="text-[10px] text-[#4a6a8a]">· {ev.sub}</span>}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Historial mantenimientos */}
       <Card>

@@ -35,7 +35,8 @@ const COLORS = {
 
 async function loadLogoBuffer() {
   try {
-    const res = await fetch("./logo.png");
+    // logo-excel.png: versión con fondo oscuro y texto blanco, legible sobre el encabezado azul
+    const res = await fetch("./logo-excel.png");
     if (!res.ok) return null;
     return await res.arrayBuffer();
   } catch {
@@ -46,8 +47,14 @@ async function loadLogoBuffer() {
 let logoBufferPromise = null;
 
 function getLogoBuffer() {
+  // Se cachea tras la primera carga para no refetch en cada exportación
   if (!logoBufferPromise) logoBufferPromise = loadLogoBuffer();
   return logoBufferPromise;
+}
+
+/** Llamar si se reemplaza el archivo logo-excel.png en caliente */
+export function resetLogoCache() {
+  logoBufferPromise = null;
 }
 
 function addSheetLogo(wb, ws, logoBuffer) {
@@ -56,9 +63,10 @@ function addSheetLogo(wb, ws, logoBuffer) {
     buffer: logoBuffer,
     extension: "png",
   });
+  // Dimensiones solicitadas: 2,66 cm ancho × 1,29 cm alto (96 dpi)
   ws.addImage(imageId, {
-    tl: { col: 0.2, row: 0.05 },
-    ext: { width: 96, height: 46 },
+    tl: { col: 0.05, row: 0.05 },
+    ext: { width: 101, height: 49 },
   });
 }
 
@@ -90,7 +98,7 @@ export async function xlsxExport(fileName, sheetTitle, columns, rows) {
   titleCell.font  = { name: "Calibri", size: 14, bold: true, color: { argb: COLORS.titleText } };
   titleCell.fill  = { type: "pattern", pattern: "solid", fgColor: { argb: COLORS.titleBg } };
   titleCell.alignment = { horizontal: "center", vertical: "middle" };
-  ws.getRow(1).height = 32;
+  ws.getRow(1).height = 37; // 1,29 cm ≈ 37 pt para alojar el logo
   addSheetLogo(wb, ws, logoBuffer);
 
   // ── Fila 2: Fecha de exportación ─────────────────────────────────────────

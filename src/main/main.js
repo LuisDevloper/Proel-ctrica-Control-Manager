@@ -6,11 +6,15 @@ const { registerIpcHandlers } = require("./ipc");
 const { initializeDatabase, getDatabase } = require("../database/db");
 const { autoMigrateIfNeeded } = require("../database/autoMigrate");
 const { startBackupScheduler, stopBackupScheduler } = require("../services/backup");
+const { startNativeNotifications } = require("../services/nativeNotifications");
 const { logInfo, logError } = require("../services/logger");
 const semver = require("semver");
 
 const VITE_DEV_PORT = 5173;
 const isDev = !app.isPackaged;
+
+// Nombre correcto en notificaciones de Windows y en la barra de tareas
+app.setAppUserModelId("Proeléctrica Control Manager");
 
 // Una sola instancia: si el usuario abre de nuevo el acceso directo, se enfoca la ventana ya abierta.
 const gotTheLock = app.requestSingleInstanceLock();
@@ -220,6 +224,7 @@ if (gotTheLock) {
 
       registerIpcHandlers();
       startBackupScheduler();
+      startNativeNotifications(getDatabase);
       createMainWindow();
       setupAutoUpdater();
 

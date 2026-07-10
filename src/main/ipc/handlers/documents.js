@@ -39,6 +39,30 @@ function registerDocumentsHandlers({
     return await db.prepare("SELECT * FROM documents WHERE id = ?").get(Number(id));
   }
 
+  /**
+   * Clasifica errores de PostgreSQL/Neon para devolver mensajes claros al usuario.
+   * Devuelve un string con el mensaje si es un error conocido, o null si es desconocido.
+   */
+  function classifyDbError(err) {
+    const msg  = (err?.message  || "").toLowerCase();
+    const code = err?.code      || "";
+    const detail = (err?.detail || "").toLowerCase();
+
+    // Neon: cuota de almacenamiento del proyecto superada
+    if (msg.includes("quota") || msg.includes("storage limit") || detail.includes("quota"))
+      return "El almacenamiento en la nube esta lleno. Ve a Configuracion → Almacenamiento para liberar espacio antes de subir mas archivos.";
+
+    // PostgreSQL error 53100: disk_full
+    if (code === "53100" || msg.includes("no space left") || msg.includes("disk full") || msg.includes("could not extend file"))
+      return "El almacenamiento en la nube esta lleno. Ve a Configuracion → Almacenamiento para liberar espacio antes de subir mas archivos.";
+
+    // PostgreSQL: fila demasiado grande
+    if (code === "54000" || msg.includes("row is too big") || msg.includes("value too long"))
+      return "El archivo es demasiado grande para almacenarse. Intenta comprimir el archivo antes de subirlo.";
+
+    return null;
+  }
+
   /** Si ya existe un permiso firmado para el mismo envío, lo elimina antes de subir el nuevo. */
   async function replaceExistingSignedPermit(db, entityType, entityId, docType) {
     if (entityType !== "external_shipment" || docType !== "permiso_firmado") return;
@@ -65,36 +89,42 @@ function registerDocumentsHandlers({
         return { ok: false, message: "El permiso firmado debe ser un archivo PDF." };
     }
 
-    await replaceExistingSignedPermit(db, entityType, entityId, docType);
+    try {
+      await replaceExistingSignedPermit(db, entityType, entityId, docType);
 
-    const storageKey = buildStorageKey(entityType, entityId, fileName);
-    const actor      = auth.getAuthSession()?.username || null;
+      const storageKey = buildStorageKey(entityType, entityId, fileName);
+      const actor      = auth.getAuthSession()?.username || null;
 
-    const result = await db.prepare(`
-      INSERT INTO documents (
-        entity_type, entity_id, doc_type, file_name, mime_type,
-        file_path, file_size, uploaded_by, created_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `).run(
-      entityType,
-      Number(entityId),
-      docType,
-      fileName,
-      mimeType,
-      storageKey,
-      buffer.length,
-      actor,
-      new Date().toISOString()
-    );
+      const result = await db.prepare(`
+        INSERT INTO documents (
+          entity_type, entity_id, doc_type, file_name, mime_type,
+          file_path, file_size, uploaded_by, created_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `).run(
+        entityType,
+        Number(entityId),
+        docType,
+        fileName,
+        mimeType,
+        storageKey,
+        buffer.length,
+        actor,
+        new Date().toISOString()
+      );
 
-    const newId = result.lastInsertRowid;
+      const newId = result.lastInsertRowid;
 
-    // Guardar el binario en la columna file_data (BYTEA)
-    await storeFileData(db, newId, buffer);
+      // Guardar el binario en la columna file_data (BYTEA)
+      await storeFileData(db, newId, buffer);
 
-    await logActivity(db, null, "UPLOAD", "documents", newId, `${docType} — ${fileName}`);
-    const row = await getDocumentById(db, newId);
-    return { ok: true, document: mapDocumentRow(row) };
+      await logActivity(db, null, "UPLOAD", "documents", newId, `${docType} — ${fileName}`);
+      const row = await getDocumentById(db, newId);
+      return { ok: true, document: mapDocumentRow(row) };
+    } catch (err) {
+      const known = classifyDbError(err);
+      if (known) return { ok: false, message: known, errorCode: "STORAGE_FULL" };
+      return { ok: false, message: "No se pudo guardar el archivo. Intenta de nuevo o contacta al administrador." };
+    }
   }
 
   // ── Handlers ─────────────────────────────────────────────────────────────

@@ -16,9 +16,9 @@ export function ToastProvider({ children }) {
     setToasts((prev) => prev.filter((t) => t.id !== id));
   }, []);
 
-  const showToast = useCallback((message, type = "info") => {
+  const showToast = useCallback((message, type = "info", opts = {}) => {
     const id = Date.now() + Math.random();
-    setToasts((prev) => [...prev.slice(-2), { id, message, type }]);
+    setToasts((prev) => [...prev.slice(-2), { id, message, type, duration: opts.duration }]);
   }, []);
 
   return (
@@ -33,7 +33,7 @@ export function ToastProvider({ children }) {
             key={toast.id}
             message={toast.message}
             type={toast.type}
-            duration={DURATIONS[toast.type] || DURATIONS.info}
+            duration={toast.duration || DURATIONS[toast.type] || DURATIONS.info}
             onDismiss={() => dismissToast(toast.id)}
           />
         ))}

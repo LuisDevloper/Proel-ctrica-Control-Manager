@@ -146,11 +146,19 @@ function EquiposTabs({ tab, onTabChange }) {
   );
 }
 
-export function Motores({ user }) {
+export function Motores({ user, navState, onNavDone }) {
   const [tab, setTab] = useState("motores");
   const [motors, setMotors]       = useState([]);
   const [loadingData, setLoadingData] = useState(true);
   const [detailId, setDetailId]   = useState(null);
+
+  // Abrir detalle directamente cuando se navega desde la búsqueda global
+  useEffect(() => {
+    if (navState?.motorId) {
+      setDetailId(navState.motorId);
+      onNavDone?.();
+    }
+  }, [navState?.motorId]); // eslint-disable-line react-hooks/exhaustive-deps
   const { editId, editData, setEditData, openEdit, closeEdit, isEditUnchanged, guardEditSave } = useInlineEdit();
   const [deleteId, setDeleteId]   = useState(null);
   const [form, setForm]           = useState(EMPTY_FORM);

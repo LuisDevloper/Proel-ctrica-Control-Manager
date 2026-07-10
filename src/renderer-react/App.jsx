@@ -1,10 +1,11 @@
-import React, { useState, useCallback, lazy, Suspense, useEffect } from "react";
+import React, { useState, useCallback, useRef, lazy, Suspense, useEffect } from "react";
 import { ToastProvider } from "./components/ui/Toast";
 import { useTheme } from "./context/ThemeContext";
 import { DbHealthProvider, useDbHealth } from "./context/DbHealthContext";
 import { SplashScreen } from "./components/ui/SplashScreen";
 import { Sidebar, NAV_ITEMS } from "./components/layout/Sidebar";
 import { NotificationBell } from "./components/ui/NotificationBell";
+import { GlobalSearch } from "./components/ui/GlobalSearch";
 import { UpdateBanner } from "./components/ui/UpdateBanner";
 import { DbConnectionBanner } from "./components/layout/DbConnectionBanner";
 import { PendingUpdateReminder } from "./components/layout/PendingUpdateReminder";
@@ -38,16 +39,56 @@ function AppContent() {
   const { refresh: dbRefresh } = useDbHealth();
   const [user, setUser]             = useState(null);
   const [view, setView]             = useState("dashboard");
+  const [navState, setNavState]     = useState({});
+  const [searchOpen, setSearchOpen] = useState(false);
   const [collapsed, setCollapsed]   = useState(false);
   const [splashDone, setSplashDone] = useState(false);
   const [fadingOut, setFadingOut]   = useState(false);
 
+  const navigateTo = useCallback((targetView, state = {}) => {
+    setView(targetView);
+    setNavState(state);
+  }, []);
+
   const handleSplashDone = useCallback(() => setSplashDone(true), []);
+
+  // ── handleLogout definido antes de cualquier useEffect que lo use ─────────
+  const handleLogout = useCallback((reason = "manual") => {
+    setFadingOut(true);
+    setTimeout(async () => {
+      try {
+        await window.proelectricaApi?.logout?.();
+        if (reason === "inactivity") {
+          showToast("Sesion cerrada automaticamente por inactividad.", "info");
+        } else {
+          showToast("Sesion cerrada correctamente.", "info");
+        }
+      } catch {
+        showToast("No se pudo cerrar la sesion en el servidor.", "warning");
+      }
+      setUser(null);
+      setView("dashboard");
+      setFadingOut(false);
+    }, 350);
+  }, [showToast]);
+
+  // ── Refs para el timer de inactividad ────────────────────────────────────
+  const IDLE_MS        = 5 * 60 * 1000;
+  const WARN_MS        = IDLE_MS - 30 * 1000;
+  const warnTimerRef   = useRef(null);
+  const logoutTimerRef = useRef(null);
+  const lastResetRef   = useRef(0);
 
   useEffect(() => {
     if (!user) return;
     const views = NAV_ITEMS.filter((item) => !item.adminOnly || user?.role === "ADMIN").map((i) => i.view);
     function onKey(e) {
+      // Ctrl+K — búsqueda global
+      if ((e.ctrlKey || e.metaKey) && e.key === "k") {
+        e.preventDefault();
+        setSearchOpen((o) => !o);
+        return;
+      }
       if (!e.altKey || e.ctrlKey || e.metaKey) return;
       const t = e.target;
       if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.isContentEditable)) return;
@@ -127,7 +168,7 @@ function AppContent() {
       }
     });
     return unsub;
-  }, [user, toggleTheme, showToast, dbRefresh]);
+  }, [user, handleLogout, toggleTheme, showToast, dbRefresh]);
 
   useEffect(() => {
     if (!splashDone) return;
@@ -150,20 +191,42 @@ function AppContent() {
     }).catch(() => {});
   }, [splashDone]);
 
-  function handleLogout() {
-    setFadingOut(true);
-    setTimeout(async () => {
-      try {
-        await window.proelectricaApi?.logout?.();
-        showToast("Sesión cerrada correctamente.", "info");
-      } catch {
-        showToast("No se pudo cerrar la sesión en el servidor.", "warning");
-      }
-      setUser(null);
-      setView("dashboard");
-      setFadingOut(false);
-    }, 350);
-  }
+  // ── Auto-logout por inactividad (5 minutos) ───────────────────────────────
+  useEffect(() => {
+    if (!user) return;
+
+    function resetTimers() {
+      // Throttle: ignorar eventos que lleguen con menos de 1s de diferencia
+      const now = Date.now();
+      if (now - lastResetRef.current < 1000) return;
+      lastResetRef.current = now;
+
+      clearTimeout(warnTimerRef.current);
+      clearTimeout(logoutTimerRef.current);
+
+      warnTimerRef.current = setTimeout(() => {
+        showToast(
+          "Tu sesion se cerrara en 30 segundos por inactividad. Mueve el raton o presiona una tecla para continuar.",
+          "warning",
+          { duration: 30000 }
+        );
+      }, WARN_MS);
+
+      logoutTimerRef.current = setTimeout(() => {
+        handleLogout("inactivity");
+      }, IDLE_MS);
+    }
+
+    const EVENTS = ["mousemove", "mousedown", "keydown", "scroll", "wheel", "touchstart"];
+    EVENTS.forEach((ev) => window.addEventListener(ev, resetTimers, { passive: true }));
+    resetTimers(); // iniciar temporizador al hacer login
+
+    return () => {
+      clearTimeout(warnTimerRef.current);
+      clearTimeout(logoutTimerRef.current);
+      EVENTS.forEach((ev) => window.removeEventListener(ev, resetTimers));
+    };
+  }, [user, handleLogout, showToast]);
 
   if (!splashDone) {
     return <SplashScreen onFinish={handleSplashDone} />;
@@ -212,7 +275,18 @@ function AppContent() {
             </div>
 
             <div className="flex-1 min-w-0 min-h-0 flex flex-col gap-0 overflow-hidden">
-              <header className="flex items-center justify-end py-2 px-1 mb-1 shrink-0">
+              <header className="flex items-center justify-between py-2 px-1 mb-1 shrink-0 gap-2">
+                {/* Botón de búsqueda global */}
+                <button
+                  type="button"
+                  onClick={() => setSearchOpen(true)}
+                  className="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-[#2a3d57] bg-[#0d1825]/60 text-[#4a6a8a] hover:text-[#9ab0c7] hover:border-[#3a5470] transition-colors text-sm"
+                  title="Búsqueda global (Ctrl+K)"
+                >
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                  <span className="hidden sm:inline">Buscar...</span>
+                  <kbd className="hidden sm:inline text-[10px] border border-[#2a3d57] rounded px-1 py-0.5 font-mono">Ctrl K</kbd>
+                </button>
                 <NotificationBell />
               </header>
 
@@ -228,10 +302,21 @@ function AppContent() {
                     <div className="h-64 rounded-2xl bg-white/5 mt-2" />
                   </div>
                 }>
-                  <ViewComponent user={user} />
+                  <ViewComponent
+                    user={user}
+                    navState={navState}
+                    onNavDone={() => setNavState({})}
+                  />
                 </Suspense>
               </main>
             </div>
+
+            {/* Búsqueda global */}
+            <GlobalSearch
+              open={searchOpen}
+              onClose={() => setSearchOpen(false)}
+              onNavigate={navigateTo}
+            />
           </div>
         )}
       </div>

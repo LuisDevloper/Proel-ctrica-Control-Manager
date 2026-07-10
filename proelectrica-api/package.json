@@ -1,0 +1,9 @@
+{
+  "name": "proelectrica-api",
+  "version": "1.0.0",
+  "description": "Backend API proxy para Proelectrica Control Manager — las credenciales de Neon viven aquí, no en el instalador.",
+  "private": true,
+  "dependencies": {
+    "pg": "^8.11.3"
+  }
+}
