@@ -96,6 +96,13 @@ function createMainWindow() {
     }
   });
 
+  // Bloquear zoom — resetear a 0 cada vez que el usuario intente cambiarlo
+  mainWindow.webContents.setZoomLevel(0);
+  mainWindow.webContents.setVisualZoomLevelLimits(1, 1);
+  mainWindow.webContents.on("zoom-changed", () => {
+    mainWindow.webContents.setZoomLevel(0);
+  });
+
   if (isDev && process.env.PCM_DEVTOOLS === "1") {
     mainWindow.webContents.once("did-finish-load", () => {
       mainWindow.webContents.openDevTools({ mode: "detach" });

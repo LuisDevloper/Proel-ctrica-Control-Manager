@@ -83,6 +83,11 @@ function AppContent() {
     if (!user) return;
     const views = NAV_ITEMS.filter((item) => !item.adminOnly || user?.role === "ADMIN").map((i) => i.view);
     function onKey(e) {
+      // Bloquear zoom con teclado (Ctrl +/- /0)
+      if ((e.ctrlKey || e.metaKey) && (e.key === "+" || e.key === "-" || e.key === "=" || e.key === "0")) {
+        e.preventDefault();
+        return;
+      }
       // Ctrl+K — búsqueda global
       if ((e.ctrlKey || e.metaKey) && e.key === "k") {
         e.preventDefault();
