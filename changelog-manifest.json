@@ -1,24 +1,6 @@
 {
-  "generatedAt": "2026-07-14T12:00:00.000Z",
+  "generatedAt": "2026-07-14T12:52:25.827Z",
   "entries": [
-    {
-      "version": "1.9.0",
-      "date": "2026-07-14",
-      "title": "Busqueda global, notificaciones Windows y mejoras operativas",
-      "highlights": [
-        "Busqueda global (Ctrl+K): encuentra motores, mantenimientos y fallas desde cualquier pantalla en tiempo real",
-        "Notificaciones nativas de Windows: alertas automaticas para mantenimientos vencidos, fallas sin resolver y stock minimo",
-        "Drag and drop de documentos: arrastra archivos directamente sobre la ficha del equipo o mantenimiento para adjuntarlos",
-        "KPIs de confiabilidad en el Dashboard: MTBF, disponibilidad y top de motores con mas fallas",
-        "Hoja de vida del equipo: timeline cronologica con todos los mantenimientos y fallas del motor en una sola pantalla",
-        "Exportar actividad a Excel: el registro de auditoria ahora se puede exportar en formato Excel",
-        "Nuevo tipo de documento Fotografia con miniatura previa en la lista de adjuntos",
-        "Confirmacion antes de eliminar documentos adjuntos",
-        "Logo Proelectrica actualizado en encabezados de Excel y PDF (fondo transparente, letras blancas)",
-        "Cierre automatico de sesion tras 5 minutos de inactividad",
-        "Zoom de la interfaz bloqueado para evitar que se deforme la pantalla accidentalmente"
-      ]
-    },
     {
       "version": "1.8.0",
       "date": "2026-06-30",

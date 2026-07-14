@@ -121,6 +121,11 @@ async function initializeDatabase() {
     CREATE INDEX IF NOT EXISTS idx_inv_movements_item ON inventory_movements(inventory_item_id);
     CREATE INDEX IF NOT EXISTS idx_inv_movements_date ON inventory_movements(created_at);
 
+    CREATE INDEX IF NOT EXISTS idx_failures_reported_at  ON failures(reported_at);
+    CREATE INDEX IF NOT EXISTS idx_failures_motor_id     ON failures(motor_id);
+    CREATE INDEX IF NOT EXISTS idx_maintenances_date     ON maintenances(maintenance_date);
+    CREATE INDEX IF NOT EXISTS idx_maintenances_motor_id ON maintenances(motor_id);
+
     CREATE TABLE IF NOT EXISTS documents (
       id SERIAL PRIMARY KEY,
       entity_type TEXT NOT NULL,

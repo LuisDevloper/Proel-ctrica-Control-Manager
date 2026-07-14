@@ -248,10 +248,12 @@ function registerDashboardHandlers({ ipcMain, getDatabase, guards, equipment }) 
   ipcMain.handle(
     "motors:reliability",
     secureHandler(denyIfNotAuthenticated, async (_event, opts = {}) => {
-      const db    = getDatabase();
-      const days  = Math.min(Math.max(Number(opts.days) || 365, 30), 730);
+      const db   = getDatabase();
+      const days = Math.min(Math.max(Number(opts.days) || 365, 30), 730);
+      // Fecha límite calculada una sola vez — permite usar el índice idx_failures_reported_at
+      // sin necesidad de castear la columna en cada fila
+      const since = new Date(Date.now() - days * 86400000).toISOString().slice(0, 10);
 
-      // Tabla de confiabilidad: fallas, costo y MTBF por motor (período configurable)
       const rows = await db.prepare(`
         SELECT
           mo.id,
@@ -262,12 +264,12 @@ function registerDashboardHandlers({ ipcMain, getDatabase, guards, equipment }) 
           COUNT(DISTINCT f.id)              AS failure_count,
           COUNT(DISTINCT m.id)              AS maintenance_count,
           COALESCE(SUM(DISTINCT m.cost), 0) AS total_cost,
-          MIN(f.reported_at::date)          AS first_failure,
-          MAX(f.reported_at::date)          AS last_failure,
+          MIN(LEFT(f.reported_at, 10))      AS first_failure,
+          MAX(LEFT(f.reported_at, 10))      AS last_failure,
           CASE
             WHEN COUNT(DISTINCT f.id) >= 2 THEN
               ROUND(
-                (MAX(f.reported_at::date) - MIN(f.reported_at::date))::numeric
+                (MAX(LEFT(f.reported_at, 10))::date - MIN(LEFT(f.reported_at, 10))::date)::numeric
                 / NULLIF(COUNT(DISTINCT f.id) - 1, 0)
               )
             ELSE NULL
@@ -275,16 +277,15 @@ function registerDashboardHandlers({ ipcMain, getDatabase, guards, equipment }) 
         FROM motors mo
         LEFT JOIN failures f
           ON f.motor_id = mo.id
-         AND f.reported_at::date >= CURRENT_DATE - ($1 || ' days')::interval
+         AND f.reported_at >= ?
         LEFT JOIN maintenances m
           ON m.motor_id = mo.id
-         AND m.maintenance_date::date >= CURRENT_DATE - ($1 || ' days')::interval
+         AND m.maintenance_date >= ?
         GROUP BY mo.id, mo.code, mo.brand, mo.status, mo.operational_location
         ORDER BY failure_count DESC, total_cost DESC
         LIMIT 20
-      `).all(String(days));
+      `).all(since, since);
 
-      // Resumen global del período
       const summary = await db.prepare(`
         SELECT
           COUNT(DISTINCT f.id) AS total_failures,
@@ -294,18 +295,21 @@ function registerDashboardHandlers({ ipcMain, getDatabase, guards, equipment }) 
         FROM motors mo
         LEFT JOIN failures f
           ON f.motor_id = mo.id
-         AND f.reported_at::date >= CURRENT_DATE - ($1 || ' days')::interval
+         AND f.reported_at >= ?
         LEFT JOIN (
           SELECT motor_id,
             COUNT(*) AS c,
             CASE WHEN COUNT(*) >= 2 THEN
-              ROUND((MAX(reported_at::date) - MIN(reported_at::date))::numeric / NULLIF(COUNT(*) - 1, 0))
+              ROUND(
+                (MAX(LEFT(reported_at, 10))::date - MIN(LEFT(reported_at, 10))::date)::numeric
+                / NULLIF(COUNT(*) - 1, 0)
+              )
             END AS mtbf
           FROM failures
-          WHERE reported_at::date >= CURRENT_DATE - ($1 || ' days')::interval
+          WHERE reported_at >= ?
           GROUP BY motor_id
         ) cnt ON cnt.motor_id = mo.id
-      `).get(String(days));
+      `).get(since, since);
 
       return { rows, summary, days };
     })

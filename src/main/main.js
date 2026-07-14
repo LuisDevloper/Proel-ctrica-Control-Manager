@@ -182,7 +182,23 @@ function setupAutoUpdater() {
   autoUpdater.on("update-not-available", ()     => sendStatus("up-to-date"));
   autoUpdater.on("update-available",     (info) => {
     storePendingRelease(info.version, info.releaseNotes);
-    sendStatus("available",   { version: info.version });
+    sendStatus("available", { version: info.version });
+    // Notificación nativa de Windows al detectar actualización
+    try {
+      const { Notification } = require("electron");
+      if (Notification.isSupported()) {
+        const n = new Notification({
+          title: "Proeléctrica — Actualización disponible",
+          body: `La versión ${info.version} está descargándose en segundo plano.`,
+          timeoutType: "default",
+        });
+        n.on("click", () => {
+          const win = BrowserWindow.getAllWindows()[0];
+          if (win) { if (win.isMinimized()) win.restore(); win.show(); win.focus(); }
+        });
+        n.show();
+      }
+    } catch (_) {}
   });
   autoUpdater.on("download-progress",    (prog) => sendStatus("downloading", { percent: Math.round(prog.percent) }));
   autoUpdater.on("update-downloaded",    (info) => {
@@ -193,6 +209,22 @@ function setupAutoUpdater() {
       logError("updater.pending_store", e);
     }
     sendStatus("downloaded", { version: info.version });
+    // Notificación nativa de Windows al terminar la descarga
+    try {
+      const { Notification } = require("electron");
+      if (Notification.isSupported()) {
+        const n = new Notification({
+          title: "Proeléctrica — Lista para instalar",
+          body: `La versión ${info.version} está lista. Reinicia la app para aplicar la actualización.`,
+          timeoutType: "default",
+        });
+        n.on("click", () => {
+          const win = BrowserWindow.getAllWindows()[0];
+          if (win) { if (win.isMinimized()) win.restore(); win.show(); win.focus(); }
+        });
+        n.show();
+      }
+    } catch (_) {}
   });
   autoUpdater.on("error",                (err)  => {
     logError("updater.error", err);
