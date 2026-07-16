@@ -6,14 +6,22 @@ import semver from "semver";
  */
 export const CHANGELOG = [
   {
+    version: "1.10.0",
+    date: "2026-07-16",
+    title: "Calendario interactivo e icono en notificaciones",
+    highlights: [
+      "Calendario interactivo: haz clic en cualquier dia para crear un mantenimiento con la fecha precargada",
+      "Icono de Proelectrica visible en las notificaciones nativas de Windows",
+      "Notificacion de Windows cuando hay una actualizacion disponible o lista para instalar",
+    ],
+  },
+  {
     version: "1.9.0",
     date: "2026-07-14",
     title: "Busqueda global, notificaciones Windows y mejoras operativas",
     highlights: [
       "Busqueda global (Ctrl+K): encuentra motores, mantenimientos y fallas desde cualquier pantalla",
       "Notificaciones nativas de Windows: alertas de mantenimientos vencidos, fallas sin resolver y stock minimo",
-      "Icono de la app visible en las notificaciones de Windows",
-      "Calendario interactivo: haz clic en un dia para crear un mantenimiento con la fecha precargada",
       "Drag and drop de documentos: arrastra archivos a la ficha del equipo o mantenimiento",
       "KPIs de confiabilidad en el Dashboard: MTBF, disponibilidad y top de motores con mas fallas",
       "Hoja de vida del equipo: timeline con mantenimientos y fallas en una sola pantalla",
