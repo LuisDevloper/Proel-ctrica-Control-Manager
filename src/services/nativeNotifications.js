@@ -11,6 +11,7 @@
 
 const { Notification, BrowserWindow } = require("electron");
 const Store = require("electron-store");
+const { notificationOptions } = require("./appIcon");
 
 const notifStore = new Store({ name: "notifications-state" });
 
@@ -117,11 +118,10 @@ function showGroup(title, items, appName) {
       : `${items[0].label} y ${items.length - 1} más`;
 
   try {
-    const notif = new Notification({
+    const notif = new Notification(notificationOptions({
       title: `${appName} — ${title}`,
       body,
-      timeoutType: "default",
-    });
+    }));
 
     notif.on("click", focusMainWindow);
     notif.show();

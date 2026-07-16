@@ -1,6 +1,24 @@
 {
-  "generatedAt": "2026-07-14T12:52:25.827Z",
+  "generatedAt": "2026-07-16T19:08:30.609Z",
   "entries": [
+    {
+      "version": "1.9.0",
+      "date": "2026-07-14",
+      "title": "Busqueda global, notificaciones Windows y mejoras operativas",
+      "highlights": [
+        "Busqueda global (Ctrl+K): encuentra motores, mantenimientos y fallas desde cualquier pantalla",
+        "Notificaciones nativas de Windows: alertas de mantenimientos vencidos, fallas sin resolver y stock minimo",
+        "Icono de la app visible en las notificaciones de Windows",
+        "Calendario interactivo: haz clic en un dia para crear un mantenimiento con la fecha precargada",
+        "Drag and drop de documentos: arrastra archivos a la ficha del equipo o mantenimiento",
+        "KPIs de confiabilidad en el Dashboard: MTBF, disponibilidad y top de motores con mas fallas",
+        "Hoja de vida del equipo: timeline con mantenimientos y fallas en una sola pantalla",
+        "Exportar actividad a Excel para auditorias",
+        "Nuevo tipo de documento Fotografia con miniatura en la lista de adjuntos",
+        "Cierre automatico de sesion tras 5 minutos de inactividad",
+        "Zoom de la interfaz bloqueado para evitar deformaciones accidentales"
+      ]
+    },
     {
       "version": "1.8.0",
       "date": "2026-06-30",

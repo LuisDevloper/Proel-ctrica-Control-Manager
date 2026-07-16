@@ -1,9 +1,10 @@
 import React from "react";
 import { cn } from "../../lib/utils";
 
-export function Card({ className, children, ...props }) {
+export const Card = React.forwardRef(function Card({ className, children, ...props }, ref) {
   return (
     <div
+      ref={ref}
       className={cn(
         "pcm-glass pcm-glass-hover rounded-2xl",
         "transition-[box-shadow,transform] duration-200",
@@ -14,7 +15,7 @@ export function Card({ className, children, ...props }) {
       {children}
     </div>
   );
-}
+});
 
 export function CardHeader({ className, children }) {
   return (

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/Card";
 import { Button } from "../components/ui/Button";
 import { Input, Select, Textarea, Field } from "../components/ui/Input";
@@ -63,7 +63,7 @@ function StatusBadge({ status }) {
   return <OperationalStatusBadge status={status} />;
 }
 
-export function Mantenimientos({ user }) {
+export function Mantenimientos({ user, navState, onNavDone }) {
   const [items, setItems]         = useState([]);
   const [motors, setMotors]       = useState([]);
   const [technicians, setTechs]   = useState([]);
@@ -80,6 +80,7 @@ export function Mantenimientos({ user }) {
   const mutBlockTitle             = !dbWritable ? dbTitle : (!canMutate ? READ_ONLY_ROLE_TITLE : undefined);
   const formDisabled              = !dbWritable || !canMutate;
   const filters = useFilters(items, { filterFn, defaultSortField:"maintenance_date", perPage:10, dateField:"maintenance_date" });
+  const formCardRef               = useRef(null);
 
   const load = useCallback(async () => {
     const [m, t, main] = await Promise.all([window.proelectricaApi.getMotors(), window.proelectricaApi.getTechnicians(), window.proelectricaApi.getMaintenances()]);
@@ -87,6 +88,21 @@ export function Mantenimientos({ user }) {
   }, []);
 
   useEffect(() => { load(); }, [load]);
+
+  // Precargar form cuando se navega desde el Calendario u otro origen
+  useEffect(() => {
+    if (!navState?.maintenanceDate) return;
+    setForm(prev => ({
+      ...prev,
+      maintenanceDate: navState.maintenanceDate,
+      motorId: navState.motorId ? String(navState.motorId) : prev.motorId,
+    }));
+    onNavDone?.();
+    // Scroll hasta el formulario
+    setTimeout(() => {
+      formCardRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 150);
+  }, [navState?.maintenanceDate, navState?.motorId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   function guessMimeFromName(name) {
     const ext = String(name || "").toLowerCase().split(".").pop();
@@ -195,7 +211,7 @@ export function Mantenimientos({ user }) {
         <ReadOnlyBanner message="Estas viendo este modulo en modo solo lectura. Puedes consultar datos y exportar, pero no crear ni editar registros." />
       )}
 
-      <Card>
+      <Card ref={formCardRef}>
         <CardHeader><CardTitle className="flex items-center gap-2"><Plus size={15}/> Registrar mantenimiento</CardTitle></CardHeader>
         <CardContent>
           <div className="grid grid-cols-2 gap-3">

@@ -8,6 +8,7 @@ const { autoMigrateIfNeeded } = require("../database/autoMigrate");
 const { startBackupScheduler, stopBackupScheduler } = require("../services/backup");
 const { startNativeNotifications } = require("../services/nativeNotifications");
 const { logInfo, logError } = require("../services/logger");
+const { getAppIconPath, notificationOptions } = require("../services/appIcon");
 const semver = require("semver");
 
 const VITE_DEV_PORT = 5173;
@@ -66,7 +67,7 @@ function saveWindowState(win) {
 }
 
 function createMainWindow() {
-  const iconPath = path.join(__dirname, "../../build/icon.ico");
+  const iconPath = getAppIconPath();
   const state    = getWindowState();
 
   const mainWindow = new BrowserWindow({
@@ -187,11 +188,10 @@ function setupAutoUpdater() {
     try {
       const { Notification } = require("electron");
       if (Notification.isSupported()) {
-        const n = new Notification({
+        const n = new Notification(notificationOptions({
           title: "Proeléctrica — Actualización disponible",
           body: `La versión ${info.version} está descargándose en segundo plano.`,
-          timeoutType: "default",
-        });
+        }));
         n.on("click", () => {
           const win = BrowserWindow.getAllWindows()[0];
           if (win) { if (win.isMinimized()) win.restore(); win.show(); win.focus(); }
@@ -213,11 +213,10 @@ function setupAutoUpdater() {
     try {
       const { Notification } = require("electron");
       if (Notification.isSupported()) {
-        const n = new Notification({
+        const n = new Notification(notificationOptions({
           title: "Proeléctrica — Lista para instalar",
           body: `La versión ${info.version} está lista. Reinicia la app para aplicar la actualización.`,
-          timeoutType: "default",
-        });
+        }));
         n.on("click", () => {
           const win = BrowserWindow.getAllWindows()[0];
           if (win) { if (win.isMinimized()) win.restore(); win.show(); win.focus(); }

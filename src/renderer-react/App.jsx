@@ -311,6 +311,7 @@ function AppContent() {
                     user={user}
                     navState={navState}
                     onNavDone={() => setNavState({})}
+                    onNavigate={navigateTo}
                   />
                 </Suspense>
               </main>
